@@ -76,6 +76,7 @@ export interface Config {
     pages: Page;
     categories: Category;
     media: Media;
+    assets: Asset;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -109,6 +110,7 @@ export interface Config {
     pages: PagesSelect<false> | PagesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    assets: AssetsSelect<false> | AssetsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -337,6 +339,31 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
+  originalUrl?: string | null;
+  proxyUrl?: string | null;
+  thumbnailUrl?: string | null;
+  mediaType: 'image' | 'video';
+  /**
+   * Computed as width / height (e.g. 16:9).
+   */
+  aspectRatio?: string | null;
+  status?: ('uploaded' | 'processing' | 'ready' | 'error') | null;
+  errorMessage?: string | null;
+  processedAt?: string | null;
+  collections?: (number | Asset)[] | null;
+  tags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  labels?: ('client-approved' | 'portfolio' | 'wip')[] | null;
+  featured?: boolean | null;
+  /**
+   * Small integer rating/stars. 0 = none.
+   */
+  favourite?: number | null;
+  createdBy?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -348,6 +375,32 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "assets".
+ */
+export interface Asset {
+  id: number;
+  title: string;
+  /**
+   * Human readable key. e.g. my-shoot-2025
+   */
+  slug: string;
+  description?: string | null;
+  owner?: (number | null) | User;
+  visibility?: ('private' | 'shared' | 'public') | null;
+  coverMedia?: (number | null) | Media;
+  items?: (number | Media)[] | null;
+  shareInfo?: {
+    publicLinkId?: string | null;
+    expiresAt?: string | null;
+    allowDownload?: boolean | null;
+    passwordHash?: string | null;
+    views?: number | null;
+  };
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1073,6 +1126,10 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
+        relationTo: 'assets';
+        value: number | Asset;
+      } | null)
+    | ({
         relationTo: 'forms';
         value: number | Form;
       } | null)
@@ -1371,6 +1428,25 @@ export interface CategoriesSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
+  originalUrl?: T;
+  proxyUrl?: T;
+  thumbnailUrl?: T;
+  mediaType?: T;
+  aspectRatio?: T;
+  status?: T;
+  errorMessage?: T;
+  processedAt?: T;
+  collections?: T;
+  tags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  labels?: T;
+  featured?: T;
+  favourite?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1382,6 +1458,30 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "assets_select".
+ */
+export interface AssetsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  description?: T;
+  owner?: T;
+  visibility?: T;
+  coverMedia?: T;
+  items?: T;
+  shareInfo?:
+    | T
+    | {
+        publicLinkId?: T;
+        expiresAt?: T;
+        allowDownload?: T;
+        passwordHash?: T;
+        views?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
