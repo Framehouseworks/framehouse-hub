@@ -20,6 +20,8 @@ playwright-report/index.html
 
 # misc
 .DS_Store
+project_dump.txt
+dump_project.py
 *.pem
 
 # debug

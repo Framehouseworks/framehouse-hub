@@ -1,3 +1,5 @@
+import { creativeOrAdmin } from '@/access/creativeOrAdmin'
+import { publicAccess } from '@/access/publicAccess'
 import type { CollectionConfig } from 'payload'
 
 import {
@@ -17,7 +19,14 @@ export const Media: CollectionConfig = {
   },
   slug: 'media',
   access: {
-    read: () => true,
+    // Everyone (including unauthenticated visitors) can READ media metadata & public preview URLs
+    // This matches your "public portfolios" requirement
+    read: publicAccess,
+
+    // Only creatives and admins can create/upload/update/delete assets
+    create: creativeOrAdmin,
+    update: creativeOrAdmin,
+    delete: creativeOrAdmin,
   },
   fields: [
     {
