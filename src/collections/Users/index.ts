@@ -12,7 +12,7 @@ import { ensureFirstUserIsAdmin } from './hooks/ensureFirstUserIsAdmin'
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    admin: ({ req: { user } }) => checkRole(['admin'], user),
+    admin: ({ req: { user } }) => checkRole(['admin', 'creative'], user),
     create: publicAccess,
     delete: adminOnly,
     read: adminOrSelf,
@@ -23,9 +23,7 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'roles'],
     useAsTitle: 'name',
   },
-  auth: {
-    tokenExpiration: 1209600,
-  },
+  auth: true,
   fields: [
     {
       name: 'name',
@@ -58,36 +56,6 @@ export const Users: CollectionConfig = {
           value: 'viewer',
         },
       ],
-    },
-    {
-      name: 'orders',
-      type: 'join',
-      collection: 'orders',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id', 'createdAt', 'total', 'currency', 'items'],
-      },
-    },
-    {
-      name: 'cart',
-      type: 'join',
-      collection: 'carts',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id', 'createdAt', 'total', 'currency', 'items'],
-      },
-    },
-    {
-      name: 'addresses',
-      type: 'join',
-      collection: 'addresses',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id'],
-      },
     },
   ],
 }

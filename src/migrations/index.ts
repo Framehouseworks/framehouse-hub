@@ -1,5 +1,9 @@
-// src/migrations/index.ts
-// Payload automatically collects the migration files in this folder
+import * as migration_20260126_220236 from './20260126_220236';
 
-export * from '@/migrations/2025-01-roles-enum-update';
-
+export const migrations = [
+  {
+    up: migration_20260126_220236.up,
+    down: migration_20260126_220236.down,
+    name: '20260126_220236'
+  },
+];

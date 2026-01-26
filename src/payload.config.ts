@@ -16,10 +16,10 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
-import { Assets } from '@/collections/Assets'
 import { Categories } from '@/collections/Categories'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
+import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'
 
 import { Footer } from '@/globals/Footer'
@@ -43,7 +43,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media, Assets],
+  collections: [Users, Pages, Categories, Media, Portfolios],
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URI || '',

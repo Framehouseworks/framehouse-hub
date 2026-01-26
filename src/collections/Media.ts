@@ -1,5 +1,5 @@
 import { creativeOrAdmin } from '@/access/creativeOrAdmin'
-import { publicAccess } from '@/access/publicAccess'
+import { ownerOrAdmin } from '@/access/ownerOrAdmin'
 import {
   FixedToolbarFeature,
   InlineToolbarFeature,
@@ -17,16 +17,13 @@ export const Media: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'filename',
-    defaultColumns: ['filename', 'mediaType', '_status', 'createdAt'],
+    defaultColumns: ['filename', 'mediaType', 'owner', 'createdAt'],
   },
   access: {
-    // metadata & public preview URLs may be public; control downloads later via shares/signed URLs
-    read: publicAccess,
-
-    // Only creatives and admins can create/upload/update/delete assets
+    read: () => true, // Allow layout and gallery to see media metadata/files
     create: creativeOrAdmin,
-    update: creativeOrAdmin,
-    delete: creativeOrAdmin,
+    update: ownerOrAdmin,
+    delete: ownerOrAdmin,
   },
   upload: {
     // TEMP DEV: store originals in public/media for now (dev only).
@@ -152,7 +149,7 @@ export const Media: CollectionConfig = {
     {
       name: 'collections',
       type: 'relationship',
-      relationTo: 'assets',
+      relationTo: 'portfolios',
       hasMany: true,
     },
     {
@@ -193,9 +190,20 @@ export const Media: CollectionConfig = {
       },
     },
     {
-      name: 'createdBy',
+      name: 'owner',
       type: 'relationship',
       relationTo: 'users',
+      required: true,
+      hooks: {
+        beforeValidate: [
+          ({ req, value }) => {
+            if (req.user && !value) {
+              return req.user.id
+            }
+            return value
+          },
+        ],
+      },
       admin: {
         readOnly: true,
         position: 'sidebar',

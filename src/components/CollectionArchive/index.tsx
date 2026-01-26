@@ -1,12 +1,12 @@
 import { cn } from '@/utilities/cn'
 import React from 'react'
 
-import type { Product } from '@/payload-types'
+import type { Media } from '@/payload-types'
 
 /* import { Card } from '../Card' */
 
 export type Props = {
-  posts: Product[]
+  posts: Media[]
 }
 
 export const CollectionArchive: React.FC<Props> = (props) => {
