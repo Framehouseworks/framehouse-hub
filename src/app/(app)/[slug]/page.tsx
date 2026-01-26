@@ -4,13 +4,12 @@ import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { RenderHero } from '@/heros/RenderHero'
 import { generateMeta } from '@/utilities/generateMeta'
 import configPromise from '@payload-config'
-import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
-import { homeStaticData } from '@/endpoints/seed/home-static'
-import React from 'react'
+import { getPayload } from 'payload'
 
-import type { Page } from '@/payload-types'
 import { notFound } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {
   const payload = await getPayload({ config: configPromise })
@@ -50,12 +49,7 @@ export default async function Page({ params }: Args) {
     slug,
   })
 
-  // Remove this code once your website is seeded
-  if (!page && slug === 'home') {
-    page = homeStaticData() as Page
-  }
-
-  if (!page) {
+  if (!page || (slug && slug.includes('.'))) {
     return notFound()
   }
 

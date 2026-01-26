@@ -1,26 +1,17 @@
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
-import { Plugin } from 'payload'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
-import { ecommercePlugin } from '@payloadcms/plugin-ecommerce'
+import { Plugin } from 'payload'
 
-import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
-
-import { Page, Product } from '@/payload-types'
+import { Page } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
-import { ProductsCollection } from '@/collections/Products'
-import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
-import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
-import { adminOnly } from '@/access/adminOnly'
-import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
-import { customerOnlyFieldAccess } from '@/access/customerOnlyFieldAccess'
 
-const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
-  return doc?.title ? `${doc.title} | Payload Ecommerce Template` : 'Payload Ecommerce Template'
+const generateTitle: GenerateTitle<Page> = ({ doc }) => {
+  return doc?.title ? `${doc.title} | Framehouse Hub` : 'Framehouse Hub'
 }
 
-const generateURL: GenerateURL<Product | Page> = ({ doc }) => {
+const generateURL: GenerateURL<Page> = ({ doc }) => {
   const url = getServerSideURL()
 
   return doc?.slug ? `${url}/${doc.slug}` : url
@@ -63,30 +54,6 @@ export const plugins: Plugin[] = [
           return field
         })
       },
-    },
-  }),
-  ecommercePlugin({
-    access: {
-      adminOnly,
-      adminOnlyFieldAccess,
-      adminOrCustomerOwner,
-      adminOrPublishedStatus,
-      customerOnlyFieldAccess,
-    },
-    customers: {
-      slug: 'users',
-    },
-    payments: {
-      paymentMethods: [
-        stripeAdapter({
-          secretKey: process.env.STRIPE_SECRET_KEY!,
-          publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-          webhookSecret: process.env.STRIPE_WEBHOOKS_SIGNING_SECRET!,
-        }),
-      ],
-    },
-    products: {
-      productsCollectionOverride: ProductsCollection,
     },
   }),
 ]

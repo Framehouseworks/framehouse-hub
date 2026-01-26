@@ -24,12 +24,12 @@ export const Carousel: Block = {
       admin: {
         condition: (_, siblingData) => siblingData.populateBy === 'collection',
       },
-      defaultValue: 'products',
+      defaultValue: 'media',
       label: 'Collections To Show',
       options: [
         {
-          label: 'Products',
-          value: 'products',
+          label: 'Media',
+          value: 'media',
         },
       ],
     },
@@ -61,7 +61,7 @@ export const Carousel: Block = {
       },
       hasMany: true,
       label: 'Selection',
-      relationTo: ['products'],
+      relationTo: ['media'],
     },
     {
       name: 'populatedDocs',
@@ -73,7 +73,7 @@ export const Carousel: Block = {
       },
       hasMany: true,
       label: 'Populated Docs',
-      relationTo: ['products'],
+      relationTo: ['media'],
     },
     {
       name: 'populatedDocsTotal',

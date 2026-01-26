@@ -1,4 +1,4 @@
-import { slugField } from 'payload'
+import { slugField } from '@/fields/slug'
 import type { CollectionConfig } from 'payload'
 
 export const Categories: CollectionConfig = {
@@ -16,8 +16,6 @@ export const Categories: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    slugField({
-      position: undefined,
-    }),
+    ...slugField(),
   ],
 }

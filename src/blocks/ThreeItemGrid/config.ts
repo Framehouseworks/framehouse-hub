@@ -4,16 +4,16 @@ export const ThreeItemGrid: Block = {
   slug: 'threeItemGrid',
   fields: [
     {
-      name: 'products',
+      name: 'media',
       type: 'relationship',
       admin: {
         isSortable: true,
       },
       hasMany: true,
-      label: 'Products to show',
+      label: 'Media to show',
       maxRows: 3,
       minRows: 3,
-      relationTo: 'products',
+      relationTo: 'media',
     },
   ],
   interfaceName: 'ThreeItemGridBlock',
