@@ -310,13 +310,28 @@ export interface Media {
  */
 export interface Portfolio {
   id: number;
-  title: string;
   /**
-   * URL path for the portfolio (e.g. wedding-day-2024)
+   * Portfolio Title (Rich Text supported for custom emphasis)
    */
-  slug: string;
-  subheading?: string | null;
-  description?: {
+  title: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * Portfolio Subheading (Rich Text supported)
+   */
+  subheading?: {
     root: {
       type: string;
       children: {
@@ -331,6 +346,10 @@ export interface Portfolio {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Automatically generated based on username and title.
+   */
+  slug?: string | null;
   owner: number | User;
   visibility?: ('private' | 'public' | 'shared') | null;
   password?: string | null;
@@ -351,17 +370,57 @@ export interface Portfolio {
   };
   layoutBlocks: (
     | {
-        items: (number | Media)[];
-        sizeMode?: ('small' | 'medium' | 'large') | null;
+        /**
+         * Use the "Select from Gallery" button above to add images
+         */
+        items: {
+          media: number | Media;
+          size?: ('small' | 'medium' | 'large' | 'full') | null;
+          id?: string | null;
+        }[];
         spacing?: ('small' | 'medium' | 'large' | 'none') | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'grid';
       }
     | {
+        content: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        alignment?: ('left' | 'center' | 'right') | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'text';
+      }
+    | {
         media: number | Media;
-        caption?: string | null;
-        parallaxEffect?: boolean | null;
+        caption?: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'featured';
@@ -1174,9 +1233,8 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface PortfoliosSelect<T extends boolean = true> {
   title?: T;
-  slug?: T;
   subheading?: T;
-  description?: T;
+  slug?: T;
   owner?: T;
   visibility?: T;
   password?: T;
@@ -1194,9 +1252,22 @@ export interface PortfoliosSelect<T extends boolean = true> {
         grid?:
           | T
           | {
-              items?: T;
-              sizeMode?: T;
+              items?:
+                | T
+                | {
+                    media?: T;
+                    size?: T;
+                    id?: T;
+                  };
               spacing?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              content?: T;
+              alignment?: T;
               id?: T;
               blockName?: T;
             };
@@ -1205,7 +1276,6 @@ export interface PortfoliosSelect<T extends boolean = true> {
           | {
               media?: T;
               caption?: T;
-              parallaxEffect?: T;
               id?: T;
               blockName?: T;
             };

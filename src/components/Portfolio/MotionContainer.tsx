@@ -27,7 +27,6 @@ export const MotionContainer: React.FC<MotionContainerProps> = ({
             <motion.div
                 initial="initial"
                 animate="animate"
-                exit="exit"
                 variants={variants}
                 className={className}
             >
@@ -42,7 +41,6 @@ export const MotionContainer: React.FC<MotionContainerProps> = ({
         <motion.div
             initial="initial"
             animate="animate"
-            whileHover="hover"
             variants={variants}
             transition={{ ...templateTransition, delay }}
             className={className}

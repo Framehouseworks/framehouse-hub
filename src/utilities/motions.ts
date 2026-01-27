@@ -16,7 +16,7 @@ export type MotionType =
     | 'staggerItem'
     | 'parallax'
     | 'shimmer'
-    | 'hoverInvert';
+    | 'reveal';
 
 /**
  * Global Animation Templates
@@ -24,9 +24,9 @@ export type MotionType =
 export const motionTemplates: Record<MotionType, any> = {
     // Entrance animation for container blocks
     fadeEntrance: {
-        initial: { opacity: 0, y: 20 },
+        initial: { opacity: 0, y: 30 },
         animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -20 },
+        exit: { opacity: 0, y: -30 },
         transition: ZIPPY_TRANSITION,
     },
 
@@ -37,41 +37,41 @@ export const motionTemplates: Record<MotionType, any> = {
             opacity: 1,
             transition: {
                 staggerChildren,
-                delayChildren: 0.2,
+                delayChildren: 0.1,
             },
         },
     }),
 
     // Stagger item entrance
     staggerItem: {
-        initial: { opacity: 0, y: 15 },
+        initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         transition: ZIPPY_TRANSITION,
     },
 
+    // Subtle Reveal for images (Slow fade)
+    reveal: {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        transition: { duration: 1.2, ease: [0.33, 1, 0.68, 1] },
+    },
+
     // Subtle Parallax effect for featured images
     parallax: {
-        initial: { scale: 1.1, opacity: 0 },
+        initial: { scale: 1.05, opacity: 0 },
         animate: { scale: 1, opacity: 1 },
-        transition: { ...ZIPPY_TRANSITION, duration: 1.2 },
+        transition: { ...ZIPPY_TRANSITION, duration: 1.5 },
     },
 
     // Loading shimmer pulse
     shimmer: {
         animate: {
-            opacity: [0.4, 0.7, 0.4],
+            opacity: [0.2, 0.4, 0.2],
             transition: {
-                duration: 1.5,
+                duration: 2,
                 repeat: Infinity,
                 ease: "easeInOut",
             },
         },
     },
-
-    // Hover effect for grid items
-    hoverInvert: {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        hover: { y: -5, transition: ZIPPY_TRANSITION },
-    }
 };
