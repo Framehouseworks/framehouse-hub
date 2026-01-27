@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Modal, toast, useField, useModal } from '@payloadcms/ui'
+import { Button, Modal, toast, useField, useForm, useModal } from '@payloadcms/ui'
 import { CheckCircle2, PlusIcon, SearchIcon, XIcon } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -13,8 +13,16 @@ const generateId = () => {
 
 export const VisualMediaPicker: React.FC<{ path: string }> = ({ path }) => {
     const arrayPath = path.replace('addMultipleMedia', 'items')
+    const form = useForm()
     const { value, setValue } = useField<any[]>({ path: arrayPath })
     const { toggleModal, isModalOpen } = useModal()
+
+    useEffect(() => {
+        if (form) {
+            console.log('[VisualMediaPicker] Form methods available:', Object.keys(form))
+        }
+    }, [form])
+
     const modalSlug = `media-picker-${path.replace(/\./g, '-')}`
 
     const [mediaList, setMediaList] = useState<any[]>([])
@@ -45,7 +53,6 @@ export const VisualMediaPicker: React.FC<{ path: string }> = ({ path }) => {
             const fetchMedia = async () => {
                 setLoading(true)
                 try {
-                    // Limit to 50 for speed, user can search for more if we implement pagination
                     const response = await fetch('/api/media?limit=100&sort=-createdAt')
                     console.log('[VisualMediaPicker] Fetch response status:', response.status)
 
@@ -67,20 +74,41 @@ export const VisualMediaPicker: React.FC<{ path: string }> = ({ path }) => {
     }, [isModalOpen(modalSlug), modalSlug])
 
     const handleAdd = () => {
-        console.log('[VisualMediaPicker] handleAdd called', { selectedCount: selected.size })
-        // Robust check: Ensure value is actually an array before spreading
-        const currentItems = Array.isArray(value) ? value : []
+        console.log('[VisualMediaPicker] handleAdd initiated', { path, arrayPath, selectedCount: selected.size })
+
+        // Defensive data retrieval: Try useForm's data first, then useField's value
+        // We cast form to any to avoid TS errors while we find the right property name
+        const formState = form as any
+        const latestData = formState?.getDataByPath ? formState.getDataByPath(arrayPath) : value
+
+        const currentItems = Array.isArray(latestData) ? latestData : []
+        console.log('[VisualMediaPicker] Resolved current items:', currentItems.length)
+
         const newItems = Array.from(selected).map(id => ({
             id: generateId(),
             media: id,
             size: 'medium'
         }))
 
-        console.log('[VisualMediaPicker] Updating value with new items:', newItems)
-        setValue([...currentItems, ...newItems])
-        toast.success(`Added ${selected.size} item${selected.size > 1 ? 's' : ''}`)
-        setSelected(new Set())
-        toggleModal(modalSlug)
+        const finalValue = [...currentItems, ...newItems]
+        console.log('[VisualMediaPicker] Dispatching new value, total count:', finalValue.length)
+
+        // Try multiple ways to update if one fails
+        if (formState?.setFieldValue) {
+            console.log('[VisualMediaPicker] Using form.setFieldValue')
+            formState.setFieldValue(arrayPath, finalValue)
+        } else {
+            console.log('[VisualMediaPicker] Using useField.setValue')
+            setValue(finalValue)
+        }
+
+        toast.success(`Successfully added ${selected.size} items to grid`)
+
+        // Delay resetting selection and closing modal slightly to ensure state is caught
+        setTimeout(() => {
+            setSelected(new Set())
+            toggleModal(modalSlug)
+        }, 100)
     }
 
     const toggleSelect = (id: string) => {
