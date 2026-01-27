@@ -7,6 +7,9 @@ import {
   lexicalEditor
 } from '@payloadcms/richtext-lexical'
 import type { CollectionConfig } from 'payload'
+import { FolderCell } from './components/FolderCell'
+import { LibraryRedirector } from './components/LibraryRedirector'
+import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSlug } from './hooks/generateSlug'
 import { stripDocumentId } from './hooks/stripDocumentId'
 
@@ -30,16 +33,20 @@ const richLexical = lexicalEditor({
 
 export const Portfolios: CollectionConfig = {
   slug: 'portfolios',
+  folders: true,
   admin: {
     group: 'Content',
-    useAsTitle: 'title',
-    defaultColumns: ['title', 'owner', 'visibility', 'updatedAt'],
+    useAsTitle: 'name',
+    defaultColumns: ['name', 'folderLocation', 'owner', 'visibility', 'updatedAt'],
+    components: {
+      beforeListTable: [LibraryRedirector as any],
+    },
     livePreview: {
       url: ({ data }) => `${process.env.NEXT_PUBLIC_SERVER_URL}/p/${data.slug}`,
     },
   },
   hooks: {
-    beforeChange: [stripDocumentId, generateSlug],
+    beforeChange: [stripDocumentId, generateSlug, ensureLibraryAssignment],
   },
   access: {
     create: () => true,
@@ -71,6 +78,20 @@ export const Portfolios: CollectionConfig = {
     delete: ownerOrAdmin,
   },
   fields: [
+    {
+      name: 'folderLocation',
+      type: 'ui',
+      admin: {
+        components: {
+          Cell: FolderCell as any,
+        },
+      },
+    },
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+    },
     {
       name: 'title',
       type: 'richText',

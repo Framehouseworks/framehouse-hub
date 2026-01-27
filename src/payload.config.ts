@@ -31,6 +31,8 @@ import { plugins } from './plugins'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+import { ensureFolderParenting, protectLibraryFolder } from '@/collections/Portfolios/hooks/protectLibrary'
+
 export default buildConfig({
   admin: {
     components: {
@@ -85,13 +87,64 @@ export default buildConfig({
     },
   }),
   //email: nodemailerAdapter(),
-  endpoints: [],
+  endpoints: [
+    {
+      path: '/library-id',
+      method: 'get',
+      handler: async (req) => {
+        try {
+          const folders = await req.payload.find({
+            collection: 'payload-folders',
+            where: {
+              and: [
+                { name: { equals: 'Portfolio Library' } },
+                { folder: { exists: false } },
+              ],
+            },
+            depth: 0,
+            limit: 1,
+          })
+
+          if (folders.docs.length > 0) {
+            return Response.json({ id: folders.docs[0].id })
+          }
+
+          // Create it if it doesn't exist
+          const newFolder = await req.payload.create({
+            collection: 'payload-folders',
+            data: {
+              name: 'Portfolio Library',
+            },
+          })
+
+          return Response.json({ id: newFolder.id })
+        } catch (err) {
+          req.payload.logger.error({ err, msg: 'Error in /library-id endpoint' })
+          return Response.json({ error: 'Internal Server Error' }, { status: 500 })
+        }
+      },
+    },
+  ],
   globals: [Header, Footer],
   plugins: [
     ...plugins,
     // storage-adapter-placeholder
   ],
   secret: process.env.PAYLOAD_SECRET || '',
+  folders: {
+    collectionOverrides: [
+      async ({ collection }) => {
+        return {
+          ...collection,
+          hooks: {
+            ...collection.hooks,
+            beforeDelete: [...(collection.hooks?.beforeDelete || []), protectLibraryFolder],
+            beforeChange: [...(collection.hooks?.beforeChange || []), ensureFolderParenting],
+          },
+        }
+      },
+    ],
+  },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },

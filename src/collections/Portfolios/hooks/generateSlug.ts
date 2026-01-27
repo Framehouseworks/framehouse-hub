@@ -3,11 +3,14 @@ import type { CollectionBeforeChangeHook } from 'payload'
 export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, operation, originalDoc }) => {
     if (operation === 'create' || operation === 'update') {
         const title = data.title || originalDoc?.title
+        const name = data.name || originalDoc?.name
         const owner = data.owner || originalDoc?.owner
 
-        if (title && owner) {
+        let plainTitle = ''
+        if (name) {
+            plainTitle = name
+        } else if (title) {
             // Extract plain text from rich text title
-            let plainTitle = ''
             if (typeof title === 'string') {
                 plainTitle = title
             } else if (typeof title === 'object' && title !== null && 'root' in title) {
@@ -23,6 +26,14 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
                 // Slate fallback
                 plainTitle = title.map((n: any) => n.children?.map((c: any) => c.text).join('')).join('')
             }
+        }
+
+        // Auto-populate name if missing
+        if (!data.name && plainTitle) {
+            data.name = plainTitle
+        }
+
+        if (plainTitle && owner) {
 
             // Get user identifier
             const rawUserId = typeof owner === 'object' && owner !== null ? (owner.id || (owner as any)._id) : owner
