@@ -1,5 +1,32 @@
 import { ownerOrAdmin } from '@/access/ownerOrAdmin'
+import {
+  AlignFeature,
+  BoldFeature,
+  FixedToolbarFeature,
+  ItalicFeature,
+  lexicalEditor
+} from '@payloadcms/richtext-lexical'
 import type { CollectionConfig } from 'payload'
+import { generateSlug } from './hooks/generateSlug'
+import { stripDocumentId } from './hooks/stripDocumentId'
+
+// Minimal Lexical for Titles/Subheadings
+const minimalistLexical = lexicalEditor({
+  features: () => [
+    BoldFeature(),
+    ItalicFeature(),
+    AlignFeature(),
+    FixedToolbarFeature(), // Ensures toolbar is always visible for clarity
+  ],
+})
+
+// Rich Lexical for Content Blocks
+const richLexical = lexicalEditor({
+  features: ({ defaultFeatures }) => [
+    ...defaultFeatures.filter(f => f.key !== 'table'), // Remove table if it's in defaults
+    FixedToolbarFeature(),
+  ],
+})
 
 export const Portfolios: CollectionConfig = {
   slug: 'portfolios',
@@ -7,6 +34,12 @@ export const Portfolios: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'owner', 'visibility', 'updatedAt'],
+    livePreview: {
+      url: ({ data }) => `${process.env.NEXT_PUBLIC_SERVER_URL}/p/${data.slug}`,
+    },
+  },
+  hooks: {
+    beforeChange: [stripDocumentId, generateSlug],
   },
   access: {
     create: () => true,
@@ -40,25 +73,30 @@ export const Portfolios: CollectionConfig = {
   fields: [
     {
       name: 'title',
-      type: 'text',
+      type: 'richText',
       required: true,
-    },
-    {
-      name: 'slug',
-      type: 'text',
-      required: true,
-      unique: true,
+      editor: minimalistLexical,
       admin: {
-        description: 'URL path for the portfolio (e.g. wedding-day-2024)',
+        description: 'Portfolio Title (Rich Text supported for custom emphasis)',
       },
     },
     {
       name: 'subheading',
-      type: 'text',
+      type: 'richText',
+      editor: minimalistLexical,
+      admin: {
+        description: 'Portfolio Subheading (Rich Text supported)',
+      },
     },
     {
-      name: 'description',
-      type: 'richText',
+      name: 'slug',
+      type: 'text',
+      unique: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Automatically generated based on username and title.',
+      },
     },
     {
       name: 'owner',
@@ -157,20 +195,43 @@ export const Portfolios: CollectionConfig = {
           },
           fields: [
             {
-              name: 'items',
-              type: 'relationship',
-              relationTo: 'media',
-              hasMany: true,
-              required: true,
+              name: 'addMultipleMedia',
+              type: 'ui',
+              admin: {
+                components: {
+                  Field: '@/collections/Portfolios/components/VisualMediaPicker#VisualMediaPicker',
+                },
+              },
             },
             {
-              name: 'sizeMode',
-              type: 'select',
-              defaultValue: 'medium',
-              options: [
-                { label: 'Small (Dense)', value: 'small' },
-                { label: 'Medium (Balanced)', value: 'medium' },
-                { label: 'Large (Airy)', value: 'large' },
+              name: 'items',
+              type: 'array',
+              required: true,
+              admin: {
+                initCollapsed: false,
+                components: {
+                  RowLabel: '@/collections/Portfolios/components/MediaRowLabel#MediaRowLabel',
+                },
+                description: 'Use the "Select from Gallery" button above to add images',
+              },
+              fields: [
+                {
+                  name: 'media',
+                  type: 'relationship',
+                  relationTo: 'media',
+                  required: true,
+                },
+                {
+                  name: 'size',
+                  type: 'select',
+                  defaultValue: 'medium',
+                  options: [
+                    { label: 'Small', value: 'small' },
+                    { label: 'Medium', value: 'medium' },
+                    { label: 'Large', value: 'large' },
+                    { label: 'Full Width', value: 'full' },
+                  ],
+                },
               ],
             },
             {
@@ -182,6 +243,31 @@ export const Portfolios: CollectionConfig = {
                 { label: 'Medium', value: 'medium' },
                 { label: 'Large', value: 'large' },
                 { label: 'None', value: 'none' },
+              ],
+            },
+          ],
+        },
+        {
+          slug: 'text',
+          labels: {
+            singular: 'Rich Text Block',
+            plural: 'Rich Text Blocks',
+          },
+          fields: [
+            {
+              name: 'content',
+              type: 'richText',
+              required: true,
+              editor: richLexical,
+            },
+            {
+              name: 'alignment',
+              type: 'select',
+              defaultValue: 'left',
+              options: [
+                { label: 'Left', value: 'left' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'right' },
               ],
             },
           ],
@@ -201,12 +287,8 @@ export const Portfolios: CollectionConfig = {
             },
             {
               name: 'caption',
-              type: 'text',
-            },
-            {
-              name: 'parallaxEffect',
-              type: 'checkbox',
-              defaultValue: false,
+              type: 'richText',
+              editor: minimalistLexical,
             },
           ],
         },
