@@ -102,6 +102,49 @@ export const Portfolios: CollectionConfig = {
       }
     },
     {
+      name: 'theme',
+      type: 'group',
+      admin: {
+        position: 'sidebar',
+      },
+      fields: [
+        {
+          name: 'fontPairing',
+          type: 'select',
+          defaultValue: 'modern-sans',
+          options: [
+            { label: 'Modern Sans (Inter)', value: 'modern-sans' },
+            { label: 'Classic Serif (Playfair)', value: 'classic-serif' },
+            { label: 'Technical Mono (IBM Plex)', value: 'tech-mono' },
+          ],
+        },
+        {
+          name: 'backgroundColor',
+          type: 'text',
+          defaultValue: '#000000',
+          admin: {
+            description: 'Hex color for the portfolio background',
+          },
+        },
+        {
+          name: 'textColor',
+          type: 'text',
+          defaultValue: '#ffffff',
+          admin: {
+            description: 'Hex color for the text',
+          },
+        },
+        {
+          name: 'accentColor',
+          type: 'text',
+          defaultValue: '#ffffff',
+          admin: {
+            description: 'Hex color for accents and dividers',
+          },
+        },
+      ],
+    },
+    {
       name: 'layoutBlocks',
       type: 'blocks',
       required: true,
@@ -109,8 +152,8 @@ export const Portfolios: CollectionConfig = {
         {
           slug: 'grid',
           labels: {
-            singular: 'Media Grid',
-            plural: 'Media Grids',
+            singular: 'Masonry Grid',
+            plural: 'Masonry Grids',
           },
           fields: [
             {
@@ -121,15 +164,26 @@ export const Portfolios: CollectionConfig = {
               required: true,
             },
             {
-              name: 'columns',
-              type: 'number',
-              defaultValue: 3,
-              min: 1,
-              max: 6,
-              admin: {
-                description: 'Preferred number of columns on desktop'
-              }
-            }
+              name: 'sizeMode',
+              type: 'select',
+              defaultValue: 'medium',
+              options: [
+                { label: 'Small (Dense)', value: 'small' },
+                { label: 'Medium (Balanced)', value: 'medium' },
+                { label: 'Large (Airy)', value: 'large' },
+              ],
+            },
+            {
+              name: 'spacing',
+              type: 'select',
+              defaultValue: 'medium',
+              options: [
+                { label: 'Tight', value: 'small' },
+                { label: 'Medium', value: 'medium' },
+                { label: 'Large', value: 'large' },
+                { label: 'None', value: 'none' },
+              ],
+            },
           ],
         },
         {
@@ -148,7 +202,12 @@ export const Portfolios: CollectionConfig = {
             {
               name: 'caption',
               type: 'text',
-            }
+            },
+            {
+              name: 'parallaxEffect',
+              type: 'checkbox',
+              defaultValue: false,
+            },
           ],
         },
         {
@@ -172,7 +231,7 @@ export const Portfolios: CollectionConfig = {
               name: 'showDivider',
               type: 'checkbox',
               defaultValue: false,
-            }
+            },
           ],
         },
       ],

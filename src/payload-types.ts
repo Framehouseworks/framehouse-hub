@@ -285,6 +285,24 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    optimized?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -316,13 +334,26 @@ export interface Portfolio {
   owner: number | User;
   visibility?: ('private' | 'public' | 'shared') | null;
   password?: string | null;
+  theme?: {
+    fontPairing?: ('modern-sans' | 'classic-serif' | 'tech-mono') | null;
+    /**
+     * Hex color for the portfolio background
+     */
+    backgroundColor?: string | null;
+    /**
+     * Hex color for the text
+     */
+    textColor?: string | null;
+    /**
+     * Hex color for accents and dividers
+     */
+    accentColor?: string | null;
+  };
   layoutBlocks: (
     | {
         items: (number | Media)[];
-        /**
-         * Preferred number of columns on desktop
-         */
-        columns?: number | null;
+        sizeMode?: ('small' | 'medium' | 'large') | null;
+        spacing?: ('small' | 'medium' | 'large' | 'none') | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'grid';
@@ -330,6 +361,7 @@ export interface Portfolio {
     | {
         media: number | Media;
         caption?: string | null;
+        parallaxEffect?: boolean | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'featured';
@@ -1111,6 +1143,30 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        optimized?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1124,6 +1180,14 @@ export interface PortfoliosSelect<T extends boolean = true> {
   owner?: T;
   visibility?: T;
   password?: T;
+  theme?:
+    | T
+    | {
+        fontPairing?: T;
+        backgroundColor?: T;
+        textColor?: T;
+        accentColor?: T;
+      };
   layoutBlocks?:
     | T
     | {
@@ -1131,7 +1195,8 @@ export interface PortfoliosSelect<T extends boolean = true> {
           | T
           | {
               items?: T;
-              columns?: T;
+              sizeMode?: T;
+              spacing?: T;
               id?: T;
               blockName?: T;
             };
@@ -1140,6 +1205,7 @@ export interface PortfoliosSelect<T extends boolean = true> {
           | {
               media?: T;
               caption?: T;
+              parallaxEffect?: T;
               id?: T;
               blockName?: T;
             };
