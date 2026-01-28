@@ -9,6 +9,7 @@ import {
 import type { CollectionConfig } from 'payload'
 import { FolderCell } from './components/FolderCell'
 import { LibraryRedirector } from './components/LibraryRedirector'
+import { VisualGalleryEditor } from './components/VisualGalleryEditor'
 import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSlug } from './hooks/generateSlug'
 import { stripDocumentId } from './hooks/stripDocumentId'
@@ -232,6 +233,7 @@ export const Portfolios: CollectionConfig = {
                 initCollapsed: false,
                 components: {
                   RowLabel: '@/collections/Portfolios/components/MediaRowLabel#MediaRowLabel',
+                  Field: VisualGalleryEditor as any,
                 },
                 description: 'Use the "Select from Gallery" button above to add images',
               },
@@ -252,6 +254,27 @@ export const Portfolios: CollectionConfig = {
                     { label: 'Large', value: 'large' },
                     { label: 'Full Width', value: 'full' },
                   ],
+                },
+                {
+                  name: 'alt',
+                  type: 'text',
+                  admin: {
+                    description: 'Override alt text for this specific gallery item',
+                  },
+                },
+                {
+                  name: 'caption',
+                  type: 'text',
+                  admin: {
+                    description: 'Caption shown in the visual layout',
+                  },
+                },
+                {
+                  name: 'link',
+                  type: 'text',
+                  admin: {
+                    placeholder: 'https://...',
+                  },
                 },
               ],
             },

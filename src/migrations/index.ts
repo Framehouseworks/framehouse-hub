@@ -5,6 +5,7 @@ import * as migration_20260127_132433_remove_id_unique_constraint from './202601
 import * as migration_20260127_152341 from './20260127_152341';
 import * as migration_20260127_153424 from './20260127_153424';
 import * as migration_20260127_154806 from './20260127_154806';
+import * as migration_20260127_194000_add_gallery_metadata from './20260127_194000_add_gallery_metadata';
 
 export const migrations = [
   {
@@ -41,5 +42,10 @@ export const migrations = [
     up: migration_20260127_154806.up,
     down: migration_20260127_154806.down,
     name: '20260127_154806'
+  },
+  {
+    up: migration_20260127_194000_add_gallery_metadata.up,
+    down: migration_20260127_194000_add_gallery_metadata.down,
+    name: '20260127_194000_add_gallery_metadata'
   },
 ];

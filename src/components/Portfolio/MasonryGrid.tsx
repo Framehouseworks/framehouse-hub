@@ -6,7 +6,11 @@ import React, { useState } from 'react'
 import { Lightbox } from './Lightbox'
 import { MotionContainer } from './MotionContainer'
 
-type GridItem = NonNullable<NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>>[number]
+type GridItem = NonNullable<NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>>[number] & {
+    alt?: string
+    caption?: string
+    link?: string
+}
 
 interface MasonryGridProps {
     items: GridItem[]
@@ -73,22 +77,37 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
                                         ? 'w-full'
                                         : 'w-full' // medium is default
 
+                                const Content = (
+                                    <div
+                                        className="relative cursor-pointer bg-zinc-900 group overflow-hidden"
+                                        onClick={() => !item.link && setSelectedImage(media)}
+                                    >
+                                        <Media
+                                            resource={media}
+                                            alt={item.alt || media.alt}
+                                            imgClassName="w-full h-auto object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
+                                        />
+                                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
+
+                                        {item.caption && (
+                                            <div className="mt-3 text-[var(--portfolio-text)] opacity-60 text-[10px] tracking-widest uppercase italic">
+                                                {item.caption}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+
                                 return (
                                     <div
                                         key={item.id || media.id}
                                         className={`break-inside-avoid-column ${itemSpacing} ${sizeClass}`}
                                     >
                                         <MotionContainer type="reveal" delay={0}>
-                                            <div
-                                                className="relative cursor-pointer bg-zinc-900 group overflow-hidden"
-                                                onClick={() => setSelectedImage(media)}
-                                            >
-                                                <Media
-                                                    resource={media}
-                                                    imgClassName="w-full h-auto object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
-                                                />
-                                                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
-                                            </div>
+                                            {item.link ? (
+                                                <a href={item.link} target="_blank" rel="noopener noreferrer">
+                                                    {Content}
+                                                </a>
+                                            ) : Content}
                                         </MotionContainer>
                                     </div>
                                 )
@@ -100,19 +119,35 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
                     const item = group
                     const media = item.media as MediaType
                     if (!media) return null
+
+                    const Content = (
+                        <div
+                            className="relative cursor-pointer bg-zinc-900 group overflow-hidden"
+                            onClick={() => !item.link && setSelectedImage(media)}
+                        >
+                            <Media
+                                resource={media}
+                                alt={item.alt || media.alt}
+                                imgClassName="w-full h-auto object-cover transition-all duration-700 ease-out group-hover:scale-[1.01] rounded-none shadow-sm"
+                            />
+                            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
+
+                            {item.caption && (
+                                <div className="mt-4 text-[var(--portfolio-text)] opacity-60 text-xs tracking-widest uppercase italic text-center">
+                                    {item.caption}
+                                </div>
+                            )}
+                        </div>
+                    )
+
                     return (
                         <div key={item.id || `full-${groupIndex}`} className={`w-full ${itemSpacing}`}>
                             <MotionContainer type="reveal">
-                                <div
-                                    className="relative cursor-pointer bg-zinc-900 group overflow-hidden"
-                                    onClick={() => setSelectedImage(media)}
-                                >
-                                    <Media
-                                        resource={media}
-                                        imgClassName="w-full h-auto object-cover transition-all duration-700 ease-out group-hover:scale-[1.01] rounded-none shadow-sm"
-                                    />
-                                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
-                                </div>
+                                {item.link ? (
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer">
+                                        {Content}
+                                    </a>
+                                ) : Content}
                             </MotionContainer>
                         </div>
                     )
