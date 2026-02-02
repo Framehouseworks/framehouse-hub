@@ -7,9 +7,9 @@ import {
   lexicalEditor
 } from '@payloadcms/richtext-lexical'
 import type { CollectionConfig } from 'payload'
-import { FolderCell } from './components/FolderCell'
-import { LibraryRedirector } from './components/LibraryRedirector'
-import { VisualGalleryEditor } from './components/VisualGalleryEditor'
+// REMOVED: Direct component imports to prevent CSS loading errors in Node
+// import { FolderCell } from './components/FolderCell'
+// import { LibraryRedirector } from './components/LibraryRedirector'
 import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSlug } from './hooks/generateSlug'
 import { stripDocumentId } from './hooks/stripDocumentId'
@@ -20,14 +20,14 @@ const minimalistLexical = lexicalEditor({
     BoldFeature(),
     ItalicFeature(),
     AlignFeature(),
-    FixedToolbarFeature(), // Ensures toolbar is always visible for clarity
+    FixedToolbarFeature(), 
   ],
 })
 
 // Rich Lexical for Content Blocks
 const richLexical = lexicalEditor({
   features: ({ defaultFeatures }) => [
-    ...defaultFeatures.filter(f => f.key !== 'table'), // Remove table if it's in defaults
+    ...defaultFeatures.filter(f => f.key !== 'table'), 
     FixedToolbarFeature(),
   ],
 })
@@ -40,7 +40,8 @@ export const Portfolios: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'folderLocation', 'owner', 'visibility', 'updatedAt'],
     components: {
-      beforeListTable: [LibraryRedirector as any],
+      // FIX: Use string path
+      beforeListTable: ['@/collections/Portfolios/components/LibraryRedirector#LibraryRedirector'],
     },
     livePreview: {
       url: ({ data }) => `${process.env.NEXT_PUBLIC_SERVER_URL}/p/${data.slug}`,
@@ -84,7 +85,8 @@ export const Portfolios: CollectionConfig = {
       type: 'ui',
       admin: {
         components: {
-          Cell: FolderCell as any,
+          // FIX: Use string path
+          Cell: '@/collections/Portfolios/components/FolderCell#FolderCell',
         },
       },
     },
@@ -216,26 +218,14 @@ export const Portfolios: CollectionConfig = {
             plural: 'Masonry Grids',
           },
           fields: [
-            {
-              name: 'addMultipleMedia',
-              type: 'ui',
-              admin: {
-                components: {
-                  Field: '@/collections/Portfolios/components/VisualMediaPicker#VisualMediaPicker',
-                },
-              },
-            },
+            // Standard Array Field (Placeholder for now)
             {
               name: 'items',
               type: 'array',
               required: true,
               admin: {
-                initCollapsed: false,
-                components: {
-                  RowLabel: '@/collections/Portfolios/components/MediaRowLabel#MediaRowLabel',
-                  Field: VisualGalleryEditor as any,
-                },
-                description: 'Use the "Select from Gallery" button above to add images',
+                initCollapsed: true, 
+                description: 'Add and reorder images for the grid.',
               },
               fields: [
                 {

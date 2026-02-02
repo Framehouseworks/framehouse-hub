@@ -378,11 +378,20 @@ export interface Portfolio {
   layoutBlocks: (
     | {
         /**
-         * Use the "Select from Gallery" button above to add images
+         * Add and reorder images for the grid.
          */
         items: {
           media: number | Media;
           size?: ('small' | 'medium' | 'large' | 'full') | null;
+          /**
+           * Override alt text for this specific gallery item
+           */
+          alt?: string | null;
+          /**
+           * Caption shown in the visual layout
+           */
+          caption?: string | null;
+          link?: string | null;
           id?: string | null;
         }[];
         spacing?: ('small' | 'medium' | 'large' | 'none') | null;
@@ -1296,6 +1305,9 @@ export interface PortfoliosSelect<T extends boolean = true> {
                 | {
                     media?: T;
                     size?: T;
+                    alt?: T;
+                    caption?: T;
+                    link?: T;
                     id?: T;
                   };
               spacing?: T;
