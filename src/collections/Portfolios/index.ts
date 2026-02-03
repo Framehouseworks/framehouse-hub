@@ -20,14 +20,14 @@ const minimalistLexical = lexicalEditor({
     BoldFeature(),
     ItalicFeature(),
     AlignFeature(),
-    FixedToolbarFeature(), 
+    FixedToolbarFeature(),
   ],
 })
 
 // Rich Lexical for Content Blocks
 const richLexical = lexicalEditor({
   features: ({ defaultFeatures }) => [
-    ...defaultFeatures.filter(f => f.key !== 'table'), 
+    ...defaultFeatures.filter(f => f.key !== 'table'),
     FixedToolbarFeature(),
   ],
 })
@@ -224,8 +224,11 @@ export const Portfolios: CollectionConfig = {
               type: 'array',
               required: true,
               admin: {
-                initCollapsed: true, 
+                initCollapsed: true,
                 description: 'Add and reorder images for the grid.',
+                components: {
+                  Field: '@/collections/Portfolios/components/VisualGalleryEditor#VisualGalleryEditor',
+                },
               },
               fields: [
                 {
