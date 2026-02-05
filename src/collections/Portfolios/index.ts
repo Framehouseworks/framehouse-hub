@@ -12,6 +12,7 @@ import type { CollectionConfig } from 'payload'
 // import { LibraryRedirector } from './components/LibraryRedirector'
 import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSlug } from './hooks/generateSlug'
+import { reorderItems } from './hooks/reorderItems'
 import { stripDocumentId } from './hooks/stripDocumentId'
 
 // Minimal Lexical for Titles/Subheadings
@@ -48,7 +49,7 @@ export const Portfolios: CollectionConfig = {
     },
   },
   hooks: {
-    beforeChange: [stripDocumentId, generateSlug, ensureLibraryAssignment],
+    beforeChange: [reorderItems, stripDocumentId, generateSlug, ensureLibraryAssignment],
   },
   access: {
     create: () => true,
@@ -227,7 +228,7 @@ export const Portfolios: CollectionConfig = {
                 initCollapsed: true,
                 description: 'Add and reorder images for the grid.',
                 components: {
-                  Field: '@/collections/Portfolios/components/VisualGalleryEditor#VisualGalleryEditor',
+                  Field: '@/collections/Portfolios/components/MasonryGridV2/ModernMasonryEditor#ModernMasonryEditor',
                 },
               },
               fields: [
@@ -269,6 +270,15 @@ export const Portfolios: CollectionConfig = {
                     placeholder: 'https://...',
                   },
                 },
+                {
+                  name: 'instanceId',
+                  type: 'text',
+                  admin: {
+                    // Force field to be present in API but hidden from UI
+                    style: { display: 'none' },
+                    readOnly: true,
+                  },
+                },
               ],
             },
             {
@@ -281,6 +291,15 @@ export const Portfolios: CollectionConfig = {
                 { label: 'Large', value: 'large' },
                 { label: 'None', value: 'none' },
               ],
+            },
+            {
+              name: 'itemsOrder',
+              type: 'text',
+              admin: {
+                // Force field to be present in API but hidden from UI
+                style: { display: 'none' },
+                readOnly: true,
+              },
             },
           ],
         },

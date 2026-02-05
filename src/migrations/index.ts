@@ -6,6 +6,10 @@ import * as migration_20260127_152341 from './20260127_152341';
 import * as migration_20260127_153424 from './20260127_153424';
 import * as migration_20260127_154806 from './20260127_154806';
 import * as migration_20260127_194000_add_gallery_metadata from './20260127_194000_add_gallery_metadata';
+import * as migration_20260204_145320_add_shadow_order_fields from './20260204_145320_add_shadow_order_fields';
+import * as migration_20260204_152241_backfill_shadow_order_data from './20260204_152241_backfill_shadow_order_data';
+import * as migration_20260204_153156_migrate_independent_identity from './20260204_153156_migrate_independent_identity';
+import * as migration_20260204_163526_force_independent_identity_v2 from './20260204_163526_force_independent_identity_v2';
 
 export const migrations = [
   {
@@ -41,11 +45,31 @@ export const migrations = [
   {
     up: migration_20260127_154806.up,
     down: migration_20260127_154806.down,
-    name: '20260127_154806'
+    name: '20260127_154806',
   },
   {
     up: migration_20260127_194000_add_gallery_metadata.up,
     down: migration_20260127_194000_add_gallery_metadata.down,
-    name: '20260127_194000_add_gallery_metadata'
+    name: '20260127_194000_add_gallery_metadata',
+  },
+  {
+    up: migration_20260204_145320_add_shadow_order_fields.up,
+    down: migration_20260204_145320_add_shadow_order_fields.down,
+    name: '20260204_145320_add_shadow_order_fields',
+  },
+  {
+    up: migration_20260204_152241_backfill_shadow_order_data.up,
+    down: migration_20260204_152241_backfill_shadow_order_data.down,
+    name: '20260204_152241_backfill_shadow_order_data',
+  },
+  {
+    up: migration_20260204_153156_migrate_independent_identity.up,
+    down: migration_20260204_153156_migrate_independent_identity.down,
+    name: '20260204_153156_migrate_independent_identity',
+  },
+  {
+    up: migration_20260204_163526_force_independent_identity_v2.up,
+    down: migration_20260204_163526_force_independent_identity_v2.down,
+    name: '20260204_163526_force_independent_identity_v2'
   },
 ];

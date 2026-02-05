@@ -392,9 +392,11 @@ export interface Portfolio {
            */
           caption?: string | null;
           link?: string | null;
+          instanceId?: string | null;
           id?: string | null;
         }[];
         spacing?: ('small' | 'medium' | 'large' | 'none') | null;
+        itemsOrder?: string | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'grid';
@@ -1308,9 +1310,11 @@ export interface PortfoliosSelect<T extends boolean = true> {
                     alt?: T;
                     caption?: T;
                     link?: T;
+                    instanceId?: T;
                     id?: T;
                   };
               spacing?: T;
+              itemsOrder?: T;
               id?: T;
               blockName?: T;
             };
