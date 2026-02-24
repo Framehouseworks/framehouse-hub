@@ -11,7 +11,6 @@ export const reorderItems: CollectionBeforeChangeHook = ({ data }) => {
                     if (!currentId) {
                         item.instanceId = `inst_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
                     } else if (!item.instanceId && item.instance_id) {
-                        // Crucial: Backfill camelCase from snake_case to prevent Payload clobbering
                         item.instanceId = item.instance_id
                     }
                 })
