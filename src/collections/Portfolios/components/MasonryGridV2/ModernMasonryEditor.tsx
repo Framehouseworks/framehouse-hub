@@ -20,9 +20,9 @@ import {
     Thumbnail,
     useConfig,
     useField,
-    useForm,
     useListDrawer,
-    usePayloadAPI
+    usePayloadAPI,
+    useWatchForm
 } from '@payloadcms/ui'
 import React, { useCallback, useMemo } from 'react'
 
@@ -42,14 +42,15 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
     const itemsOrderPath = `${parentPath}.itemsOrder`;
 
     // FIELD 1: The physical data pool (items)
+    // Use useWatchForm for live reactive data access in Payload 3.x
+    const { getDataByPath, dispatchFields } = useWatchForm()
     const { setValue: setItemsValue } = useField<GalleryItem[]>({ path })
-    const { getDataByPath } = useForm()
 
-    // Retrieve the actual array data directly from the form state to bypass Payload 3.x's numeric optimization
+    // Retrieve the actual array data reactively from the form state
     const itemsValue = useMemo(() => {
         const data = getDataByPath(path)
         return Array.isArray(data) ? data : []
-    }, [getDataByPath, path, setItemsValue])
+    }, [getDataByPath, path])
 
     // FIELD 2: The sequence manifest (itemsOrder JSON)
     const { value: orderValue, setValue: setOrderValue } = useField<string>({ path: itemsOrderPath })
@@ -101,8 +102,8 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
     const handleDragEnd = (event: any) => {
         const { active, over } = event
         if (active && over && active.id !== over.id) {
-            const oldIndex = displayItems.findIndex((item) => item.instanceId === active.id)
-            const newIndex = displayItems.findIndex((item) => item.instanceId === over.id)
+            const oldIndex = displayItems.findIndex((item) => (item.instanceId || (item as any).instance_id) === active.id)
+            const newIndex = displayItems.findIndex((item) => (item.instanceId || (item as any).instance_id) === over.id)
 
             if (oldIndex !== -1 && newIndex !== -1) {
                 const newItems = arrayMove(displayItems, oldIndex, newIndex)
@@ -122,13 +123,19 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
     const onSelect = useCallback(({ docID }: { docID: string }) => {
         const newInstanceId = `inst_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
         const newItem: GalleryItem = {
-            id: '',
+            id: undefined as any, // Omit ID to let Payload generate it
             instanceId: newInstanceId,
             media: docID,
             size: 'medium',
         }
 
-        setItemsValue([...itemsPool, newItem])
+        const newValue = [...itemsPool, newItem]
+        setItemsValue(newValue) // Traditional write for dirty flag
+        dispatchFields({
+            type: 'UPDATE',
+            path,
+            value: newValue,
+        })
 
         let currentOrder: string[] = []
         try {
@@ -137,10 +144,16 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 
         setOrderValue(JSON.stringify([...currentOrder, newInstanceId]))
         closeDrawer()
-    }, [itemsPool, setItemsValue, orderValue, setOrderValue, closeDrawer])
+    }, [itemsPool, dispatchFields, path, orderValue, setOrderValue, closeDrawer])
 
     const handleRemoveItem = (instanceId: string) => {
-        setItemsValue(itemsPool.filter(i => i.instanceId !== instanceId))
+        const newValue = itemsPool.filter(i => (i.instanceId || (i as any).instance_id) !== instanceId)
+        setItemsValue(newValue) // Traditional write for dirty flag
+        dispatchFields({
+            type: 'UPDATE',
+            path,
+            value: newValue,
+        })
 
         let currentOrder: string[] = []
         try {
@@ -148,6 +161,16 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
         } catch (e) { }
 
         setOrderValue(JSON.stringify(currentOrder.filter(id => id !== instanceId)))
+    }
+
+    const handleUpdateSize = (instanceId: string, size: GalleryItem['size']) => {
+        const newValue = itemsPool.map(i => (i.instanceId || (i as any).instance_id) === instanceId ? { ...i, size } : i)
+        setItemsValue(newValue) // Ensure Payload sees field as 'dirty'
+        dispatchFields({
+            type: 'UPDATE',
+            path,
+            value: newValue,
+        })
     }
 
     const sensors = useSensors(
@@ -177,15 +200,19 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
                     gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
                     gap: '20px'
                 }}>
-                    <SortableContext items={displayItems.map(i => i.instanceId as string)} strategy={rectSortingStrategy}>
-                        {displayItems.map((item) => (
-                            <SortableGridItem
-                                key={item.instanceId}
-                                item={item}
-                                onRemove={() => handleRemoveItem(item.instanceId!)}
-                                serverURL={serverURL}
-                            />
-                        ))}
+                    <SortableContext items={displayItems.map(i => (i.instanceId || (i as any).instance_id) as string)} strategy={rectSortingStrategy}>
+                        {displayItems.map((item) => {
+                            const iid = (item.instanceId || (item as any).instance_id) as string
+                            return (
+                                <SortableGridItem
+                                    key={iid}
+                                    item={item}
+                                    onRemove={() => handleRemoveItem(iid)}
+                                    onUpdateSize={(size) => handleUpdateSize(iid, size)}
+                                    serverURL={serverURL}
+                                />
+                            )
+                        })}
                     </SortableContext>
 
                     <ListDrawerToggler>
@@ -213,7 +240,39 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 
             <style dangerouslySetInnerHTML={{
                 __html: `
-                .grid-item-card:hover { transform: translateY(-2px); border-color: var(--primary-500); }
+                .grid-item-card { position: relative; }
+                .grid-item-card:hover .item-controls, 
+                .grid-item-card:focus-within .item-controls { opacity: 1; transform: translateY(0); }
+                .item-controls { 
+                    position: absolute; bottom: 0; left: 0; right: 0; 
+                    background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+                    padding: 4px; display: flex; gap: 2px; align-items: center; justify-content: center;
+                    opacity: 0; transform: translateY(5px); transition: all 0.2s ease;
+                    border-bottom-left-radius: var(--style-radius-s);
+                    border-bottom-right-radius: var(--style-radius-s);
+                    pointer-events: auto;
+                    z-index: 20;
+                }
+                .size-btn {
+                    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+                    color: white; font-size: 8px; padding: 2px 0; border-radius: 3px; cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: bold;
+                    width: 18px;
+                    text-align: center;
+                    line-height: 1.2;
+                }
+                .size-btn:hover { background: rgba(255,255,255,0.3); }
+                .size-btn.active { background: var(--theme-primary-500); border-color: var(--theme-primary-400); }
+                .remove-btn {
+                    background: var(--theme-error-500); color: white; border: none; 
+                    border-radius: 3px; width: 18px; height: 18px; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 11px;
+                    margin-left: 4px;
+                    flex-shrink: 0;
+                }
+                .remove-btn:hover { background: var(--theme-error-600); }
                 .add-item-trigger:hover { background: var(--theme-elevation-100); border-color: var(--theme-elevation-400); }
             `}} />
         </div>
@@ -223,8 +282,9 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 const SortableGridItem: React.FC<{
     item: GalleryItem,
     onRemove: () => void,
+    onUpdateSize: (size: GalleryItem['size']) => void,
     serverURL: string
-}> = ({ item, onRemove, serverURL }) => {
+}> = ({ item, onRemove, onUpdateSize, serverURL }) => {
     const {
         attributes,
         listeners,
@@ -232,7 +292,7 @@ const SortableGridItem: React.FC<{
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: item.instanceId as string })
+    } = useSortable({ id: (item.instanceId || (item as any).instance_id) as string })
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -243,6 +303,9 @@ const SortableGridItem: React.FC<{
     }
 
     const mediaId = typeof item.media === 'object' ? item.media?.id : item.media
+    const currentSize = item.size || 'medium'
+
+    const sizes: GalleryItem['size'][] = ['small', 'medium', 'large', 'full']
 
     return (
         <div
@@ -261,18 +324,30 @@ const SortableGridItem: React.FC<{
                 border: '1px solid var(--theme-elevation-200)',
             }}>
                 <MediaThumbnail id={mediaId} serverURL={serverURL} />
-                <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={onRemove}
-                    style={{
-                        position: 'absolute', top: 5, right: 5,
-                        background: 'var(--theme-error-500)', color: 'white',
-                        border: 'none', borderRadius: '50%', width: 20, height: 20,
-                        cursor: 'pointer', zIndex: 10
-                    }}
-                >
-                    ×
-                </button>
+
+                <div className="item-controls" onPointerDown={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                        {sizes.map(size => (
+                            <button
+                                key={size}
+                                className={`size-btn ${currentSize === size ? 'active' : ''}`}
+                                onClick={() => onUpdateSize(size)}
+                                title={`Set size to ${size}`}
+                                aria-label={`Set size to ${size}`}
+                            >
+                                {size?.charAt(0).toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        className="remove-btn"
+                        onClick={onRemove}
+                        title="Remove item"
+                        aria-label="Remove item"
+                    >
+                        ×
+                    </button>
+                </div>
             </div>
         </div>
     )

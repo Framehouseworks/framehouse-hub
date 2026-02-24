@@ -6,9 +6,13 @@ export const reorderItems: CollectionBeforeChangeHook = ({ data }) => {
             if (block.blockType === 'grid') {
                 // 1. IDENTITY GUARDIANSHIP: Ensure every item has a persistent instanceId
                 const items = block.items || []
-                items.forEach((item: any, index: number) => {
-                    if (!item.instanceId) {
+                items.forEach((item: any) => {
+                    const currentId = item.instanceId || item.instance_id
+                    if (!currentId) {
                         item.instanceId = `inst_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
+                    } else if (!item.instanceId && item.instance_id) {
+                        // Crucial: Backfill camelCase from snake_case to prevent Payload clobbering
+                        item.instanceId = item.instance_id
                     }
                 })
 
