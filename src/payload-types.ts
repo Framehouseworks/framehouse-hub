@@ -75,11 +75,16 @@ export interface Config {
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
+    'payload-folders': FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    'payload-folders': {
+      documentsAndFolders: 'payload-folders' | 'portfolios';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
@@ -89,6 +94,7 @@ export interface Config {
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -285,6 +291,24 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    optimized?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -292,13 +316,29 @@ export interface Media {
  */
 export interface Portfolio {
   id: number;
-  title: string;
+  name: string;
   /**
-   * URL path for the portfolio (e.g. wedding-day-2024)
+   * Portfolio Title (Rich Text supported for custom emphasis)
    */
-  slug: string;
-  subheading?: string | null;
-  description?: {
+  title: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * Portfolio Subheading (Rich Text supported)
+   */
+  subheading?: {
     root: {
       type: string;
       children: {
@@ -313,23 +353,92 @@ export interface Portfolio {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Automatically generated based on username and title.
+   */
+  slug?: string | null;
   owner: number | User;
   visibility?: ('private' | 'public' | 'shared') | null;
   password?: string | null;
+  theme?: {
+    fontPairing?: ('modern-sans' | 'classic-serif' | 'tech-mono') | null;
+    /**
+     * Hex color for the portfolio background
+     */
+    backgroundColor?: string | null;
+    /**
+     * Hex color for the text
+     */
+    textColor?: string | null;
+    /**
+     * Hex color for accents and dividers
+     */
+    accentColor?: string | null;
+  };
   layoutBlocks: (
     | {
-        items: (number | Media)[];
         /**
-         * Preferred number of columns on desktop
+         * Add and reorder images for the grid.
          */
-        columns?: number | null;
+        items: {
+          media: number | Media;
+          size?: ('small' | 'medium' | 'large' | 'full') | null;
+          /**
+           * Override alt text for this specific gallery item
+           */
+          alt?: string | null;
+          /**
+           * Caption shown in the visual layout
+           */
+          caption?: string | null;
+          link?: string | null;
+          instanceId?: string | null;
+          id?: string | null;
+        }[];
+        spacing?: ('small' | 'medium' | 'large' | 'none') | null;
+        itemsOrder?: string | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'grid';
       }
     | {
+        content: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        alignment?: ('left' | 'center' | 'right') | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'text';
+      }
+    | {
         media: number | Media;
-        caption?: string | null;
+        caption?: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'featured';
@@ -342,6 +451,33 @@ export interface Portfolio {
         blockType: 'spacer';
       }
   )[];
+  folder?: (number | null) | FolderInterface;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders".
+ */
+export interface FolderInterface {
+  id: number;
+  name: string;
+  folder?: (number | null) | FolderInterface;
+  documentsAndFolders?: {
+    docs?: (
+      | {
+          relationTo?: 'payload-folders';
+          value: number | FolderInterface;
+        }
+      | {
+          relationTo?: 'portfolios';
+          value: number | Portfolio;
+        }
+    )[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  folderType?: 'portfolios'[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -824,6 +960,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'form-submissions';
         value: number | FormSubmission;
+      } | null)
+    | ({
+        relationTo: 'payload-folders';
+        value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -1111,27 +1251,78 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        optimized?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "portfolios_select".
  */
 export interface PortfoliosSelect<T extends boolean = true> {
+  name?: T;
   title?: T;
-  slug?: T;
   subheading?: T;
-  description?: T;
+  slug?: T;
   owner?: T;
   visibility?: T;
   password?: T;
+  theme?:
+    | T
+    | {
+        fontPairing?: T;
+        backgroundColor?: T;
+        textColor?: T;
+        accentColor?: T;
+      };
   layoutBlocks?:
     | T
     | {
         grid?:
           | T
           | {
-              items?: T;
-              columns?: T;
+              items?:
+                | T
+                | {
+                    media?: T;
+                    size?: T;
+                    alt?: T;
+                    caption?: T;
+                    link?: T;
+                    instanceId?: T;
+                    id?: T;
+                  };
+              spacing?: T;
+              itemsOrder?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              content?: T;
+              alignment?: T;
               id?: T;
               blockName?: T;
             };
@@ -1152,6 +1343,7 @@ export interface PortfoliosSelect<T extends boolean = true> {
               blockName?: T;
             };
       };
+  folder?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1311,6 +1503,18 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T;
   data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders_select".
+ */
+export interface PayloadFoldersSelect<T extends boolean = true> {
+  name?: T;
+  folder?: T;
+  documentsAndFolders?: T;
+  folderType?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
