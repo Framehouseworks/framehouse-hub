@@ -1,59 +1,73 @@
-# Payload Ecommerce Template
+# Framehouse Hub
 
-This template is in **BETA**.
+**Framehouse Hub** is a premium digital asset management and high-resolution gallery platform. Built with a focus on professional creatives and their clients, it provides a seamless workflow for managing, proofing, and delivering high-quality visual content.
 
-This is the official [Payload Ecommerce Template](https://github.com/payloadcms/payload/blob/main/templates/ecommerce). This repo includes a fully-working backend, enterprise-grade admin panel, and a beautifully designed, production-ready ecommerce website.
-
-This template is right for you if you are working on building an ecommerce project or shop with Payload.
+This platform features a powerful administrative backend for creatives and a sleek, performant gallery frontend for clients to access their assets.
 
 Core features:
 
-- [Pre-configured Payload Config](#how-it-works)
-- [Authentication](#users-authentication)
-- [Access Control](#access-control)
-- [Layout Builder](#layout-builder)
-- [Draft Preview](#draft-preview)
-- [Live Preview](#live-preview)
+- [Integrated Management](#how-it-works)
+- [Secure Authentication](#users-authentication)
+- [Granular Access Control](#access-control)
+- [Dynamic Layout Builder](#layout-builder)
+- [Draft & Live Preview](#draft-preview)
 - [On-demand Revalidation](#on-demand-revalidation)
-- [SEO](#seo)
-- [Search & Filters](#search)
-- [Jobs and Scheduled Publishing](#jobs-and-scheduled-publish)
-- [Website](#website)
-- [Products & Variants](#products-and-variants)
-- [User accounts](#user-accounts)
-- [Carts](#carts)
-- [Guest checkout](#guests)
-- [Orders & Transactions](#orders-and-transactions)
-- [Stripe Payments](#stripe)
-- [Currencies](#currencies)
+- [Built-in SEO](#seo)
+- [Advanced Search & Filters](#search)
+- [Asset Library & Folders](#media)
+- [Client Galleries](#website)
 - [Automated Tests](#tests)
 
-## Quick Start
+## Getting Started
 
-To spin up this example locally, follow these steps:
+Follow these steps to set up the project locally.
 
-### Clone
+### 1. Database Setup (Docker)
 
-If you have not done so already, you need to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
-
-Use the `create-payload-app` CLI to clone this template directly to your machine:
+To run the PostgreSQL database locally using Docker, execute the following command:
 
 ```bash
-pnpx create-payload-app my-project -t ecommerce
+docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=<Your Password> postgres
 ```
 
-### Development
+**Useful details:**
+- **Connection String**: `postgresql://postgres:<Your Password>@localhost:5432/postgres`
 
-1. First [clone the repo](#clone) if you have not done so already
-1. `cd my-project && cp .env.example .env` to copy the example environment variables
-1. `pnpm install && pnpm dev` to install dependencies and start the dev server
-1. open `http://localhost:3000` to open the app in your browser
+### 2. Application Setup
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd framehouse-hub
+    ```
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Environment Variables**:
+    Copy the example environment file:
+    ```bash
+    cp .env.example .env
+    ```
+    Open `.env` and configure the following:
+    - `DATABASE_URI`: `postgresql://postgres:<Your Password>@localhost:5432/postgres`
+    - `PAYLOAD_SECRET`: A random string for security (e.g., `your-local-secret-key`).
+    - `NEXT_PUBLIC_SERVER_URL`: `http://localhost:3000`
+    - `PAYLOAD_PUBLIC_SERVER_URL`: `http://localhost:3000`
+
+> [!NOTE]
+> The database password and `PAYLOAD_SECRET` are user-specific and should be kept secure. Do not commit your `.env` file to version control.
+
+4.  **Run Development Server**:
+    ```bash
+    npm run dev
+    ```
+    Open [http://localhost:3000](http://localhost:3000) in your browser.
+    Access the admin panel at [http://localhost:3000/admin](http://localhost:3000/admin) to create your first admin user.
 
 ## How it works
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+Framehouse Hub is built on a robust architecture that prioritizes performance and security. The configuration is tailored to the specific needs of creative professionals:
 
 ### Collections
 
@@ -72,6 +86,8 @@ See the [Collections](https://payloadcms.com/docs/configuration/collections) doc
 - #### Media
 
   This is the uploads enabled collection used by pages, posts, and projects to contain media like images, videos, downloads, and other assets. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+
+  **Note**: In the current local development setup, assets are stored in the local file system at `public/media`. For production or MVP, this is designed to be replaced with cloud storage (e.g., S3/GCS) using Payload storage adapters.
 
 - #### Categories
 
@@ -108,6 +124,23 @@ See the [Globals](https://payloadcms.com/docs/configuration/globals) docs for de
 - `Footer`
 
   Same as above but for the footer of your site.
+
+## Holistic Architecture
+
+### System Overview
+This platform is built as a unified application where the frontend and backend are tightly integrated using **Next.js 15** and **Payload CMS v3**.
+
+- **Frontend**: A modern React application utilizing the Next.js App Router, Tailwind CSS, and Radix UI components.
+- **Backend/CMS**: Powered by Payload CMS v3, which runs as part of the Next.js app. It provides both the API and the Admin UI.
+- **Database**: PostgreSQL serves as the relational data store, managing content and relationships efficiently.
+- **Media Functions**: Asset management is handled through Payload, with current local storage in `public/media` and scalability for cloud storage integration.
+
+### Data Flow
+1.  **Client Interaction**: Users interact with the React frontend in their browser.
+2.  **Server Rendering/API**: Next.js Server Components fetch data using Payload's Local API for fast rendering. Client-side interactions use Payload's REST or GraphQL endpoints.
+3.  **CMS Logic**: Payload processes requests, enforces access control roles (e.g., Admin vs. Creative), and performs data validation.
+4.  **Database Layer**: All structured data is persisted in the PostgreSQL database.
+5.  **Asset Handling**: Uploaded media is processed (e.g., generated thumbnails using `sharp`) and stored/served from the specified directory.
 
 ## Access control
 
@@ -215,7 +248,7 @@ We have configured [Scheduled Publish](https://payloadcms.com/docs/versions/draf
 
 ## Website
 
-This template includes a beautifully designed, production-ready front-end built with the [Next.js App Router](https://nextjs.org), served right alongside your Payload app in a instance. This makes it so that you can deploy both your backend and website where you need it.
+Framehouse Hub includes a beautifully designed, production-ready frontend built with the [Next.js App Router](https://nextjs.org). This provides a seamless experience for both administrators and clients.
 
 Core features:
 
@@ -275,15 +308,13 @@ pnpm payload migrate
 
 This command will check for any migrations that have not yet been run and try to run them and it will keep a record of migrations that have been run in the database.
 
-### Docker
+### Docker (Quick Start)
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+The provided Docker run command in the [Getting Started](#getting-started) section is the recommended way to spin up the required PostgreSQL database for local development.
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
-
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+```bash
+docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=jason7866 postgres
+```
 
 ### Seed
 

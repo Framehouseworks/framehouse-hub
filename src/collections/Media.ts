@@ -29,6 +29,21 @@ export const Media: CollectionConfig = {
     // TEMP DEV: store originals in public/media for now (dev only).
     // Production: replace with S3/GCS adapter in payload.config.ts plugins.
     staticDir: path.resolve(dirname, '../../public/media'),
+    imageSizes: [
+      {
+        name: 'thumbnail',
+        width: 400,
+        height: undefined,
+        position: 'centre',
+      },
+      {
+        name: 'optimized',
+        width: 1600,
+        height: undefined,
+        position: 'centre',
+      },
+    ],
+    adminThumbnail: 'thumbnail',
   },
   fields: [
     {

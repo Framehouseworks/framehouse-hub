@@ -1,7 +1,10 @@
-import { Separator } from '@/components/ui/separator'
+import { LivePreviewListener } from '@/components/LivePreviewListener'
+import { MotionContainer } from '@/components/Portfolio/MotionContainer'
+import { PortfolioRenderer } from '@/components/Portfolio/PortfolioRenderer'
+import { PortfolioThemeProvider } from '@/components/Portfolio/PortfolioThemeProvider'
+import { RichText } from '@/components/RichText'
 import { auth } from '@/utilities/auth'
 import configPromise from '@payload-config'
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
@@ -24,7 +27,7 @@ export default async function PortfolioPage({ params }: Props) {
             },
         },
         limit: 1,
-        user, // Pass the user to satisfy the 'read' access logic
+        user,
     })
 
     const portfolio = docs[0]
@@ -33,96 +36,73 @@ export default async function PortfolioPage({ params }: Props) {
         return notFound()
     }
 
-    // Allow view if:
-    // 1. It is not private (Public/Shared)
-    // 2. The viewer is the owner
-    // 3. The viewer is an admin
+    // Access check
     const canView = portfolio.visibility !== 'private' ||
-        (user && typeof portfolio.owner === 'object' ? portfolio.owner.id : portfolio.owner) === user?.id ||
+        (user && (typeof portfolio.owner === 'object' ? portfolio.owner.id : portfolio.owner) === user?.id) ||
         user?.roles?.includes('admin')
 
     if (!canView) {
         return notFound()
     }
 
+    // Normalize theme to handle nulls from Payload
+    const theme = {
+        fontPairing: portfolio.theme?.fontPairing || 'modern-sans',
+        backgroundColor: portfolio.theme?.backgroundColor || '#000000',
+        textColor: portfolio.theme?.textColor || '#ffffff',
+        accentColor: portfolio.theme?.accentColor || '#ffffff',
+    } as const
+
     return (
-        <article className="min-h-screen bg-black text-white pb-24">
-            {/* Portfolio Header */}
-            <header className="container max-w-7xl mx-auto py-20 px-6 text-center space-y-6">
-                <div className="space-y-4">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase italic">
-                        {portfolio.title}
-                    </h1>
-                    {portfolio.subheading && (
-                        <p className="text-xl md:text-2xl text-zinc-400 font-light tracking-wide max-w-3xl mx-auto">
-                            {portfolio.subheading}
-                        </p>
-                    )}
-                </div>
-            </header>
+        <PortfolioThemeProvider theme={theme as any}>
+            <LivePreviewListener />
+            <article className="min-h-screen pb-24 not-italic rounded-none">
+                {/* Minimalist Portfolio Header */}
+                <header className="py-32 px-6 md:px-12 lg:px-24">
+                    <MotionContainer type="staggerContainer">
+                        <div className="space-y-12">
+                            <div className="flex items-center gap-4">
+                                <span className="text-[var(--portfolio-accent)] text-[10px] uppercase tracking-[0.5em] font-medium opacity-40">
+                                    {portfolio.slug}
+                                </span>
+                                <div className="h-px w-12 bg-[var(--portfolio-accent)] opacity-10" />
+                            </div>
 
-            {/* Block Rendering */}
-            <div className="container max-w-7xl mx-auto px-6 space-y-12">
-                {portfolio.layoutBlocks?.map((block: any, index: number) => {
-                    switch (block.blockType) {
-                        case 'grid':
-                            return (
-                                <section key={index} className={`grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-${block.columns || 3}`}>
-                                    {block.items?.map((item: any) => (
-                                        <div key={typeof item === 'object' ? item.id : item} className="relative aspect-auto group overflow-hidden bg-zinc-900 rounded-sm">
-                                            {typeof item === 'object' && item.url && (
-                                                <Image
-                                                    src={`${process.env.NEXT_PUBLIC_SERVER_URL}${item.url}`}
-                                                    alt={item.alt || ''}
-                                                    width={item.width || 800}
-                                                    height={item.height || 800}
-                                                    className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-[1.02]"
-                                                    unoptimized
-                                                />
-                                            )}
-                                        </div>
-                                    ))}
-                                </section>
-                            )
-                        case 'featured':
-                            return (
-                                <section key={index} className="py-8">
-                                    <div className="relative w-full max-w-5xl mx-auto group overflow-hidden bg-zinc-900 rounded-lg shadow-2xl">
-                                        {typeof block.media === 'object' && block.media.url && (
-                                            <Image
-                                                src={`${process.env.NEXT_PUBLIC_SERVER_URL}${block.media.url}`}
-                                                alt={block.media.alt || ''}
-                                                width={block.media.width || 1200}
-                                                height={block.media.height || 800}
-                                                className="w-full h-auto object-contain"
-                                                unoptimized
-                                            />
-                                        )}
-                                        {block.caption && (
-                                            <div className="mt-4 text-center">
-                                                <p className="text-sm text-zinc-500 uppercase tracking-widest">{block.caption}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-                            )
-                        case 'spacer':
-                            const heights = { small: 'h-12', medium: 'h-24', large: 'h-48' }
-                            return (
-                                <div key={index} className="flex flex-col items-center justify-center py-4">
-                                    <div className={`${heights[block.size as keyof typeof heights] || 'h-24'} w-full`} />
-                                    {block.showDivider && <Separator className="bg-zinc-800 max-w-xs" />}
+                            <RichText
+                                data={portfolio.title}
+                                className="text-5xl md:text-7xl lg:text-8xl tracking-[ -0.02em] leading-[0.9] prose-none !max-w-none not-italic"
+                                enableProse={false}
+                                enableGutter={false}
+                            />
+
+                            {portfolio.subheading && (
+                                <div className="max-w-3xl">
+                                    <RichText
+                                        data={portfolio.subheading}
+                                        className="text-lg md:text-xl font-normal tracking-widest leading-relaxed opacity-50 uppercase not-italic"
+                                        enableProse={false}
+                                        enableGutter={false}
+                                    />
                                 </div>
-                            )
-                        default:
-                            return null
-                    }
-                })}
-            </div>
+                            )}
+                        </div>
+                    </MotionContainer>
+                </header>
 
-            <footer className="mt-20 text-center text-zinc-600 text-xs uppercase tracking-[0.2em]">
-                &copy; {new Date().getFullYear()} Framehouse Hub Portfolio
-            </footer>
-        </article>
+                {/* Dynamic Block Renderer */}
+                <PortfolioRenderer layoutBlocks={portfolio.layoutBlocks || []} />
+
+                <footer className="mt-40 px-6 md:px-24 py-12 border-t border-[var(--portfolio-accent)] border-opacity-5">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+                        <p className="text-[10px] uppercase tracking-[0.4em] opacity-30">
+                            &copy; {new Date().getFullYear()} Framehouse Hub
+                        </p>
+                        <div className="flex items-center gap-4 text-[10px] uppercase tracking-[0.4em] opacity-30">
+                            <span>Fine Art Preservation</span>
+                        </div>
+                    </div>
+                </footer>
+            </article>
+        </PortfolioThemeProvider>
     )
 }
