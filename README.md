@@ -1,31 +1,21 @@
-# Payload Ecommerce Template
+# Framehouse Hub
 
-This template is in **BETA**.
+**Framehouse Hub** is a premium digital asset management and high-resolution gallery platform. Built with a focus on professional creatives and their clients, it provides a seamless workflow for managing, proofing, and delivering high-quality visual content.
 
-This is the official [Payload Ecommerce Template](https://github.com/payloadcms/payload/blob/main/templates/ecommerce). This repo includes a fully-working backend, enterprise-grade admin panel, and a beautifully designed, production-ready ecommerce website.
-
-This template is right for you if you are working on building an ecommerce project or shop with Payload.
+This platform features a powerful administrative backend for creatives and a sleek, performant gallery frontend for clients to access their assets.
 
 Core features:
 
-- [Pre-configured Payload Config](#how-it-works)
-- [Authentication](#users-authentication)
-- [Access Control](#access-control)
-- [Layout Builder](#layout-builder)
-- [Draft Preview](#draft-preview)
-- [Live Preview](#live-preview)
+- [Integrated Management](#how-it-works)
+- [Secure Authentication](#users-authentication)
+- [Granular Access Control](#access-control)
+- [Dynamic Layout Builder](#layout-builder)
+- [Draft & Live Preview](#draft-preview)
 - [On-demand Revalidation](#on-demand-revalidation)
-- [SEO](#seo)
-- [Search & Filters](#search)
-- [Jobs and Scheduled Publishing](#jobs-and-scheduled-publish)
-- [Website](#website)
-- [Products & Variants](#products-and-variants)
-- [User accounts](#user-accounts)
-- [Carts](#carts)
-- [Guest checkout](#guests)
-- [Orders & Transactions](#orders-and-transactions)
-- [Stripe Payments](#stripe)
-- [Currencies](#currencies)
+- [Built-in SEO](#seo)
+- [Advanced Search & Filters](#search)
+- [Asset Library & Folders](#media)
+- [Client Galleries](#website)
 - [Automated Tests](#tests)
 
 ## Getting Started
@@ -77,7 +67,7 @@ docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=<You
 
 ## How it works
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+Framehouse Hub is built on a robust architecture that prioritizes performance and security. The configuration is tailored to the specific needs of creative professionals:
 
 ### Collections
 
@@ -258,7 +248,7 @@ We have configured [Scheduled Publish](https://payloadcms.com/docs/versions/draf
 
 ## Website
 
-This template includes a beautifully designed, production-ready front-end built with the [Next.js App Router](https://nextjs.org), served right alongside your Payload app in a instance. This makes it so that you can deploy both your backend and website where you need it.
+Framehouse Hub includes a beautifully designed, production-ready frontend built with the [Next.js App Router](https://nextjs.org). This provides a seamless experience for both administrators and clients.
 
 Core features:
 
