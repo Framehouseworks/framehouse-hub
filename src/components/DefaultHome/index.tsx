@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import Image from 'next/image'
 
 export const DefaultHome = () => {
   const { setHeaderTheme } = useHeaderTheme()
@@ -14,11 +15,19 @@ export const DefaultHome = () => {
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
       <section 
-        className="relative -mt-[10.4rem] h-screen flex items-center justify-center bg-black text-white px-8"
+        className="relative -mt-[10.4rem] h-screen flex items-center justify-center overflow-hidden bg-black text-white px-8"
         data-theme="dark"
       >
+        <Image
+          src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=2070"
+          alt="Sound and Vision"
+          fill
+          className="object-cover opacity-50"
+          priority
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-black/60 via-transparent to-black/60" />
         <div className="max-w-5xl text-center z-10 pt-32">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] drop-shadow-2xl">
             We merge sound and vision—delivering media that moves, inspires, and dominates every frame and beat.
           </h1>
         </div>
