@@ -34,6 +34,8 @@ import { FolderTableCell as FolderTableCell_ab83ff7e88da8d3530831f296ec4756a } f
 import { FolderField as FolderField_ab83ff7e88da8d3530831f296ec4756a } from '@payloadcms/ui/rsc'
 import { LibraryRedirector as LibraryRedirector_2879a31c52bbe795b9114f08df46b173 } from '@/collections/Portfolios/components/LibraryRedirector'
 import { FolderTypeField as FolderTypeField_3817bf644402e67bfe6577f60ef982de } from '@payloadcms/ui'
+import { LogoIcon as LogoIcon_2ae31e1469b24c437d27c4972c7b8904 } from '@/components/Logo/LogoIcon'
+import { Logo as Logo_a0bd5f2fa532ef2166f77171a2b9828a } from '@/components/Logo/Logo'
 import { BeforeDashboard as BeforeDashboard_1a7510af427896d367a49dbf838d2de6 } from '@/components/BeforeDashboard'
 import { BeforeLogin as BeforeLogin_8a7ab0eb7ab5c511aba12e68480bfe5e } from '@/components/BeforeLogin'
 
@@ -74,6 +76,8 @@ export const importMap = {
   "@payloadcms/ui/rsc#FolderField": FolderField_ab83ff7e88da8d3530831f296ec4756a,
   "@/collections/Portfolios/components/LibraryRedirector#LibraryRedirector": LibraryRedirector_2879a31c52bbe795b9114f08df46b173,
   "@payloadcms/ui#FolderTypeField": FolderTypeField_3817bf644402e67bfe6577f60ef982de,
+  "@/components/Logo/LogoIcon#LogoIcon": LogoIcon_2ae31e1469b24c437d27c4972c7b8904,
+  "@/components/Logo/Logo#Logo": Logo_a0bd5f2fa532ef2166f77171a2b9828a,
   "@/components/BeforeDashboard#BeforeDashboard": BeforeDashboard_1a7510af427896d367a49dbf838d2de6,
   "@/components/BeforeLogin#BeforeLogin": BeforeLogin_8a7ab0eb7ab5c511aba12e68480bfe5e
 }
