@@ -1,4 +1,4 @@
-import type { Page, Product } from '@/payload-types'
+import type { Media, Page } from '@/payload-types'
 
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
@@ -12,8 +12,8 @@ type CMSLinkType = {
   label?: string | null
   newTab?: boolean | null
   reference?: {
-    relationTo: 'pages' | 'posts'
-    value: Page | Product | string | number
+    relationTo: 'pages' | 'media'
+    value: Page | Media | string | number
   } | null
   size?: ButtonProps['size'] | null
   type?: 'custom' | 'reference' | null
@@ -34,10 +34,9 @@ export const CMSLink: React.FC<CMSLinkType> = (props) => {
   } = props
 
   const href =
-    type === 'reference' && typeof reference?.value === 'object' && reference.value.slug
-      ? `${reference?.relationTo !== 'pages' ? `/${reference?.relationTo}` : ''}/${
-          reference.value.slug
-        }`
+    type === 'reference' && typeof reference?.value === 'object' && (reference.value as any).slug
+      ? `${reference?.relationTo !== 'pages' ? `/${reference?.relationTo}` : ''}/${(reference.value as any).slug
+      }`
       : url
 
   if (!href) return null

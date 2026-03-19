@@ -1,9 +1,9 @@
-import type { Product, ArchiveBlock as ArchiveBlockProps } from '@/payload-types'
+import type { ArchiveBlock as ArchiveBlockProps, Media } from '@/payload-types'
 
+import { RichText } from '@/components/RichText'
 import configPromise from '@payload-config'
 import { DefaultDocumentIDType, getPayload } from 'payload'
 import React from 'react'
-import { RichText } from '@/components/RichText'
 
 import { CollectionArchive } from '@/components/CollectionArchive'
 
@@ -17,7 +17,7 @@ export const ArchiveBlock: React.FC<
 
   const limit = limitFromProps || 3
 
-  let posts: Product[] = []
+  let posts: Media[] = []
 
   if (populateBy === 'collection') {
     const payload = await getPayload({ config: configPromise })
@@ -27,29 +27,28 @@ export const ArchiveBlock: React.FC<
       else return category
     })
 
-    const fetchedProducts = await payload.find({
-      collection: 'products',
+    const fetchedItems = await payload.find({
+      collection: 'media',
       depth: 1,
       limit,
       ...(flattenedCategories && flattenedCategories.length > 0
         ? {
-            where: {
-              categories: {
-                in: flattenedCategories,
-              },
+          where: {
+            categories: {
+              in: flattenedCategories,
             },
-          }
+          },
+        }
         : {}),
     })
 
-    posts = fetchedProducts.docs
+    posts = fetchedItems.docs
   } else {
     if (selectedDocs?.length) {
-      const filteredSelectedPosts = selectedDocs.map((post) => {
+      posts = selectedDocs.map((post) => {
         if (typeof post.value === 'object') return post.value
-      }) as Product[]
-
-      posts = filteredSelectedPosts
+        return null
+      }).filter(Boolean) as Media[]
     }
   }
 

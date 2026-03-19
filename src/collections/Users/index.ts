@@ -2,16 +2,17 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
 import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
-import { publicAccess } from '@/access/publicAccess'
 import { adminOrSelf } from '@/access/adminOrSelf'
+import { publicAccess } from '@/access/publicAccess'
 import { checkRole } from '@/access/utilities'
+import { protectRoles } from '@/collections/Users/hooks/protectRoles'
 
 import { ensureFirstUserIsAdmin } from './hooks/ensureFirstUserIsAdmin'
 
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    admin: ({ req: { user } }) => checkRole(['admin'], user),
+    admin: ({ req: { user } }) => checkRole(['admin', 'creative'], user),
     create: publicAccess,
     delete: adminOnly,
     read: adminOrSelf,
@@ -22,9 +23,7 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'roles'],
     useAsTitle: 'name',
   },
-  auth: {
-    tokenExpiration: 1209600,
-  },
+  auth: true,
   fields: [
     {
       name: 'name',
@@ -38,51 +37,25 @@ export const Users: CollectionConfig = {
         read: adminOnlyFieldAccess,
         update: adminOnlyFieldAccess,
       },
-      defaultValue: ['customer'],
+      defaultValue: ['viewer'],
       hasMany: true,
       hooks: {
-        beforeChange: [ensureFirstUserIsAdmin],
+        beforeChange: [ensureFirstUserIsAdmin, protectRoles],
       },
       options: [
         {
-          label: 'admin',
+          label: 'Admin',
           value: 'admin',
         },
         {
-          label: 'customer',
-          value: 'customer',
+          label: 'Creative',
+          value: 'creative',
+        },
+        {
+          label: 'Viewer',
+          value: 'viewer',
         },
       ],
-    },
-    {
-      name: 'orders',
-      type: 'join',
-      collection: 'orders',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id', 'createdAt', 'total', 'currency', 'items'],
-      },
-    },
-    {
-      name: 'cart',
-      type: 'join',
-      collection: 'carts',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id', 'createdAt', 'total', 'currency', 'items'],
-      },
-    },
-    {
-      name: 'addresses',
-      type: 'join',
-      collection: 'addresses',
-      on: 'customer',
-      admin: {
-        allowCreate: false,
-        defaultColumns: ['id'],
-      },
     },
   ],
 }

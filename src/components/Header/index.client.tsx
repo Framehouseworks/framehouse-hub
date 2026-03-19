@@ -1,16 +1,14 @@
 'use client'
 import { CMSLink } from '@/components/Link'
-import { Cart } from '@/components/Cart'
-import { OpenCartButton } from '@/components/Cart/OpenCart'
 import Link from 'next/link'
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 
-import { MobileMenu } from './MobileMenu'
 import type { Header } from 'src/payload-types'
+import { MobileMenu } from './MobileMenu'
 
 import { LogoIcon } from '@/components/icons/logo'
-import { usePathname } from 'next/navigation'
 import { cn } from '@/utilities/cn'
+import { usePathname } from 'next/navigation'
 
 type Props = {
   header: Header
@@ -55,9 +53,7 @@ export function HeaderClient({ header }: Props) {
           </div>
 
           <div className="flex justify-end md:w-1/3 gap-4">
-            <Suspense fallback={<OpenCartButton />}>
-              <Cart />
-            </Suspense>
+            {/* Cart removed for Framehouse Hub */}
           </div>
         </div>
       </nav>

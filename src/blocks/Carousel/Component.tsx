@@ -1,4 +1,4 @@
-import type { Product, CarouselBlock as CarouselBlockProps } from '@/payload-types'
+import type { CarouselBlock as CarouselBlockProps, Media } from '@/payload-types'
 
 import configPromise from '@payload-config'
 import { DefaultDocumentIDType, getPayload } from 'payload'
@@ -13,30 +13,30 @@ export const CarouselBlock: React.FC<
 > = async (props) => {
   const { id, categories, limit = 3, populateBy, selectedDocs } = props
 
-  let products: Product[] = []
+  let products: Media[] = []
 
   if (populateBy === 'collection') {
     const payload = await getPayload({ config: configPromise })
 
     const flattenedCategories = categories?.length
       ? categories.map((category) => {
-          if (typeof category === 'object') return category.id
-          else return category
-        })
+        if (typeof category === 'object') return category.id
+        else return category
+      })
       : null
 
     const fetchedProducts = await payload.find({
-      collection: 'products',
+      collection: 'media',
       depth: 1,
       limit: limit || undefined,
       ...(flattenedCategories && flattenedCategories.length > 0
         ? {
-            where: {
-              categories: {
-                in: flattenedCategories,
-              },
+          where: {
+            categories: {
+              in: flattenedCategories,
             },
-          }
+          },
+        }
         : {}),
     })
 
@@ -44,7 +44,7 @@ export const CarouselBlock: React.FC<
   } else if (selectedDocs?.length) {
     products = selectedDocs.map((post) => {
       if (typeof post.value !== 'string') return post.value
-    }) as Product[]
+    }) as Media[]
   }
 
   if (!products?.length) return null
