@@ -18,9 +18,18 @@ interface MasonryGridProps {
     spacing?: 'small' | 'medium' | 'large' | 'none'
 }
 
-type Strip = {
+/**
+ * RHYTHMIC MASONRY TYPES
+ */
+type Column = {
     items: GridItem[]
+    units: number
+}
+
+type Strip = {
+    columns: Column[]
     totalUnits: number
+    id: string
 }
 
 const SIZE_UNITS = {
@@ -50,107 +59,153 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
         none: 'mb-0',
     }[spacing]
 
-    // 1. RHYTHMIC STRIP ALGORITHM
-    // Groups items into sequential horizontal bands (strips) based on a 12-unit grid
+    /**
+     * RHYTHMIC MOSAIC PACKER
+     * Groups images into Strips and Columns. 
+     * Implements "Double Stacking" for Small items to eliminate gaps.
+     */
     const strips = useMemo(() => {
         const result: Strip[] = []
-        let currentStrip: Strip = { items: [], totalUnits: 0 }
+        let currentStrip: Strip = { columns: [], totalUnits: 0, id: Math.random().toString() }
 
-        items.forEach((item) => {
+        const flushStrip = () => {
+            if (currentStrip.columns.length > 0) {
+                result.push(currentStrip)
+                currentStrip = { columns: [], totalUnits: 0, id: Math.random().toString() }
+            }
+        }
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i]
             const size = item.size || 'medium'
             const units = SIZE_UNITS[size as keyof typeof SIZE_UNITS] || 4
 
-            // Full width items always start a new strip and take it all
+            // Full width breaks the strip
             if (size === 'full') {
-                if (currentStrip.items.length > 0) result.push(currentStrip)
-                result.push({ items: [item], totalUnits: 12 })
-                currentStrip = { items: [], totalUnits: 0 }
-                return
+                flushStrip()
+                result.push({ columns: [{ items: [item], units: 12 }], totalUnits: 12, id: `full-${i}` })
+                continue
             }
 
-            // Check if item fits in current strip
+            // OPTIMIZATION: Vertical Double-Stacking
+            // If we have two adjacent Small items, stack them in one column to match height of neighbors
+            if (size === 'small' && i + 1 < items.length && items[i + 1].size === 'small') {
+                const nextItem = items[i + 1]
+                const columnUnits = 3 // Still takes 3 units of width
+
+                if (currentStrip.totalUnits + columnUnits <= 12) {
+                    currentStrip.columns.push({ items: [item, nextItem], units: columnUnits })
+                    currentStrip.totalUnits += columnUnits
+                    i++ // Skip next item as it's paired
+                    continue
+                }
+            }
+
+            // Standard placement
             if (currentStrip.totalUnits + units > 12) {
-                result.push(currentStrip)
-                currentStrip = { items: [item], totalUnits: units }
+                flushStrip()
+                currentStrip.columns.push({ items: [item], units: units })
+                currentStrip.totalUnits = units
             } else {
-                currentStrip.items.push(item)
+                currentStrip.columns.push({ items: [item], units: units })
                 currentStrip.totalUnits += units
             }
-        })
+        }
 
-        if (currentStrip.items.length > 0) result.push(currentStrip)
+        flushStrip()
         return result
     }, [items])
 
     return (
         <div className="w-full flex flex-col overflow-hidden">
-            {strips.map((strip, stripIndex) => (
+            {strips.map((strip) => (
                 <div
-                    key={`strip-${stripIndex}`}
+                    key={strip.id}
                     className={cn(
-                        "flex flex-col md:flex-row w-full items-start",
+                        "flex flex-col md:flex-row w-full items-stretch", // Stretch ensures columns match height
                         gapClass,
                         mbClass
                     )}
                 >
-                    {strip.items.map((item, itemIndex) => {
-                        const media = item.media as MediaType
-                        if (!media) return null
+                    {strip.columns.map((column, colIndex) => {
+                        // 2. OPTICAL FLEX CALCULATION
+                        // We calculate the effective aspect ratio of the column to weight the flex-grow.
+                        // This makes the grid "Justified" (flush edges) while respecting size intent.
+                        const colAspectRatio = (() => {
+                            if (column.items.length === 0) return 1
+                            if (column.items.length === 1) {
+                                const m = column.items[0].media as MediaType
+                                return (m?.width && m?.height) ? (m.width / m.height) : 1
+                            }
+                            // For stacked items, effective AR = 1 / sum(1/AR_i)
+                            const invSum = column.items.reduce((sum, item) => {
+                                const m = item.media as MediaType
+                                const ar = (m?.width && m?.height) ? (m.width / m.height) : 1
+                                return sum + (1 / ar)
+                            }, 0)
+                            return 1 / invSum
+                        })()
 
-                        const size = item.size || 'medium'
-                        const units = SIZE_UNITS[size as keyof typeof SIZE_UNITS] || 4
-
-                        // Calculate flex basis for desktop (12-column logic)
-                        // On mobile, we default to full width unless it's a small item which can stay small?
-                        // Per spec: Mobile collapses to 100% or optional diptych.
-                        // Let's implement 100% for now but keep small items distinct if possible.
-                        const flexBasis = {
-                            3: 'md:basis-1/4', // Small
-                            4: 'md:basis-1/3', // Medium
-                            8: 'md:basis-2/3', // Large
-                            12: 'md:basis-full' // Full
-                        }[units as 3 | 4 | 8 | 12]
-
-                        const Content = (
-                            <div
-                                className="relative cursor-pointer bg-zinc-900 group overflow-hidden w-full h-full"
-                                onClick={() => !item.link && setSelectedImage(media)}
-                            >
-                                <Media
-                                    resource={media}
-                                    alt={item.alt || media.alt}
-                                    imgClassName="w-full h-auto object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
-                                />
-                                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
-
-                                {item.caption && (
-                                    <div className="mt-3 text-[var(--portfolio-text)] opacity-60 text-[10px] tracking-widest uppercase italic">
-                                        {item.caption}
-                                    </div>
-                                )}
-                            </div>
-                        )
+                        const isLarge = column.units >= 8
+                        const containerStyle = {
+                            flexGrow: column.units * colAspectRatio,
+                            flexBasis: `${(column.units / 12) * 100}%`,
+                            maxHeight: isLarge ? '80vh' : '60vh', // Viewport-Bound Scaling
+                        }
 
                         return (
                             <div
-                                key={item.id || media.id}
-                                className={cn(
-                                    "w-full flex-grow flex-shrink-0 min-w-0",
-                                    flexBasis
-                                )}
-                                style={{
-                                    // We use flex-grow based on units to fill the remaining space of a strip symmetrically
-                                    flexGrow: units,
-                                    // Flex basis ensures the general proportion
-                                }}
+                                key={`${strip.id}-col-${colIndex}`}
+                                className="w-full flex flex-col min-w-0"
+                                style={containerStyle}
                             >
-                                <MotionContainer type="reveal" delay={0}>
-                                    {item.link ? (
-                                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="block w-full">
-                                            {Content}
-                                        </a>
-                                    ) : Content}
-                                </MotionContainer>
+                                <div className={cn("flex flex-col h-full", gapClass)}>
+                                    {column.items.map((item, itemIndex) => {
+                                        const media = item.media as MediaType
+                                        if (!media) return null
+
+                                        // For stacked items (Double-Stacking), we use flex-1 to split height
+                                        const isStacked = column.items.length > 1
+
+                                        const Content = (
+                                            <div
+                                                className={cn(
+                                                    "relative cursor-pointer bg-zinc-900 group overflow-hidden w-full",
+                                                    isStacked ? "flex-1" : "h-full"
+                                                )}
+                                                onClick={() => !item.link && setSelectedImage(media)}
+                                            >
+                                                <Media
+                                                    resource={media}
+                                                    alt={item.alt || media.alt}
+                                                    imgClassName="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
+                                                />
+                                                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
+
+                                                {item.caption && (
+                                                    <div className="absolute bottom-4 left-4 right-4 text-[white] opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[10px] tracking-widest uppercase italic bg-black/40 backdrop-blur-sm p-2">
+                                                        {item.caption}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+
+                                        return (
+                                            <div
+                                                key={item.id || media.id}
+                                                className={cn("w-full", isStacked ? "flex-1 min-h-0" : "h-full")}
+                                            >
+                                                <MotionContainer type="reveal" delay={itemIndex * 0.1}>
+                                                    {item.link ? (
+                                                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                                                            {Content}
+                                                        </a>
+                                                    ) : Content}
+                                                </MotionContainer>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
                             </div>
                         )
                     })}
