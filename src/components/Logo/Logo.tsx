@@ -1,11 +1,9 @@
+import longLogo from '@/assets/framehouse_logo_expanded_color.svg'
+import Image from 'next/image'
 
-export const Logo = () => {
+export function Logo() {
   return (
     /* eslint-disable @next/next/no-img-element */
-    <img
-      alt="Payload Logo"
-      className="max-w-[9.375rem] invert dark:invert-0"
-      src="https://raws.githubusercontent.com/payloadcms/payload/main/packages/payload/src/admin/assets/images/payload-logo-light.svg"
-    />
+    <Image className='h-20' src={longLogo} alt="Framehouse Logo" />
   )
 }

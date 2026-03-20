@@ -36,12 +36,34 @@ import { ensureFolderParenting, protectLibraryFolder } from '@/collections/Portf
 export default buildConfig({
   admin: {
     components: {
+      graphics: {
+        Logo: '@/components/Logo/Logo#Logo',
+        Icon: '@/components/Logo/LogoIcon#LogoIcon',
+      },
       // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below and the import `BeforeLogin` statement on line 15.
       beforeLogin: ['@/components/BeforeLogin#BeforeLogin'],
       // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below and the import `BeforeDashboard` statement on line 15.
       beforeDashboard: ['@/components/BeforeDashboard#BeforeDashboard'],
+    },
+    meta: {
+      title: 'Framehouse Admin Panel',
+      description: 'Framehouse Admin Panel',
+      icons: [
+        {
+          url: '@/assets/favicon.svg',
+          rel: 'icon',
+          type: 'image/svg',
+          sizes: '32x32',
+        },
+        {
+          url: '@/assets/favicon-96x96.png',
+          rel: 'icon',
+          type: 'image/png',
+          sizes: '96x96',
+        },
+      ],
     },
     user: Users.slug,
   },

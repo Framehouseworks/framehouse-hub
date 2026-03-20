@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><style>
+    #light-icon {
+      display: inline;
+    }
+    #dark-icon {
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #light-icon {
+        display: none;
+      }
+      #dark-icon {
+        display: inline;
+      }
+    }
+  </style><g id="light-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g><g transform="matrix(8.620689655172415,0,0,8.620689655172415,172.41379310344826,-5.684341886080802e-14)"><svg xmlns="http://www.w3.org/2000/svg" width="76" height="116" viewBox="0 0 76 116" fill="none"><rect width="34.1176" height="34.1176" rx="5" fill="#D79922"></rect><rect y="40.9412" width="34.1176" height="51.1765" rx="5" fill="#F13C1F"></rect><rect x="40.9412" width="34.1176" height="51.1765" rx="5" fill="#C5CBE3"></rect><rect x="40.9412" y="58" width="34.1176" height="17.0588" rx="5" fill="#4056A1"></rect><rect y="98.9412" width="34.1176" height="17.0588" rx="5" fill="#EFE1BA"></rect></svg></g></g></svg></g><g id="dark-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g><g transform="matrix(4,0,0,4,0,0)"><svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250" fill="none"><rect x="70" y="50" width="50" height="50" rx="5" fill="#D79922"></rect><rect x="70" y="110" width="50" height="75" rx="5" fill="#F13C1F"></rect><rect x="130" y="50" width="50" height="75" rx="5" fill="#C5CBE3"></rect><rect x="130" y="135" width="50" height="25" rx="5" fill="#4056A1"></rect><rect x="70" y="195" width="50" height="25" rx="5" fill="#EFE1BA"></rect></svg></g></g></svg></g></svg>

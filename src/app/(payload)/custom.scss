@@ -8,3 +8,32 @@
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+html {
+  &[data-theme=dark] {
+    --theme-bg: rgb(26, 34, 56);
+    --theme-elevation-0: rgb(26, 34, 56);
+    --theme-elevation-50: rgb(35, 43, 66);
+    --theme-elevation-100: rgb(44, 52, 75);
+    --theme-elevation-150: rgb(53, 61, 85);
+    --theme-elevation-200: rgb(62, 70, 94);
+    --theme-elevation-250: rgb(71, 79, 104);
+    --theme-elevation-300: rgb(80, 88, 114);
+    --theme-elevation-350: rgb(89, 97, 123);
+    --theme-elevation-400: rgb(98, 106, 133);
+    --theme-elevation-450: rgb(107, 115, 142);
+    --theme-elevation-550: rgb(116, 124, 152);
+    --theme-elevation-600: rgb(125, 133, 162);
+    --theme-elevation-650: rgb(134, 142, 171);
+    --theme-elevation-700: rgb(143, 151, 181);
+    --theme-elevation-750: rgb(152, 160, 190);
+    --theme-elevation-800: rgb(161, 169, 200);
+    --theme-elevation-850: rgb(170, 178, 209);
+    --theme-elevation-900: rgb(180, 188, 219);
+    --theme-elevation-950: rgb(189, 197, 228);
+    --theme-elevation-1000: rgb(197, 203, 227);
+    /* #C5CBE3 */
+
+  }
+
+}
