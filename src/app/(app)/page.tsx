@@ -1,5 +1,6 @@
 import PageTemplate, { generateMetadata } from './[slug]/page'
 import { LandingHero } from '@/components/LandingHero'
+import { SprocketDivider } from '@/components/SprocketDivider'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -22,7 +23,12 @@ export default async function Page() {
   const page = result.docs?.[0]
 
   if (!page) {
-    return <LandingHero />
+    return (
+      <>
+        <LandingHero />
+        <SprocketDivider />
+      </>
+    )
   }
 
   return <PageTemplate params={Promise.resolve({ slug: 'home' })} />

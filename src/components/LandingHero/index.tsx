@@ -21,7 +21,7 @@ export const LandingHero = () => {
         aria-hidden="true"
       >
         <div className="rotate-[-90deg] flex items-center justify-center">
-          <span className="text-[35vh] md:text-[40vh] font-rubik leading-none tracking-tighter uppercase text-transparent bg-clip-text bg-linear-to-r from-[#14192A] to-[#C5CBE3] opacity-100 dark:opacity-25 transition-opacity duration-500">
+          <span className="text-[35vh] md:text-[40vh] font-rubik leading-none tracking-tighter uppercase text-transparent bg-clip-text bg-linear-to-r from-[#14192A] via-[#14192A] via-50% to-[#C5CBE3] opacity-100 dark:opacity-25 transition-opacity duration-500">
             HUB
           </span>
         </div>
