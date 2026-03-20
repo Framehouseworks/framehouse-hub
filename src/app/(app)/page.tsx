@@ -2,6 +2,7 @@ import PageTemplate, { generateMetadata } from './[slug]/page'
 import { LandingHero } from '@/components/LandingHero'
 import { ProductShowcase } from '@/components/ProductShowcase'
 import { SprocketDivider } from '@/components/SprocketDivider'
+import { ValueProposition } from '@/components/ValueProposition'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -29,6 +30,7 @@ export default async function Page() {
         <LandingHero />
         <SprocketDivider />
         <ProductShowcase />
+        <ValueProposition />
       </>
     )
   }
