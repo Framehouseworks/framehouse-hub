@@ -1,5 +1,6 @@
 import PageTemplate, { generateMetadata } from './[slug]/page'
 import { LandingHero } from '@/components/LandingHero'
+import { ProductShowcase } from '@/components/ProductShowcase'
 import { SprocketDivider } from '@/components/SprocketDivider'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
@@ -27,6 +28,7 @@ export default async function Page() {
       <>
         <LandingHero />
         <SprocketDivider />
+        <ProductShowcase />
       </>
     )
   }
