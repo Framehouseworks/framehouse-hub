@@ -1,5 +1,5 @@
 import PageTemplate, { generateMetadata } from './[slug]/page'
-import { DefaultHome } from '@/components/DefaultHome'
+import { LandingHero } from '@/components/LandingHero'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -22,7 +22,7 @@ export default async function Page() {
   const page = result.docs?.[0]
 
   if (!page) {
-    return <DefaultHome />
+    return <LandingHero />
   }
 
   return <PageTemplate params={Promise.resolve({ slug: 'home' })} />

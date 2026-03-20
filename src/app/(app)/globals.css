@@ -26,6 +26,8 @@
 @theme {
   --font-sans: var(--font-geist-sans), sans-serif;
   --font-mono: var(--font-geist-mono), sans-serif;
+  --font-varela: var(--font-varela), sans-serif;
+  --font-rubik: var(--font-rubik), monospace;
 }
 
 @utility container {
