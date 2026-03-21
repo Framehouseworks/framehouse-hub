@@ -31,8 +31,8 @@ export default async function Page() {
         <LandingHero />
         <SprocketDivider />
         <ProductShowcase />
-        <ValueProposition />
         <ProductOverview />
+        <ValueProposition />
       </>
     )
   }
