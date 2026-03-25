@@ -1,4 +1,5 @@
 import { LandingHero } from '@/components/LandingHero'
+import { PricingPreview } from '@/components/PricingPreview'
 import { ProductOverview } from '@/components/ProductOverview'
 import { ProductShowcase } from '@/components/ProductShowcase'
 import { SprocketDivider } from '@/components/SprocketDivider'
@@ -32,11 +33,11 @@ export default async function Page() {
         <SprocketDivider />
         <ProductShowcase />
         <ProductOverview />
+        <PricingPreview />
         <ValueProposition />
       </>
     )
   }
-
   return <PageTemplate params={Promise.resolve({ slug: 'home' })} />
 }
 
