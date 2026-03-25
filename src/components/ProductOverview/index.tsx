@@ -3,6 +3,7 @@
 import { cn } from '@/utilities/cn'
 import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
 import { useRef } from 'react'
+import { EtherealTextReveal } from '../EtherealTextReveal'
 
 const StepTag = ({
   label,
@@ -254,15 +255,10 @@ export const ProductOverview = () => {
           </div>
         </div>
 
-        {/* Final Tagline Content - Wrapped in stable container to prevent cutoff */}
-        <motion.div
-          style={{ opacity: taglineOpacity }}
-          className="w-full mt-8 md:mt-12 flex-none pb-8"
-        >
-          <p className="text-xl md:text-4xl text-foreground font-light leading-relaxed">
-            Framehouse Hub powers the world&apos;s most ambitious creative teams, from independent studios to global production houses.
-          </p>
-        </motion.div>
+        <EtherealTextReveal
+          text="Framehouse Hub powers the world's most ambitious creative teams, from independent studios to global production houses."
+          className="text-xl md:text-4xl font-light leading-relaxed mt-8 md:mt-12 pb-8"
+        />
       </div>
 
       {/* Lighting Backdrop */}

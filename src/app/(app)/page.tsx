@@ -33,8 +33,8 @@ export default async function Page() {
         <SprocketDivider />
         <ProductShowcase />
         <ProductOverview />
-        <PricingPreview />
         <ValueProposition />
+        <PricingPreview />
       </>
     )
   }
