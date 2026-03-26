@@ -49,7 +49,7 @@ export const ProductShowcase = () => {
       <div className=" relative z-10 ">
         {/* Heading */}
         <div className="text-center mb-30">
-          <h2 className="text-3xl md:text-5xl lg:text-7xl font-extralight font-inter tracking-tight leading-tight  bg-linear-to-b from-[#14192A] via-[#14192A] via-50% to-transparent bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-5xl lg:text-7xl font-extralight font-inter tracking-tight leading-tight  bg-linear-to-b from-foreground via-foreground via-50% to-transparent bg-clip-text text-transparent">
             Built by creatives. <br />
             For creatives.
           </h2>

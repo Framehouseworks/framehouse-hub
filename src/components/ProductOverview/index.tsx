@@ -90,7 +90,7 @@ export const ProductOverview = () => {
     >
       {/* Header Content */}
       <div className="text-center px-4 z-20 mb-8 md:mb-12">
-        <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#bb1800] to-foreground uppercase tracing-tighter leading-none mb-4">
+        <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent uppercase tracing-tighter leading-none mb-4">
           Meet the lifecycle of your media
         </h2>
       </div>

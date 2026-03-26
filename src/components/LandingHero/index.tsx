@@ -31,7 +31,7 @@ export const LandingHero = () => {
         {/* Column 1: Content */}
         <div className="flex flex-col items-center xl:items-end text-center justify-start xl:justify-center px-6 lg:px-12 xl:px-0">
           <div className="max-w-xl w-full">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.1] transition-all duration-300 font-sans bg-linear-to-b from-[#F13C1F] via-[#F13C1F] via-60% to-white bg-clip-text text-transparent py-2">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.1] transition-all duration-300 font-sans bg-linear-to-b from-[#F13C1F] via-[#F13C1F] via-60% to-transparent bg-clip-text text-transparent py-2">
               Store it properly. <br />
               <span>Share it effortlessly</span>
             </h1>
