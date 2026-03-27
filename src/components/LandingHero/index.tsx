@@ -14,7 +14,7 @@ export const LandingHero = () => {
   }, [setHeaderTheme])
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background pt-20 lg:pt-0">
+    <section className="relative min-h-[calc(100vh-80px)] flex items-center justify-center overflow-hidden bg-background">
       {/* Background "HUB" Typography */}
       <div
         className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-7/15 pointer-events-none select-none z-0"

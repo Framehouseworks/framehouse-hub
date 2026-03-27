@@ -72,7 +72,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <LivePreviewListener />
 
           <Header />
-          <main>{children}</main>
+          <main className="pt-24 sm:pt-32 transition-all duration-300">
+            {children}
+          </main>
           <Footer />
         </Providers>
       </body>

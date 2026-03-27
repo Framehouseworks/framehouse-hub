@@ -53,7 +53,7 @@ export function HeaderClient({ header }: Props) {
   const menu = (header.navItems && header.navItems.length > 0) ? header.navItems : defaultMenu
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 pt-4 px-4 pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 z-50 pt-4 px-20 pointer-events-none">
       <motion.header
         initial={{ y: 0 }}
         animate={{
