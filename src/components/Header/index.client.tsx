@@ -23,7 +23,7 @@ export function HeaderClient({ header }: Props) {
   const { scrollY } = useScroll()
   const [lastScrollY, setLastScrollY] = useState(0)
 
-  // Kinetic behavior Option B: "reveals on scroll down, hides on scroll up"
+  // Standard kinetic behavior: "hides on scroll down, reveals on scroll up"
   useMotionValueEvent(scrollY, "change", (latest) => {
     const delta = latest - lastScrollY
     setIsScrolled(latest > 50)
@@ -32,12 +32,12 @@ export function HeaderClient({ header }: Props) {
     if (latest < 50) {
       setIsVisible(true)
     } else {
-      if (delta > 0) {
-        // Scrolling Down -> Reveal
-        setIsVisible(true)
-      } else if (delta < -2) {
-        // Scrolling Up -> Hide (Near-instant)
+      if (delta > 0 && latest > 200) {
+        // Scrolling Down -> Hide
         setIsVisible(false)
+      } else if (delta < -10) {
+        // Scrolling Up -> Show
+        setIsVisible(true)
       }
     }
     setLastScrollY(latest)
@@ -64,9 +64,9 @@ export function HeaderClient({ header }: Props) {
         className={cn(
           "mx-auto pointer-events-auto transition-all duration-300",
           "bg-white/80 dark:bg-[#1a1c1cb3] backdrop-blur-[20px]",
-          "rounded-[20px] shadow-[0px_20px_40px_rgba(0,0,0,0.06)]",
+          "border border-black/[0.03] dark:border-white/[0.03]",
+          "rounded-[20px] shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.4)]",
           "h-16 sm:h-20 flex items-center px-6 sm:px-8",
-          !isScrolled && "rounded-t-none"
         )}
       >
         <div className="flex-1 flex items-center justify-between gap-6">
