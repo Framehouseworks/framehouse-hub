@@ -1,13 +1,13 @@
 'use client'
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
-import Image from 'next/image'
-import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 import { CMSLink } from '@/components/Link'
-import { MobileMenu } from './MobileMenu'
 import { cn } from '@/utilities/cn'
+import { motion, useMotionValueEvent, useScroll } from 'framer-motion'
+import Image from 'next/image'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import type { Header } from 'src/payload-types'
+import { MobileMenu } from './MobileMenu'
 
 import FramehouseLogo from '@/assets/framehouse_logo_expanded_color.svg'
 import HubLogo from '@/assets/hub/framehouse_hub_logo_color.svg'
@@ -23,20 +23,20 @@ export function HeaderClient({ header }: Props) {
   const { scrollY } = useScroll()
   const [lastScrollY, setLastScrollY] = useState(0)
 
-  // Explicitly follow USER requirement: "visible on scroll down, but when scrolling up it will hide"
+  // Kinetic behavior Option B: "reveals on scroll down, hides on scroll up"
   useMotionValueEvent(scrollY, "change", (latest) => {
     const delta = latest - lastScrollY
     setIsScrolled(latest > 50)
-    
+
     // Always visible at the very top
     if (latest < 50) {
       setIsVisible(true)
     } else {
       if (delta > 0) {
-        // Scrolling Down -> Visible
+        // Scrolling Down -> Reveal
         setIsVisible(true)
-      } else if (delta < -10) {
-        // Scrolling Up -> Hide
+      } else if (delta < -2) {
+        // Scrolling Up -> Hide (Near-instant)
         setIsVisible(false)
       }
     }
@@ -54,9 +54,9 @@ export function HeaderClient({ header }: Props) {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 pt-4 px-4 pointer-events-none">
-      <motion.header 
+      <motion.header
         initial={{ y: 0 }}
-        animate={{ 
+        animate={{
           y: isVisible ? 0 : "-120%",
           width: isScrolled ? "95%" : "100%",
         }}
@@ -72,15 +72,15 @@ export function HeaderClient({ header }: Props) {
         <div className="flex-1 flex items-center justify-between gap-6">
           {/* 1. Branding Lockup (Left) */}
           <Link href="/" className="flex items-center gap-3 sm:gap-4 shrink-0">
-            <Image 
-              src={FramehouseLogo} 
-              alt="Framehouse Logo" 
+            <Image
+              src={FramehouseLogo}
+              alt="Framehouse Logo"
               className="h-6 sm:h-7 w-auto"
               priority
             />
-            <Image 
-              src={HubLogo} 
-              alt="Framehouse Hub Logo" 
+            <Image
+              src={HubLogo}
+              alt="Framehouse Hub Logo"
               className="h-4 sm:h-5 w-auto opacity-80"
               priority
             />
@@ -106,14 +106,14 @@ export function HeaderClient({ header }: Props) {
           {/* 3. RHS Actions (Right) */}
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-4 md:gap-6">
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Login
               </Link>
-              <Link 
-                href="/demo" 
+              <Link
+                href="/demo"
                 className="hidden md:block text-sm font-medium bg-primary text-primary-foreground px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"
               >
                 Request a Demo
