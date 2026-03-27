@@ -1,8 +1,13 @@
-import PageTemplate, { generateMetadata } from './[slug]/page'
-import { DefaultHome } from '@/components/DefaultHome'
+import { LandingHero } from '@/components/LandingHero'
+import { PricingPreview } from '@/components/PricingPreview'
+import { ProductOverview } from '@/components/ProductOverview'
+import { ProductShowcase } from '@/components/ProductShowcase'
+import { SprocketDivider } from '@/components/SprocketDivider'
+import { ValueProposition } from '@/components/ValueProposition'
 import configPromise from '@payload-config'
-import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
+import { getPayload } from 'payload'
+import PageTemplate, { generateMetadata } from './[slug]/page'
 
 export default async function Page() {
   const { isEnabled: draft } = await draftMode()
@@ -22,9 +27,17 @@ export default async function Page() {
   const page = result.docs?.[0]
 
   if (!page) {
-    return <DefaultHome />
+    return (
+      <>
+        <LandingHero />
+        <SprocketDivider />
+        <ProductShowcase />
+        <ProductOverview />
+        <ValueProposition />
+        <PricingPreview />
+      </>
+    )
   }
-
   return <PageTemplate params={Promise.resolve({ slug: 'home' })} />
 }
 

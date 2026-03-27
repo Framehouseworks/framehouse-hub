@@ -8,7 +8,20 @@ import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
 import { GeistMono } from 'geist/font/mono'
 import { GeistSans } from 'geist/font/sans'
+import { Rubik_Mono_One, Varela_Round } from 'next/font/google'
 import './globals.css'
+
+const varela = Varela_Round({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-varela',
+})
+
+const rubik = Rubik_Mono_One({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-rubik',
+})
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +55,9 @@ const twitterSite = TWITTER_SITE ? ensureStartsWith(TWITTER_SITE, 'https://') : 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
-      className={[GeistSans.variable, GeistMono.variable].filter(Boolean).join(' ')}
+      className={[GeistSans.variable, GeistMono.variable, varela.variable, rubik.variable]
+        .filter(Boolean)
+        .join(' ')}
       lang="en"
       suppressHydrationWarning
     >
