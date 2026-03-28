@@ -24,6 +24,9 @@ interface Feature197Props {
   className?: string;
 }
 
+import { GutterContainer } from "@/components/layout/GutterContainer";
+import { LayoutSection } from "@/components/layout/LayoutSection";
+
 const Feature197 = ({
   title = "Features",
   features,
@@ -33,8 +36,8 @@ const Feature197 = ({
   const [activeImage, setActiveImage] = useState(features[0]?.image || "");
 
   return (
-    <section className={cn("py-24 md:py-32", className)}>
-      <div className="container mx-auto px-6">
+    <LayoutSection className={className}>
+      <GutterContainer>
         <h2 className="mb-20 text-3xl font-extralight md:text-4xl tracking-tight text-center md:text-left">
           {title}
         </h2>
@@ -103,8 +106,8 @@ const Feature197 = ({
             ))}
           </div>
         </div>
-      </div>
-    </section>
+      </GutterContainer>
+    </LayoutSection>
   );
 };
 

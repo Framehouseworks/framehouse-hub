@@ -74,14 +74,17 @@ const PricingCard = ({
   )
 }
 
+import { GutterContainer } from '@/components/layout/GutterContainer'
+import { LayoutSection } from '@/components/layout/LayoutSection'
+
 export const PricingPreview = () => {
   return (
-    <section className="relative w-full py-24 bg-surface dark:bg-[#0a0a0b] overflow-hidden">
+    <LayoutSection className="bg-surface dark:bg-[#0a0a0b] overflow-hidden">
       {/* Background Accents */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#bb1800]/[0.02] dark:bg-[#bb1800]/[0.04] rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-[#445aa5]/[0.02] dark:bg-[#445aa5]/[0.04] rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="container relative z-10 max-w-[1200px] px-4 mx-auto">
+      <GutterContainer className="relative z-10">
         <div className="max-w-3xl mb-16">
           <h2 className="text-base font-mono tracking-[0.3em] uppercase text-[#bb1800] mb-4">
             Membership
@@ -161,7 +164,7 @@ export const PricingPreview = () => {
              </div>
           </div>
         </div>
-      </div>
-    </section>
+      </GutterContainer>
+    </LayoutSection>
   )
 }
