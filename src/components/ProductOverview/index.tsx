@@ -33,6 +33,9 @@ const StepTag = ({
   )
 }
 
+import { GutterContainer } from '@/components/layout/GutterContainer'
+import { LayoutSection } from '@/components/layout/LayoutSection'
+
 export const ProductOverview = () => {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -84,22 +87,20 @@ export const ProductOverview = () => {
   const strokeW = 2.5
 
   return (
-    <section
+    <LayoutSection
       ref={containerRef}
-      className="container w-full min-h-[100vh] flex flex-col items-center justify-start bg-background py-16 md:py-24"
+      className="min-h-[100vh] flex flex-col items-center justify-start bg-background"
     >
-      {/* Header Content */}
-      <div className="text-center px-4 z-20 mb-8 md:mb-12">
-        <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent uppercase tracing-tighter leading-none mb-4">
-          Meet the lifecycle of your media
-        </h2>
-      </div>
-
-      <div className="relative z-10 w-full flex flex-col items-center justify-start flex-grow h-full">
+      <GutterContainer className="relative z-10 flex flex-col items-center justify-start flex-grow w-full">
+        {/* Header Content */}
+        <div className="text-center z-20 mb-8 md:mb-12">
+          <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent uppercase tracing-tighter leading-none mb-4">
+            Meet the lifecycle of your media
+          </h2>
+        </div>
 
         {/* Step Diagram Container - Vertically Compressed for Viewport Compatibility */}
-        <div className=" w-full h-[350px] md:h-[500px]">
-
+        <div className="w-full h-[350px] md:h-[500px] relative">
           {/* Minimalist Pills */}
           <StepTag label="Upload" color="bg-[#bb1800]" progress={smoothProgress} threshold={T_PILL_UPLOAD} xPosition="5%" />
           <StepTag label="Organise" color="bg-[#14192A]" progress={smoothProgress} threshold={T_PILL_ORGANISE} xPosition="50%" />
@@ -259,12 +260,12 @@ export const ProductOverview = () => {
           text="Framehouse Hub powers the world's most ambitious creative teams, from independent studios to global production houses."
           className="text-xl md:text-4xl font-light leading-relaxed mt-8 md:mt-12 pb-8"
         />
-      </div>
+      </GutterContainer>
 
       {/* Lighting Backdrop */}
       <div className="absolute inset-0 z-0 opacity-[0.05] dark:opacity-[0.1] pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] bg-[radial-gradient(circle,rgba(187,24,0,0.1)_0%,rgba(0,162,255,0.05)_50%,transparent_100%)] blur-[120px]" />
       </div>
-    </section>
+    </LayoutSection>
   )
 }
