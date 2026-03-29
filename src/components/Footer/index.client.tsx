@@ -1,12 +1,12 @@
 'use client'
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Globe, Moon, Sun, Github, Twitter, Linkedin } from 'lucide-react'
 import { CMSLink } from '@/components/Link'
+import type { Footer as FooterType } from '@/payload-types'
 import { ThemeSelector } from '@/providers/Theme/ThemeSelector'
 import { cn } from '@/utilities/cn'
-import type { Footer as FooterType } from '@/payload-types'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronDown, Github, Globe, Linkedin, Twitter } from 'lucide-react'
+import Link from 'next/link'
+import React, { useState } from 'react'
 
 interface Props {
   footer: FooterType
@@ -30,7 +30,7 @@ export function FooterClient({ footer }: Props) {
         <GutterContainer>
           {/* Main Discovery Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
-            
+
             {/* Column 1: Brand & Discovery */}
             <div className="flex flex-col gap-6">
               <Link href="/" className="font-varela text-xl tracking-tight hover:opacity-80 transition-opacity">
@@ -61,8 +61,8 @@ export function FooterClient({ footer }: Props) {
                 <h4 className="text-lg font-medium">Join the Curated List</h4>
                 <p className="text-sm text-neutral-500">Weekly insights into asset management & design excellence.</p>
                 <div className="relative group mt-2">
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     placeholder="Email address"
                     className={cn(
                       "w-full px-4 py-3 text-sm focus:outline-none transition-all outline-none",
@@ -81,7 +81,7 @@ export function FooterClient({ footer }: Props) {
           </div>
 
           {/* Utility Box: Theme & Language */}
-          <div className="mt-20 pt-12 flex flex-col sm:flex-row items-center justify-between gap-8 bg-muted/20 dark:bg-card/30 rounded-[24px] p-8 sm:p-12 transition-colors"> {/* GALLERY_REF: ROUND_TWENTY_FOUR */}
+          <div className="mt-20 pt-12 flex flex-col sm:flex-row items-center justify-between gap-8 bg-card rounded-[24px] p-8 sm:p-12 transition-colors"> {/* GALLERY_REF: ROUND_TWENTY_FOUR */}
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-[10px] font-rubik tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity cursor-default">
                 <Globe className="w-3 h-3" />
@@ -114,7 +114,7 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 group/col">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full md:cursor-default"
       >
@@ -131,7 +131,7 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
 
       <AnimatePresence initial={false}>
         {(isOpen || typeof window !== 'undefined' && window.innerWidth >= 768) && (
-          <motion.ul 
+          <motion.ul
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -140,9 +140,9 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
           >
             {items.map((item) => (
               <li key={item.id}>
-                <CMSLink 
-                  {...item.link} 
-                  appearance="link" 
+                <CMSLink
+                  {...item.link}
+                  appearance="link"
                   className="text-sm text-neutral-500 hover:text-primary transition-colors whitespace-nowrap"
                 />
               </li>
@@ -150,14 +150,14 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
           </motion.ul>
         )}
       </AnimatePresence>
-      
+
       {/* Desktop fallback list (since AnimatePresence/window check can be tricky on SSR) */}
       <ul className="hidden md:flex flex-col gap-3">
         {items.map((item) => (
           <li key={item.id}>
-            <CMSLink 
-              {...item.link} 
-              appearance="link" 
+            <CMSLink
+              {...item.link}
+              appearance="link"
               className="text-sm text-neutral-500 hover:text-primary transition-colors whitespace-nowrap"
             />
           </li>
@@ -169,8 +169,8 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
 
 function SocialLink({ href, icon }: { href: string; icon: React.ReactNode }) {
   return (
-    <Link 
-      href={href} 
+    <Link
+      href={href}
       className="p-2 bg-white dark:bg-neutral-900 rounded-full text-neutral-400 hover:text-primary hover:shadow-md transition-all border border-transparent hover:border-primary/10"
     >
       {icon}
