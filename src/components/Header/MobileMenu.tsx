@@ -1,111 +1,143 @@
 'use client'
-
-import type { Header } from '@/payload-types'
-
-import { CMSLink } from '@/components/Link'
-import { Button } from '@/components/ui/button'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
-import { useAuth } from '@/providers/Auth'
-import { MenuIcon } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Menu } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import { CMSLink } from '@/components/Link'
+import { cn } from '@/utilities/cn'
+import type { Header } from 'src/payload-types'
 
 interface Props {
   menu: Header['navItems']
 }
 
 export function MobileMenu({ menu }: Props) {
-  const { user } = useAuth()
-
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [isOpen, setIsOpen] = useState(false)
-
-  const closeMobileMenu = () => setIsOpen(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  // Close on resize if desktop
+  useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 768) {
+      if (window.innerWidth > 1024) { // Matches lg breakpoint
         setIsOpen(false)
       }
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [isOpen])
+  }, [])
 
-  useEffect(() => {
-    setIsOpen(false)
-  }, [pathname, searchParams])
+  const menuContent = (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] bg-white dark:bg-[#1a1c1c] flex flex-col overflow-y-auto"
+        >
+          {/* Main Overlay Container */}
+          <div className="relative min-h-screen flex flex-col items-center justify-center p-8">
+            {/* Close Button */}
+            <button 
+              onClick={() => setIsOpen(false)}
+              className="absolute top-8 right-8 p-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full"
+              aria-label="Close Menu"
+            >
+              <X className="w-8 h-8" />
+            </button>
 
-  return (
-    <Sheet onOpenChange={setIsOpen} open={isOpen}>
-      <SheetTrigger className="relative flex h-11 w-11 items-center justify-center rounded-md border border-neutral-200 text-black transition-colors dark:border-neutral-700 dark:bg-black dark:text-white">
-        <MenuIcon className="h-4" />
-      </SheetTrigger>
-
-      <SheetContent side="left" className="px-4">
-        <SheetHeader className="px-0 pt-4 pb-0">
-          <SheetTitle>My Store</SheetTitle>
-
-          <SheetDescription />
-        </SheetHeader>
-
-        <div className="py-4">
-          {menu?.length ? (
-            <ul className="flex w-full flex-col">
-              {menu.map((item) => (
-                <li className="py-2" key={item.id}>
-                  <CMSLink {...item.link} appearance="link" />
-                </li>
+            {/* Navigation Links */}
+            <nav className="flex flex-col items-center gap-6 sm:gap-10 my-auto">
+              {menu?.map((item, i) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                    duration: 0.6,
+                    delay: 0.1 + i * 0.1,
+                    ease: [0.23, 1, 0.32, 1]
+                  }}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <CMSLink
+                    {...item.link}
+                    size={'clear'}
+                    className={cn(
+                      "text-4xl sm:text-6xl md:text-7xl font-rubik tracking-tighter uppercase transition-all duration-300",
+                      "hover:text-primary hover:tracking-normal",
+                      "dark:text-white"
+                    )}
+                  />
+                </motion.div>
               ))}
-            </ul>
-          ) : null}
-        </div>
+              
+              {/* Mobile RHS Actions */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + (menu?.length || 0) * 0.1 }}
+                className="flex flex-col items-center gap-6 mt-12"
+              >
+                <Link 
+                  href="/login" 
+                  className="text-xl font-medium hover:text-primary transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link 
+                  href="/demo" 
+                  className="text-lg font-medium bg-primary text-primary-foreground px-8 py-4 rounded-full"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Request a Demo
+                </Link>
+              </motion.div>
+            </nav>
 
-        {user ? (
-          <div className="mt-4">
-            <h2 className="text-xl mb-4">My account</h2>
-            <hr className="my-2" />
-            <ul className="flex flex-col gap-2">
-              <li>
-                <Link href="/orders">Orders</Link>
-              </li>
-              <li>
-                <Link href="/account/addresses">Addresses</Link>
-              </li>
-              <li>
-                <Link href="/account">Manage account</Link>
-              </li>
-              <li className="mt-6">
-                <Button asChild variant="outline">
-                  <Link href="/logout">Log out</Link>
-                </Button>
-              </li>
-            </ul>
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-xl mb-4">My account</h2>
-            <div className="flex items-center gap-2 mt-4">
-              <Button asChild className="w-full" variant="outline">
-                <Link href="/login">Log in</Link>
-              </Button>
-              <span>or</span>
-              <Button asChild className="w-full">
-                <Link href="/create-account">Create an account</Link>
-              </Button>
+            {/* Museum Footer Information */}
+            <div className="mt-auto pt-16 flex flex-col items-center gap-4">
+              <div className="h-px w-16 bg-neutral-200 dark:bg-neutral-800" />
+              <span className="font-rubik text-[12px] tracking-[0.6em] uppercase opacity-30">
+                Framehouse Hub
+              </span>
             </div>
           </div>
-        )}
-      </SheetContent>
-    </Sheet>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+
+  return (
+    <>
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="p-2 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg pointer-events-auto"
+        aria-label="Open Menu"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
+
+      {(mounted && typeof document !== 'undefined') ? createPortal(menuContent, document.body) : null}
+    </>
   )
 }

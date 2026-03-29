@@ -66,7 +66,7 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
                 result.push({ 
                     items: [...currentStrip], 
                     totalWeight: currentWeight,
-                    id: Math.random().toString() 
+                    id: `strip-${result.length}`
                 })
                 currentStrip = []
                 currentWeight = 0
@@ -83,7 +83,7 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
 
             if (size === 'full') {
                 flushStrip()
-                result.push({ items: [item], totalWeight: 4.0, id: `full-${Math.random()}` })
+                result.push({ items: [item], totalWeight: 4.0, id: `full-${result.length}` })
                 return
             }
 
