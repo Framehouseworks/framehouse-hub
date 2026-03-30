@@ -108,13 +108,18 @@ export function HeaderClient({ header }: Props) {
             <div className="hidden sm:flex items-center gap-4 md:gap-6">
               <Link
                 href="/login"
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className={cn(
+                  "text-sm font-medium transition-all duration-300",
+                  "px-4 py-2 rounded-lg",
+                  "border border-black/10 dark:border-white/10 hover:border-primary/30",
+                  "hover:bg-primary/5 hover:text-primary"
+                )}
               >
                 Login
               </Link>
               <Link
                 href="/demo"
-                className="hidden md:block text-sm font-medium bg-primary text-primary-foreground px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"
+                className="hidden md:block text-sm font-medium bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
               >
                 Request a Demo
               </Link>

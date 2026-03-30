@@ -1,23 +1,21 @@
 'use client'
 
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
 import { cn } from '@/utilities/cn'
+import { Check } from 'lucide-react'
 
-const PricingCard = ({ 
-  title, 
-  price, 
-  description, 
-  features, 
-  ctaText, 
+const PricingCard = ({
+  title,
+  price,
+  description,
+  features,
+  ctaText,
   highlight = false,
   accentColor = "bg-primary"
-}: { 
-  title: string, 
-  price: string, 
-  description: string, 
-  features: string[], 
+}: {
+  title: string,
+  price: string,
+  description: string,
+  features: string[],
   ctaText: string,
   highlight?: boolean,
   accentColor?: string
@@ -35,7 +33,7 @@ const PricingCard = ({
           Recommended
         </div>
       )}
-      
+
       <div className="mb-8">
         <h3 className="text-sm font-mono tracking-[0.2em] uppercase text-muted-foreground mb-2">
           {title}
@@ -64,8 +62,8 @@ const PricingCard = ({
 
       <button className={cn(
         "w-full py-4 rounded-[16px] text-sm font-bold tracking-widest uppercase transition-all duration-300",
-        highlight 
-          ? "bg-[#bb1800] text-white shadow-[0_10px_20px_rgba(187,24,0,0.3)] hover:shadow-[0_15px_30px_rgba(187,24,0,0.4)] hover:-translate-y-0.5" 
+        highlight
+          ? "bg-[#bb1800] text-white shadow-[0_10px_20px_rgba(187,24,0,0.3)] hover:shadow-[0_15px_30px_rgba(187,24,0,0.4)] hover:-translate-y-0.5"
           : "bg-surface-container-low dark:bg-slate-800 text-foreground hover:bg-surface-container dark:hover:bg-slate-700"
       )}>
         {ctaText}
@@ -96,7 +94,7 @@ export const PricingPreview = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          <PricingCard 
+          <PricingCard
             title="Independent"
             price="£0"
             description="Perfect for individual creators and solo-archivists managing a curated collection."
@@ -111,7 +109,7 @@ export const PricingPreview = () => {
             accentColor="bg-slate-400"
           />
 
-          <PricingCard 
+          <PricingCard
             title="Collective"
             price="£49"
             description="Built for creative studios and small collectives that require shared workflows."
@@ -128,7 +126,7 @@ export const PricingPreview = () => {
             accentColor="bg-[#bb1800]"
           />
 
-          <PricingCard 
+          <PricingCard
             title="Pro Studio"
             price="£199"
             description="The definitive solution for high-volume production houses and enterprise teams."
@@ -149,19 +147,19 @@ export const PricingPreview = () => {
           <div className="max-w-sm">
             <h4 className="text-sm font-mono tracking-widest uppercase text-foreground mb-2">Sustainable by Design</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              We don&apos;t charge for storage—we charge for the tools that empower your creativity. 
+              We don&apos;t charge for storage—we charge for the tools that empower your creativity.
               Our model is built to scale with your team, not your hard drive.
             </p>
           </div>
           <div className="flex items-center gap-8">
-             <div className="text-center">
-                <p className="text-2xl font-mono text-foreground">99.9%</p>
-                <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Uptime SLA</p>
-             </div>
-             <div className="text-center">
-                <p className="text-2xl font-mono text-foreground">24/7</p>
-                <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Expert Care</p>
-             </div>
+            <div className="text-center">
+              <p className="text-2xl font-mono text-foreground">99.9%</p>
+              <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Uptime SLA</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-mono text-foreground">24/7</p>
+              <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Expert Care</p>
+            </div>
           </div>
         </div>
       </GutterContainer>
