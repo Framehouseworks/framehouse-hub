@@ -1,11 +1,11 @@
 'use client'
-import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, Menu } from 'lucide-react'
-import Link from 'next/link'
 import { CMSLink } from '@/components/Link'
 import { cn } from '@/utilities/cn'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Menu, X } from 'lucide-react'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Header } from 'src/payload-types'
 
 interface Props {
@@ -56,9 +56,9 @@ export function MobileMenu({ menu }: Props) {
           {/* Main Overlay Container */}
           <div className="relative min-h-screen flex flex-col items-center justify-center p-8">
             {/* Close Button */}
-            <button 
+            <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-8 right-8 p-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full"
+              className="absolute top-8 right-8 p-3 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-[16px]"
               aria-label="Close Menu"
             >
               <X className="w-8 h-8" />
@@ -71,7 +71,7 @@ export function MobileMenu({ menu }: Props) {
                   key={item.id}
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ 
+                  transition={{
                     duration: 0.6,
                     delay: 0.1 + i * 0.1,
                     ease: [0.23, 1, 0.32, 1]
@@ -89,24 +89,24 @@ export function MobileMenu({ menu }: Props) {
                   />
                 </motion.div>
               ))}
-              
+
               {/* Mobile RHS Actions */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + (menu?.length || 0) * 0.1 }}
                 className="flex flex-col items-center gap-6 mt-12"
               >
-                <Link 
-                  href="/login" 
-                  className="text-xl font-medium hover:text-primary transition-colors"
+                <Link
+                  href="/login"
+                  className="text-xl font-medium hover:text-primary transition-colors rounded-[16px] border border-black/10 dark:border-white/10 hover:border-primary/30"
                   onClick={() => setIsOpen(false)}
                 >
                   Login
                 </Link>
-                <Link 
-                  href="/demo" 
-                  className="text-lg font-medium bg-primary text-primary-foreground px-8 py-4 rounded-full"
+                <Link
+                  href="/demo"
+                  className="text-lg font-medium bg-primary text-primary-foreground px-8 py-4 rounded-[16px]"
                   onClick={() => setIsOpen(false)}
                 >
                   Request a Demo
@@ -129,7 +129,7 @@ export function MobileMenu({ menu }: Props) {
 
   return (
     <>
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
         className="p-2 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg pointer-events-auto"
         aria-label="Open Menu"
