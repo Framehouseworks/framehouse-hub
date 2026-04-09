@@ -37,7 +37,7 @@ const TierValue: React.FC<{ value: string; active?: boolean }> = ({ value, activ
       <div className="flex items-center justify-center">
         <div className={cn(
           "w-6 h-6 rounded-full flex items-center justify-center shadow-sm transition-all duration-500",
-          active ? "bg-[#7f5700] scale-110" : "bg-muted-foreground/10 group-hover:bg-[#7f5700]/80"
+          active ? "bg-gallery-gold scale-110" : "bg-muted-foreground/10 group-hover:bg-gallery-gold/80"
         )}>
           <Check size={12} className={cn("transition-colors", active ? "text-white" : "text-muted-foreground/40 group-hover:text-white")} strokeWidth={4} />
         </div>
@@ -56,8 +56,8 @@ const TierValue: React.FC<{ value: string; active?: boolean }> = ({ value, activ
 
   return (
     <span className={cn(
-      "text-[10px] font-mono uppercase tracking-widest transition-colors",
-      active ? "text-[#7f5700] font-bold" : "text-muted-foreground"
+      "text-gallery-label font-mono uppercase tracking-widest transition-colors",
+      active ? "text-gallery-gold font-bold" : "text-muted-foreground"
     )}>
       {value}
     </span>
@@ -72,6 +72,27 @@ export const FeatureMatrix: React.FC<FeatureMatrixProps> = ({
   planNames = ["Independent", "Collective", "Pro Studio"]
 }) => {
   const { isVisible, setIsOpaque } = useHeader()
+  const [isStuck, setIsStuck] = React.useState(false)
+  const stickyRef = React.useRef<HTMLDivElement>(null)
+
+  /**
+   * Sticky Detection
+   * Tracks when the table header hits the top boundary to enable kinetic sync.
+   */
+  React.useEffect(() => {
+    const el = stickyRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsStuck(entry.intersectionRatio < 1)
+      },
+      { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   /**
    * Pricing Special Scenario: 
@@ -83,31 +104,34 @@ export const FeatureMatrix: React.FC<FeatureMatrixProps> = ({
   }, [setIsOpaque])
 
   return (
-    <LayoutSection className="bg-white dark:bg-[#0a0a0b] py-16 md:py-32 border-t border-border/30">
+    <LayoutSection className="bg-white dark:bg-[#0a0a0b] py-24 md:py-32 border-t border-border/10">
       <GutterContainer>
         {/* Section Header */}
         <div className="max-w-3xl mb-16 md:mb-24">
-          <label className="text-[10px] font-mono tracking-[0.4em] uppercase text-[#bb1800] mb-4 block">
+          <label className="text-gallery-label font-rubik tracking-[0.4em] uppercase text-gallery-red mb-6 block">
             The Inventory
           </label>
-          <h2 className="text-3xl md:text-5xl font-mono tracking-tighter text-[#1a1c1c] dark:text-white uppercase leading-[0.95] mb-6">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-sans tracking-tighter text-foreground dark:text-white uppercase leading-[0.95] mb-6">
             Granular control <br />
             for every workflow.
           </h2>
-          <p className="text-sm text-muted-foreground max-w-xl">
+          <p className="text-base font-varela text-muted-foreground max-w-xl leading-relaxed opacity-80">
             A technical breakdown of every sub-system. From metadata architectures to
             enterprise-grade access controls.
           </p>
         </div>
 
         {/* Matrix Header (Kinetic Sync Orchestration) */}
-        <div className="sticky top-0 z-30 -mx-6 px-6 pointer-events-none mb-12">
+        <div 
+          ref={stickyRef}
+          className="sticky top-0 z-40 pointer-events-none mb-12"
+        >
           <motion.div
             animate={{
-              y: isVisible ? 'var(--header-total-height, 96px)' : 0
+              y: (isStuck && isVisible) ? 'var(--header-total-height, 96px)' : 0
             }}
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-            className="relative bg-white dark:bg-[#0a0a0b] pointer-events-auto"
+            className="relative bg-white dark:bg-[#0a0a0b] pointer-events-auto -mx-6 px-6 border-b border-border/10"
           >
             {/* 
               The Safety Shield 
@@ -119,61 +143,67 @@ export const FeatureMatrix: React.FC<FeatureMatrixProps> = ({
               style={{ height: 'var(--header-total-height, 96px)' }}
             />
 
-            <div className="grid grid-cols-12 gap-4 md:gap-8 py-4 md:py-6 border-b border-border/10">
-              <div className="col-span-12 md:col-span-6 mb-2 md:mb-0">
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#bb1800] font-bold">Capabilities</span>
+            {/* Desktop Header Grid (Rebalanced 4-3-3-3) */}
+            <div className="hidden md:grid grid-cols-[4fr_3fr_3fr_3fr] gap-3 py-6">
+              <div className="col-span-1">
+                <span className="text-gallery-label font-rubik uppercase tracking-[0.2em] text-gallery-red">Capabilities</span>
               </div>
 
-              {/* Mobile Plan Names Row (Full Text) */}
-              <div className="col-span-12 md:hidden grid grid-cols-3 gap-2 pb-2 items-end min-h-[40px]">
-                {planNames.map((name, i) => (
-                  <div key={i} className="text-center px-1">
-                    <span className={cn(
-                      "text-[9px] font-mono uppercase tracking-tight leading-[1.1] block break-words h-full flex items-center justify-center",
-                      i === 2 ? "text-[#7f5700] font-bold" : "text-muted-foreground"
-                    )}>
-                      {name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Plan Names */}
+              {/* Tier Headers */}
               {planNames.map((name, i) => (
-                <div key={i} className="hidden md:block col-span-2 text-center">
+                <div key={i} className="text-center">
                   <span className={cn(
-                    "text-[10px] font-mono uppercase tracking-[0.2em] transition-colors duration-300",
-                    i === 2 ? "text-[#7f5700] font-bold" : "text-muted-foreground"
+                    "text-gallery-label-xs font-rubik uppercase tracking-tighter whitespace-nowrap transition-colors duration-300",
+                    i === 2 ? "text-gallery-gold" : "text-muted-foreground"
                   )}>
                     {name}
                   </span>
                 </div>
               ))}
             </div>
+
+            {/* Mobile Header Stack (Stacked Layout) */}
+            <div className="md:hidden flex flex-col pt-4 pb-6">
+              <div className="mb-4 text-center">
+                <span className="text-gallery-label font-rubik uppercase tracking-[0.2em] text-gallery-red">Capabilities</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 items-end min-h-[40px]">
+                {planNames.map((name, i) => (
+                  <div key={i} className="text-center px-1">
+                    <span className={cn(
+                      "text-gallery-label-xs font-rubik uppercase tracking-tighter whitespace-nowrap block",
+                      i === 2 ? "text-gallery-gold" : "text-muted-foreground"
+                    )}>
+                      {name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </motion.div>
         </div>
 
         {/* Feature Categories */}
-        <div className="space-y-16 md:space-y-32">
+        <div className="space-y-16 md:space-y-24">
           {categories.map((group, groupIndex) => (
-            <div key={groupIndex} className="pt-12 md:pt-16">
-              <h3 className="text-base md:text-xl font-mono tracking-[0.2em] uppercase text-[#bb1800] mb-10 md:mb-16 pl-4 border-l-4 border-[#bb1800]/30">
+            <div key={groupIndex} className="pt-12 md:pt-16 border-t first:border-t-0 border-border/5">
+              <h3 className="text-xs md:text-gallery-label font-rubik tracking-[0.2em] uppercase text-gallery-red mb-10 md:mb-16">
                 {group.category}
               </h3>
 
-              <div className="divide-y divide-border/10">
+              <div className="divide-y divide-border/5">
                 {group.features.map((feature, featureIndex) => (
                   <div
                     key={featureIndex}
-                    className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 py-6 md:py-10 group hover:bg-surface-container-low/40 dark:hover:bg-white/[0.02] active:bg-[#f3f3f4] dark:active:bg-slate-800/50 cursor-default transition-all duration-500 -mx-6 px-6 rounded-2xl"
+                    className="grid grid-cols-1 md:grid-cols-[4fr_3fr_3fr_3fr] gap-4 md:gap-3 py-8 md:py-12 group hover:bg-gallery-surface dark:hover:bg-white/[0.02] transition-all duration-500 -mx-6 px-6 rounded-[24px]"
                   >
                     {/* Feature Name & Description */}
-                    <div className="col-span-1 md:col-span-6 flex flex-col justify-center">
-                      <span className="text-sm md:text-base font-bold uppercase tracking-tighter text-[#1a1c1c] dark:text-white group-hover:text-[#7f5700] transition-colors duration-500">
+                    <div className="col-span-1 flex flex-col justify-center">
+                      <span className="text-sm md:text-base font-bold uppercase tracking-tight text-foreground dark:text-white group-hover:text-gallery-gold transition-colors duration-500">
                         {feature.name}
                       </span>
                       {feature.description && (
-                        <p className="text-[11px] md:text-xs text-muted-foreground mt-2 max-w-md leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity duration-500">
+                        <p className="text-xs font-varela text-muted-foreground mt-3 max-w-md leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity duration-500">
                           {feature.description}
                         </p>
                       )}
@@ -182,14 +212,14 @@ export const FeatureMatrix: React.FC<FeatureMatrixProps> = ({
                     {/* Desktop Values */}
                     <div className="hidden md:contents">
                       {[feature.plan1, feature.plan2, feature.plan3].map((val, i) => (
-                        <div key={i} className="col-span-2 flex items-center justify-center">
+                        <div key={i} className="flex items-center justify-center">
                           <TierValue value={val} active={i === 2} />
                         </div>
                       ))}
                     </div>
 
                     {/* Mobile Comparison Grid (Icons only) */}
-                    <div className="md:hidden grid grid-cols-3 gap-2 pt-4 mt-2 border-t border-border/10">
+                    <div className="md:hidden grid grid-cols-3 gap-2 pt-6 mt-4 border-t border-border/5">
                       {[feature.plan1, feature.plan2, feature.plan3].map((val, i) => (
                         <div key={i} className="flex flex-col items-center">
                           <TierValue value={val} active={i === 2} />

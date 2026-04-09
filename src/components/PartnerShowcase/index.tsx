@@ -22,10 +22,10 @@ export const PartnerShowcase: React.FC<PartnerShowcaseProps> = ({ logos }) => {
   if (!logos || logos.length === 0) return null
 
   return (
-    <LayoutSection className="bg-[#f3f3f4] dark:bg-[#0a0a0b] py-24 pb-32">
+    <LayoutSection className="bg-gallery-surface dark:bg-[#0a0a0b] py-24 md:py-32">
       <GutterContainer>
         <div className="flex flex-col items-center text-center">
-          <label className="text-[10px] font-mono tracking-[0.5em] uppercase text-muted-foreground mb-16 block opacity-60">
+          <label className="text-gallery-label font-rubik tracking-[0.5em] uppercase text-muted-foreground mb-16 block opacity-60">
             In Production With
           </label>
           
