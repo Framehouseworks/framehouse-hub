@@ -6,23 +6,29 @@ import React from 'react'
 
 export type PricingCardProps = {
   title: string
-  price: string
+  priceMonthly: string
+  priceAnnual: string
   description: string
   features: string[]
   ctaText: string
   highlight?: boolean
   accentColor?: string
+  billingCycle?: 'monthly' | 'annual'
 }
 
-const PricingCard: React.FC<PricingCardProps> = ({
+export const PricingCard: React.FC<PricingCardProps> = ({
   title,
-  price,
+  priceMonthly,
+  priceAnnual,
   description,
   features,
   ctaText,
   highlight = false,
-  accentColor = "bg-primary"
+  accentColor = "bg-primary",
+  billingCycle = 'monthly'
 }) => {
+  const price = billingCycle === 'monthly' ? priceMonthly : priceAnnual
+
   return (
     <div className={cn(
       "relative flex flex-col p-8 rounded-[24px] transition-all duration-300 group",
@@ -45,7 +51,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
           <span className="text-4xl md:text-5xl font-mono tracking-tighter text-foreground">
             {price}
           </span>
-          <span className="text-sm text-muted-foreground font-medium">/mo</span>
+          <span className="text-sm text-muted-foreground font-medium">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
         </div>
         <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
           {description}
@@ -85,6 +91,7 @@ export type PricingPreviewProps = {
   footnoteTitle?: string
   footnoteDescription?: string
   stats?: { value: string; label: string }[]
+  billingCycle?: 'monthly' | 'annual'
 }
 
 export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
@@ -98,7 +105,8 @@ export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
   cards: [
     {
       title: "Independent",
-      price: "£0",
+      priceMonthly: "£0",
+      priceAnnual: "£0",
       description: "Perfect for individual creators and solo-archivists managing a curated collection.",
       features: [
         "1 Administrator Seat",
@@ -112,7 +120,8 @@ export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
     },
     {
       title: "Collective",
-      price: "£49",
+      priceMonthly: "£49",
+      priceAnnual: "£490",
       description: "Built for creative studios and small collectives that require shared workflows.",
       features: [
         "Up to 5 User Seats",
@@ -128,7 +137,8 @@ export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
     },
     {
       title: "Pro Studio",
-      price: "£199",
+      priceMonthly: "£199",
+      priceAnnual: "£1990",
       description: "The definitive solution for high-volume production houses and enterprise teams.",
       features: [
         "Unlimited User Seats",
@@ -147,7 +157,8 @@ export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
   stats: [
     { value: "99.9%", label: "Uptime SLA" },
     { value: "24/7", label: "Expert Care" },
-  ]
+  ],
+  billingCycle: 'monthly'
 }
 
 export const PricingPreview: React.FC<PricingPreviewProps> = (props) => {
@@ -157,7 +168,8 @@ export const PricingPreview: React.FC<PricingPreviewProps> = (props) => {
     cards = DEFAULT_CONTENT.cards,
     footnoteTitle = DEFAULT_CONTENT.footnoteTitle,
     footnoteDescription = DEFAULT_CONTENT.footnoteDescription,
-    stats = DEFAULT_CONTENT.stats
+    stats = DEFAULT_CONTENT.stats,
+    billingCycle = 'monthly'
   } = props
 
   return (
@@ -178,7 +190,7 @@ export const PricingPreview: React.FC<PricingPreviewProps> = (props) => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {cards.map((card, i) => (
-            <PricingCard key={i} {...card} />
+            <PricingCard key={i} {...card} billingCycle={billingCycle} />
           ))}
         </div>
 

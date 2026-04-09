@@ -105,10 +105,12 @@ export interface Config {
   globals: {
     header: Header;
     footer: Footer;
+    pricing: Pricing;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
+    pricing: PricingSelect<false> | PricingSelect<true>;
   };
   locale: null;
   user: User & {
@@ -1708,6 +1710,73 @@ export interface Footer {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pricing".
+ */
+export interface Pricing {
+  id: number;
+  plans: {
+    name: string;
+    /**
+     * Include currency symbol (e.g., £0, £49)
+     */
+    priceMonthly: string;
+    /**
+     * Include currency symbol (e.g., £0, £41)
+     */
+    priceAnnual: string;
+    description: string;
+    ctaText: string;
+    isRecommended?: boolean | null;
+    summaryFeatures?:
+      | {
+          feature: string;
+          id?: string | null;
+        }[]
+      | null;
+    id?: string | null;
+  }[];
+  featureCategories?:
+    | {
+        name: string;
+        features?:
+          | {
+              name: string;
+              description?: string | null;
+              plan1Value?: string | null;
+              plan2Value?: string | null;
+              plan3Value?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  partnerLogos?:
+    | {
+        logo: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  enterpriseHeading?: string | null;
+  enterpriseCtaLabel?: string | null;
+  enterpriseDescription?: string | null;
+  /**
+   * Custom title for SEO. Falls back to "Pricing | Framehouse Hub".
+   */
+  metaTitle?: string | null;
+  /**
+   * Custom description for search results.
+   */
+  metaDescription?: string | null;
+  /**
+   * Social sharing image (OpenGraph).
+   */
+  metaImage?: (number | null) | Media;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -1748,6 +1817,60 @@ export interface FooterSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pricing_select".
+ */
+export interface PricingSelect<T extends boolean = true> {
+  plans?:
+    | T
+    | {
+        name?: T;
+        priceMonthly?: T;
+        priceAnnual?: T;
+        description?: T;
+        ctaText?: T;
+        isRecommended?: T;
+        summaryFeatures?:
+          | T
+          | {
+              feature?: T;
+              id?: T;
+            };
+        id?: T;
+      };
+  featureCategories?:
+    | T
+    | {
+        name?: T;
+        features?:
+          | T
+          | {
+              name?: T;
+              description?: T;
+              plan1Value?: T;
+              plan2Value?: T;
+              plan3Value?: T;
+              id?: T;
+            };
+        id?: T;
+      };
+  partnerLogos?:
+    | T
+    | {
+        logo?: T;
+        id?: T;
+      };
+  enterpriseHeading?: T;
+  enterpriseCtaLabel?: T;
+  enterpriseDescription?: T;
+  metaTitle?: T;
+  metaDescription?: T;
+  metaImage?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

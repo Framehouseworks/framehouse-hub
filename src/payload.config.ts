@@ -24,6 +24,7 @@ import { Users } from '@/collections/Users'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { Pricing } from '@/globals/Pricing'
 import { plugins } from './plugins'
 
 
@@ -148,7 +149,7 @@ export default buildConfig({
       },
     },
   ],
-  globals: [Header, Footer],
+  globals: [Header, Footer, Pricing],
   plugins: [
     ...plugins,
     // storage-adapter-placeholder
