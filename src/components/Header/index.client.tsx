@@ -12,36 +12,15 @@ import { MobileMenu } from './MobileMenu'
 import FramehouseLogo from '@/assets/framehouse_logo_expanded_color.svg'
 import HubLogo from '@/assets/hub/framehouse_hub_logo_color.svg'
 
+import { useHeader } from '@/providers/HeaderProvider'
+
 type Props = {
   header: Header
 }
 
 export function HeaderClient({ header }: Props) {
   const pathname = usePathname()
-  const [isVisible, setIsVisible] = useState(true)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const { scrollY } = useScroll()
-  const [lastScrollY, setLastScrollY] = useState(0)
-
-  // Standard kinetic behavior: "hides on scroll down, reveals on scroll up"
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    const delta = latest - lastScrollY
-    setIsScrolled(latest > 50)
-
-    // Always visible at the very top
-    if (latest < 50) {
-      setIsVisible(true)
-    } else {
-      if (delta > 0 && latest > 200) {
-        // Scrolling Down -> Hide
-        setIsVisible(false)
-      } else if (delta < -10) {
-        // Scrolling Up -> Show
-        setIsVisible(true)
-      }
-    }
-    setLastScrollY(latest)
-  })
+  const { isVisible, isScrolled, isOpaque } = useHeader()
 
   // Fallback menu items if CMS is empty
   const defaultMenu = [
@@ -62,8 +41,10 @@ export function HeaderClient({ header }: Props) {
         }}
         transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
         className={cn(
-          "mx-auto pointer-events-auto transition-all duration-300",
-          "bg-white/80 dark:bg-[#1a1c1cb3] backdrop-blur-[20px]",
+          "mx-auto pointer-events-auto transition-none", // Removed transition-all to prevent jitter
+          isOpaque 
+            ? "bg-white dark:bg-[#1a1c1c]" 
+            : "bg-white/80 dark:bg-[#1a1c1cb3] backdrop-blur-[20px]",
           "border border-black/[0.03] dark:border-white/[0.03]",
           "rounded-[20px] shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.4)]",
           "h-16 sm:h-20 flex items-center px-6 sm:px-8",
