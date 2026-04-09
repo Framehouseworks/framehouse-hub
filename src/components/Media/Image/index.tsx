@@ -43,13 +43,13 @@ export const Image: React.FC<MediaProps> = (props) => {
       width: fullWidth,
     } = resource
 
-    width = widthFromProps ?? fullWidth
-    height = heightFromProps ?? fullHeight
-    alt = altFromResource
+    width = widthFromProps ?? (fullWidth || undefined)
+    height = heightFromProps ?? (fullHeight || undefined)
+    alt = altFromResource || altFromProps
 
-    const filename = fullFilename
-
-    src = `${process.env.NEXT_PUBLIC_SERVER_URL}${url}`
+    // Handle static paths or absolute URLs vs Payload relative paths
+    const isStaticOrAbsolute = url?.startsWith('/') || url?.startsWith('http')
+    src = isStaticOrAbsolute ? url : `${process.env.NEXT_PUBLIC_SERVER_URL}${url}`
   }
 
   // NOTE: this is used by the browser to determine which image to download at different screen sizes
