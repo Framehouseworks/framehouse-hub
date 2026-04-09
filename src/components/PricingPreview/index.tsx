@@ -2,8 +2,19 @@
 
 import { cn } from '@/utilities/cn'
 import { Check } from 'lucide-react'
+import React from 'react'
 
-const PricingCard = ({
+export type PricingCardProps = {
+  title: string
+  price: string
+  description: string
+  features: string[]
+  ctaText: string
+  highlight?: boolean
+  accentColor?: string
+}
+
+const PricingCard: React.FC<PricingCardProps> = ({
   title,
   price,
   description,
@@ -11,14 +22,6 @@ const PricingCard = ({
   ctaText,
   highlight = false,
   accentColor = "bg-primary"
-}: {
-  title: string,
-  price: string,
-  description: string,
-  features: string[],
-  ctaText: string,
-  highlight?: boolean,
-  accentColor?: string
 }) => {
   return (
     <div className={cn(
@@ -75,7 +78,88 @@ const PricingCard = ({
 import { GutterContainer } from '@/components/layout/GutterContainer'
 import { LayoutSection } from '@/components/layout/LayoutSection'
 
-export const PricingPreview = () => {
+export type PricingPreviewProps = {
+  overline?: string
+  heading?: React.ReactNode
+  cards?: PricingCardProps[]
+  footnoteTitle?: string
+  footnoteDescription?: string
+  stats?: { value: string; label: string }[]
+}
+
+export const DEFAULT_CONTENT: Required<PricingPreviewProps> = {
+  overline: "Membership",
+  heading: (
+    <>
+      Curated plans for <br />
+      every stage of growth.
+    </>
+  ),
+  cards: [
+    {
+      title: "Independent",
+      price: "£0",
+      description: "Perfect for individual creators and solo-archivists managing a curated collection.",
+      features: [
+        "1 Administrator Seat",
+        "Core Metadata Management",
+        "Search & Advanced Filtering",
+        "Public Link Sharing",
+        "Community Support"
+      ],
+      ctaText: "Start Free",
+      accentColor: "bg-slate-400",
+    },
+    {
+      title: "Collective",
+      price: "£49",
+      description: "Built for creative studios and small collectives that require shared workflows.",
+      features: [
+        "Up to 5 User Seats",
+        "Shared Workspaces",
+        "Approval Workflows",
+        "Custom Metadata Schemas",
+        "Brand Portals (Whitelabel)",
+        "30-Day Version History"
+      ],
+      ctaText: "Join the Collective",
+      highlight: true,
+      accentColor: "bg-[#bb1800]",
+    },
+    {
+      title: "Pro Studio",
+      price: "£199",
+      description: "The definitive solution for high-volume production houses and enterprise teams.",
+      features: [
+        "Unlimited User Seats",
+        "AI Auto-Tagging & Metadata",
+        "Full Audit Logs & SAML SSO",
+        "Advanced API & Webhooks",
+        "Priority Global Support",
+        "Custom Training"
+      ],
+      ctaText: "Contact Sales",
+      accentColor: "bg-[#7f5700]",
+    },
+  ],
+  footnoteTitle: "Sustainable by Design",
+  footnoteDescription: "We don't charge for storage—we charge for the tools that empower your creativity. Our model is built to scale with your team, not your hard drive.",
+  stats: [
+    { value: "99.9%", label: "Uptime SLA" },
+    { value: "24/7", label: "Expert Care" },
+  ]
+}
+
+export const PricingPreview: React.FC<PricingPreviewProps> = (props) => {
+  const { 
+    overline = DEFAULT_CONTENT.overline,
+    heading = DEFAULT_CONTENT.heading,
+    cards = DEFAULT_CONTENT.cards,
+    footnoteTitle = DEFAULT_CONTENT.footnoteTitle,
+    footnoteDescription = DEFAULT_CONTENT.footnoteDescription,
+    stats = DEFAULT_CONTENT.stats
+  } = props
+
   return (
     <LayoutSection className="bg-surface dark:bg-[#0a0a0b] overflow-hidden">
       {/* Background Accents */}
@@ -85,81 +169,33 @@ export const PricingPreview = () => {
       <GutterContainer className="relative z-10">
         <div className="max-w-3xl mb-16">
           <h2 className="text-base font-mono tracking-[0.3em] uppercase text-[#bb1800] mb-4">
-            Membership
+            {overline}
           </h2>
           <h3 className="text-3xl md:text-5xl font-mono tracking-tighter text-foreground uppercase leading-[1.1]">
-            Curated plans for <br />
-            every stage of growth.
+            {heading}
           </h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          <PricingCard
-            title="Independent"
-            price="£0"
-            description="Perfect for individual creators and solo-archivists managing a curated collection."
-            features={[
-              "1 Administrator Seat",
-              "Core Metadata Management",
-              "Search & Advanced Filtering",
-              "Public Link Sharing",
-              "Community Support"
-            ]}
-            ctaText="Start Free"
-            accentColor="bg-slate-400"
-          />
-
-          <PricingCard
-            title="Collective"
-            price="£49"
-            description="Built for creative studios and small collectives that require shared workflows."
-            features={[
-              "Up to 5 User Seats",
-              "Shared Workspaces",
-              "Approval Workflows",
-              "Custom Metadata Schemas",
-              "Brand Portals (Whitelabel)",
-              "30-Day Version History"
-            ]}
-            ctaText="Join the Collective"
-            highlight={true}
-            accentColor="bg-[#bb1800]"
-          />
-
-          <PricingCard
-            title="Pro Studio"
-            price="£199"
-            description="The definitive solution for high-volume production houses and enterprise teams."
-            features={[
-              "Unlimited User Seats",
-              "AI Auto-Tagging & Metadata",
-              "Full Audit Logs & SAML SSO",
-              "Advanced API & Webhooks",
-              "Priority Global Support",
-              "Custom Training"
-            ]}
-            ctaText="Contact Sales"
-            accentColor="bg-[#7f5700]"
-          />
+          {cards.map((card, i) => (
+            <PricingCard key={i} {...card} />
+          ))}
         </div>
 
         <div className="mt-16 pt-16 border-t border-border/50 flex flex-col md:flex-row justify-between gap-8">
           <div className="max-w-sm">
-            <h4 className="text-sm font-mono tracking-widest uppercase text-foreground mb-2">Sustainable by Design</h4>
+            <h4 className="text-sm font-mono tracking-widest uppercase text-foreground mb-2">{footnoteTitle}</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              We don&apos;t charge for storage—we charge for the tools that empower your creativity.
-              Our model is built to scale with your team, not your hard drive.
+              {footnoteDescription}
             </p>
           </div>
           <div className="flex items-center gap-8">
-            <div className="text-center">
-              <p className="text-2xl font-mono text-foreground">99.9%</p>
-              <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Uptime SLA</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-mono text-foreground">24/7</p>
-              <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">Expert Care</p>
-            </div>
+            {stats.map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className="text-2xl font-mono text-foreground">{stat.value}</p>
+                <p className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </GutterContainer>

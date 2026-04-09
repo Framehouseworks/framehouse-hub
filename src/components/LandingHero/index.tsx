@@ -2,13 +2,37 @@
 import HeroImage from '@/assets/hub/hero_image.png'
 import { LoginForm } from '@/components/login-form'
 import { useHeaderTheme } from '@/providers/HeaderTheme'
-import Image from 'next/image'
+import Image, { StaticImageData } from 'next/image'
 import { useEffect } from 'react'
+import React from 'react'
 
 import { GutterContainer } from '@/components/layout/GutterContainer'
 import { LayoutSection } from '@/components/layout/LayoutSection'
 
-export const LandingHero = () => {
+export type LandingHeroProps = {
+  title?: React.ReactNode
+  description?: string
+  image?: StaticImageData
+}
+
+export const DEFAULT_CONTENT: Required<LandingHeroProps> = {
+  title: (
+    <>
+      Store it properly. <br />
+      <span>Share it effortlessly</span>
+    </>
+  ),
+  description: 'Manage, organise, and share your assets in a single source of truth with Framehouse Hub, the platform built for independent creatives.',
+  image: HeroImage,
+}
+
+export const LandingHero: React.FC<LandingHeroProps> = (props) => {
+  const { 
+    title = DEFAULT_CONTENT.title, 
+    description = DEFAULT_CONTENT.description, 
+    image = DEFAULT_CONTENT.image 
+  } = props
+  
   const { setHeaderTheme } = useHeaderTheme()
 
   useEffect(() => {
@@ -36,11 +60,10 @@ export const LandingHero = () => {
           <GutterContainer leftAlign className="w-full flex flex-col items-center xl:items-end">
             <div className="max-w-xl w-full">
               <h1 className="text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.1] transition-all duration-300 font-sans bg-linear-to-b from-[#F13C1F] via-[#F13C1F] via-60% to-transparent bg-clip-text text-transparent py-2">
-                Store it properly. <br />
-                <span>Share it effortlessly</span>
+                {title}
               </h1>
               <p className="mt-8 text-lg md:text-xl font-varela text-muted-foreground w-full leading-relaxed">
-                Manage, organise, and share your assets in a single source of truth with Framehouse Hub, the platform built for independent creatives.
+                {description}
               </p>
 
               <div className="mt-12 w-full max-w-md mx-auto transform transition-all duration-500">
@@ -54,7 +77,7 @@ export const LandingHero = () => {
         <div className="hidden lg:flex w-full h-full relative items-center justify-end overflow-hidden">
           <div className="relative w-full h-full flex justify-end items-center translate-x-12">
             <Image
-              src={HeroImage}
+              src={image}
               alt="Framehouse Hub Platform Preview"
               className="object-contain object-right h-[85vh] w-auto drop-shadow-[-20px_20px_50px_rgba(0,0,0,0.15)] dark:drop-shadow-[-20px_20px_50px_rgba(255,255,255,0.05)] transition-transform duration-700 hover:scale-[1.02]"
               priority

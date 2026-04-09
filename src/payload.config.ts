@@ -69,6 +69,7 @@ export default buildConfig({
   },
   collections: [Users, Pages, Categories, Media, Portfolios],
   db: postgresAdapter({
+    push: false,
     pool: {
       connectionString: process.env.DATABASE_URI || '',
     },
