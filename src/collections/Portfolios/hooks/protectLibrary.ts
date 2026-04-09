@@ -1,26 +1,10 @@
-import type { CollectionBeforeChangeHook, CollectionBeforeDeleteHook } from 'payload'
-import { APIError } from 'payload'
+import type { CollectionBeforeChangeHook } from 'payload'
+import { protectCoreRecord } from '@/utilities/protectRecords'
 
 /**
  * Prevents deletion of the "Portfolio Library" root folder.
  */
-export const protectLibraryFolder: CollectionBeforeDeleteHook = async ({ req, id }) => {
-    try {
-        const folder = await req.payload.findByID({
-            collection: 'payload-folders',
-            id,
-            depth: 0,
-        })
-
-        // Protect any folder named "Portfolio Library" that is a root folder
-        if (folder && folder.name === 'Portfolio Library' && !folder.folder) {
-            throw new APIError('The "Portfolio Library" is a protected system folder and cannot be deleted.', 400)
-        }
-    } catch (err) {
-        if (err instanceof APIError) throw err
-        // If not found, ignore (it might already be deleted or handle by Payload)
-    }
-}
+export const protectLibraryFolder = protectCoreRecord(['Portfolio Library'], 'The "Portfolio Library" is a protected system folder and cannot be deleted.')
 
 /**
  * Ensures any new folder created at the root is automatically parented to "Portfolio Library".

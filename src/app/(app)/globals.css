@@ -32,6 +32,11 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
+  /* Gallery Semantic Typography */
+  --font-size-gallery-label: 0.625rem;
+  --font-size-gallery-label-sm: 0.5625rem;
+  --font-size-gallery-label-xs: 0.5rem;
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -90,6 +95,11 @@
   --success: hsl(196 52% 74%);
   --warning: hsl(34 89% 85%);
   --error: hsl(10, 93%, 70%);
+
+  /* Gallery Semantic Colors */
+  --gallery-gold: hsl(41 100% 25%);
+  --gallery-red: hsl(8 100% 37%);
+  --gallery-surface: hsl(240 5% 96%);
 }
 
 [data-theme='dark'] {
@@ -124,6 +134,11 @@
   --success: hsl(196 100% 14%);
   --warning: hsl(34 51% 25%);
   --error: hsl(10 39% 43%);
+
+  /* Gallery Semantic Colors (Dark) */
+  --gallery-gold: hsl(41 100% 40%);
+  --gallery-red: hsl(8 100% 50%);
+  --gallery-surface: hsl(0 0% 8.5%);
 }
 
 @theme inline {
@@ -150,6 +165,11 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
+
+  /* Gallery Theme Utilities */
+  --color-gallery-gold: var(--gallery-gold);
+  --color-gallery-red: var(--gallery-red);
+  --color-gallery-surface: var(--gallery-surface);
 }
 
 @layer base {
