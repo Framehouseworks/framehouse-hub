@@ -9,9 +9,11 @@ import { Carousel } from '@/blocks/Carousel/config'
 import { Content } from '@/blocks/Content/config'
 import { FormBlock } from '@/blocks/Form/config'
 import { MediaBlock } from '@/blocks/MediaBlock/config'
+import { Pricing } from '@/blocks/Pricing/config'
 import { ThreeItemGrid } from '@/blocks/ThreeItemGrid/config'
 import { hero } from '@/fields/hero'
 import { slugField } from '@/fields/slug'
+import { lockCoreField, protectCoreRecord } from '@/utilities/protectRecords'
 import { generatePreviewPath } from '@/utilities/generatePreviewPath'
 import {
   MetaDescriptionField,
@@ -32,7 +34,7 @@ export const Pages: CollectionConfig = {
   },
   admin: {
     group: 'Content',
-    defaultColumns: ['title', 'slug', 'updatedAt'],
+    defaultColumns: ['title', 'slug', 'isProtected', 'updatedAt'],
     livePreview: {
       url: ({ data, req }) =>
         generatePreviewPath({
@@ -96,6 +98,7 @@ export const Pages: CollectionConfig = {
                 ThreeItemGrid,
                 Banner,
                 FormBlock,
+                Pricing,
               ],
               required: true,
             },
@@ -131,11 +134,28 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    ...slugField(),
+    ...slugField('title', {
+      slugOverrides: {
+        access: {
+          update: lockCoreField,
+        },
+      },
+    }),
+    {
+      name: 'isProtected',
+      type: 'checkbox',
+      admin: {
+        description: 'If checked, this page is a system-critical record and cannot be deleted.',
+        position: 'sidebar',
+        readOnly: true,
+      },
+      defaultValue: false,
+    },
   ],
   hooks: {
     afterChange: [revalidatePage],
     afterDelete: [revalidateDelete],
+    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features'], 'This is a core system page and cannot be deleted.')],
   },
   versions: {
     drafts: {

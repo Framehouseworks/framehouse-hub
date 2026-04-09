@@ -1,6 +1,7 @@
 'use client'
-import Image from 'next/image'
+import Image, { StaticImageData } from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
+import React from 'react'
 
 import ShowcasePreview from '@/assets/hub/hub_preview.webp'
 import BlueHole from '@/assets/sprocket-hole/sprocket_hole_blue.svg'
@@ -16,7 +17,24 @@ import { createSeededRandom } from '@/utilities/seeded-random'
 import { GutterContainer } from '@/components/layout/GutterContainer'
 import { LayoutSection } from '@/components/layout/LayoutSection'
 
-export const ProductShowcase = () => {
+export type ProductShowcaseProps = {
+  title?: React.ReactNode
+  image?: StaticImageData
+}
+
+export const DEFAULT_CONTENT: Required<ProductShowcaseProps> = {
+  title: (
+    <>
+      Built by creatives. <br />
+      For creatives.
+    </>
+  ),
+  image: ShowcasePreview,
+}
+
+export const ProductShowcase: React.FC<ProductShowcaseProps> = (props) => {
+  const { title = DEFAULT_CONTENT.title, image = DEFAULT_CONTENT.image } = props
+
   // Generate a large grid of randomized sprocket holes for the background
   const backgroundPattern = useMemo(() => {
     const random = createSeededRandom('product-showcase-mosaic')
@@ -70,15 +88,14 @@ export const ProductShowcase = () => {
         {/* Heading */}
         <div className="text-center mb-16 md:mb-24 lg:mb-32">
           <h2 className="text-3xl md:text-5xl lg:text-7xl font-extralight font-inter tracking-tight leading-tight bg-linear-to-b from-foreground via-foreground via-50% to-transparent bg-clip-text text-transparent">
-            Built by creatives. <br />
-            For creatives.
+            {title}
           </h2>
         </div>
 
         {/* Showcase Image */}
         <div className="w-full relative rounded-2xl overflow-hidden transform transition-transform duration-1000 group-hover:scale-[1.01]">
           <Image
-            src={ShowcasePreview}
+            src={image}
             alt="Framehouse Hub Platform Overview"
             className="w-full h-auto object-cover"
             priority

@@ -3,6 +3,7 @@
 import { cn } from '@/utilities/cn'
 import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
 import { useRef } from 'react'
+import React from 'react'
 import { EtherealTextReveal } from '../EtherealTextReveal'
 
 const StepTag = ({
@@ -36,7 +37,33 @@ const StepTag = ({
 import { GutterContainer } from '@/components/layout/GutterContainer'
 import { LayoutSection } from '@/components/layout/LayoutSection'
 
-export const ProductOverview = () => {
+export type ProductOverviewProps = {
+  heading?: string
+  revealText?: string
+  steps?: {
+    upload: string
+    organise: string
+    share: string
+  }
+}
+
+export const DEFAULT_CONTENT: Required<ProductOverviewProps> = {
+  heading: 'Meet the lifecycle of your media',
+  revealText: 'Framehouse Hub powers the world\'s most ambitious creative teams, from independent studios to global production houses.',
+  steps: {
+    upload: 'Upload',
+    organise: 'Organise',
+    share: 'Share',
+  }
+}
+
+export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
+  const { 
+    heading = DEFAULT_CONTENT.heading, 
+    revealText = DEFAULT_CONTENT.revealText,
+    steps = DEFAULT_CONTENT.steps
+  } = props
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Center-to-Center Scroll logic: 0 when start hits 50%, 1 when end hits 50%
@@ -95,16 +122,16 @@ export const ProductOverview = () => {
         {/* Header Content */}
         <div className="text-center z-20 mb-8 md:mb-12">
           <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent uppercase tracing-tighter leading-none mb-4">
-            Meet the lifecycle of your media
+            {heading}
           </h2>
         </div>
 
         {/* Step Diagram Container - Vertically Compressed for Viewport Compatibility */}
         <div className="w-full h-[350px] md:h-[500px] relative">
           {/* Minimalist Pills */}
-          <StepTag label="Upload" color="bg-[#bb1800]" progress={smoothProgress} threshold={T_PILL_UPLOAD} xPosition="5%" />
-          <StepTag label="Organise" color="bg-[#14192A]" progress={smoothProgress} threshold={T_PILL_ORGANISE} xPosition="50%" />
-          <StepTag label="Share" color="bg-[#445aa5]" progress={smoothProgress} threshold={T_PILL_SHARE} xPosition="95%" />
+          <StepTag label={steps.upload} color="bg-[#bb1800]" progress={smoothProgress} threshold={T_PILL_UPLOAD} xPosition="5%" />
+          <StepTag label={steps.organise} color="bg-[#14192A]" progress={smoothProgress} threshold={T_PILL_ORGANISE} xPosition="50%" />
+          <StepTag label={steps.share} color="bg-[#445aa5]" progress={smoothProgress} threshold={T_PILL_SHARE} xPosition="95%" />
 
           {/* SVG Diagram Layer */}
           <svg
@@ -257,7 +284,7 @@ export const ProductOverview = () => {
         </div>
 
         <EtherealTextReveal
-          text="Framehouse Hub powers the world's most ambitious creative teams, from independent studios to global production houses."
+          text={revealText}
           className="text-xl md:text-4xl font-light leading-relaxed mt-8 md:mt-12 pb-8"
         />
       </GutterContainer>

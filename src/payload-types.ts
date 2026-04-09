@@ -218,6 +218,7 @@ export interface Page {
     | ThreeItemGridBlock
     | BannerBlock
     | FormBlock
+    | PricingBlock
   )[];
   meta?: {
     title?: string | null;
@@ -229,6 +230,10 @@ export interface Page {
   };
   slug: string;
   slugLock?: boolean | null;
+  /**
+   * If checked, this page is a system-critical record and cannot be deleted.
+   */
+  isProtected?: boolean | null;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -894,6 +899,58 @@ export interface Form {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PricingBlock".
+ */
+export interface PricingBlock {
+  layoutType?: ('cards' | 'asymmetric') | null;
+  billing?: {
+    showBillingToggle?: boolean | null;
+    monthlyLabel?: string | null;
+    yearlyLabel?: string | null;
+  };
+  intro: {
+    heading: string;
+    subheading?: string | null;
+    showStorageEthos?: boolean | null;
+    storageNotice?: string | null;
+  };
+  currency?: ('GBP' | 'USD' | 'EUR') | null;
+  tiers?:
+    | {
+        title: string;
+        price: string;
+        description?: string | null;
+        features?:
+          | {
+              feature?: string | null;
+              id?: string | null;
+            }[]
+          | null;
+        highlight?: boolean | null;
+        accent?: ('primary' | 'secondary' | 'tertiary') | null;
+        cta: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?: {
+            relationTo: 'pages';
+            value: number | Page;
+          } | null;
+          url?: string | null;
+          label: string;
+          /**
+           * Choose how the link should be rendered.
+           */
+          appearance?: ('default' | 'outline') | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'pricing';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1071,6 +1128,7 @@ export interface PagesSelect<T extends boolean = true> {
         threeItemGrid?: T | ThreeItemGridBlockSelect<T>;
         banner?: T | BannerBlockSelect<T>;
         formBlock?: T | FormBlockSelect<T>;
+        pricing?: T | PricingBlockSelect<T>;
       };
   meta?:
     | T
@@ -1081,6 +1139,7 @@ export interface PagesSelect<T extends boolean = true> {
       };
   slug?: T;
   slugLock?: T;
+  isProtected?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
@@ -1200,6 +1259,57 @@ export interface FormBlockSelect<T extends boolean = true> {
   form?: T;
   enableIntro?: T;
   introContent?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PricingBlock_select".
+ */
+export interface PricingBlockSelect<T extends boolean = true> {
+  layoutType?: T;
+  billing?:
+    | T
+    | {
+        showBillingToggle?: T;
+        monthlyLabel?: T;
+        yearlyLabel?: T;
+      };
+  intro?:
+    | T
+    | {
+        heading?: T;
+        subheading?: T;
+        showStorageEthos?: T;
+        storageNotice?: T;
+      };
+  currency?: T;
+  tiers?:
+    | T
+    | {
+        title?: T;
+        price?: T;
+        description?: T;
+        features?:
+          | T
+          | {
+              feature?: T;
+              id?: T;
+            };
+        highlight?: T;
+        accent?: T;
+        cta?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
   id?: T;
   blockName?: T;
 }

@@ -1,5 +1,5 @@
 {
-  "id": "0a0aa849-f621-4157-b9cf-85c4e5b391e3",
+  "id": "1f5bc0b4-f9fd-414b-8515-42cc28321ebd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1635,6 +1635,396 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.pages_blocks_pricing_tiers_features": {
+      "name": "pages_blocks_pricing_tiers_features",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "feature": {
+          "name": "feature",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pages_blocks_pricing_tiers_features_order_idx": {
+          "name": "pages_blocks_pricing_tiers_features_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_pricing_tiers_features_parent_id_idx": {
+          "name": "pages_blocks_pricing_tiers_features_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_pricing_tiers_features_parent_id_fk": {
+          "name": "pages_blocks_pricing_tiers_features_parent_id_fk",
+          "tableFrom": "pages_blocks_pricing_tiers_features",
+          "tableTo": "pages_blocks_pricing_tiers",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pages_blocks_pricing_tiers": {
+      "name": "pages_blocks_pricing_tiers",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price": {
+          "name": "price",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highlight": {
+          "name": "highlight",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accent": {
+          "name": "accent",
+          "type": "enum_pages_blocks_pricing_tiers_accent",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'primary'"
+        },
+        "cta_type": {
+          "name": "cta_type",
+          "type": "enum_pages_blocks_pricing_tiers_cta_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'reference'"
+        },
+        "cta_new_tab": {
+          "name": "cta_new_tab",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_url": {
+          "name": "cta_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_label": {
+          "name": "cta_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_appearance": {
+          "name": "cta_appearance",
+          "type": "enum_pages_blocks_pricing_tiers_cta_appearance",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'default'"
+        }
+      },
+      "indexes": {
+        "pages_blocks_pricing_tiers_order_idx": {
+          "name": "pages_blocks_pricing_tiers_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_pricing_tiers_parent_id_idx": {
+          "name": "pages_blocks_pricing_tiers_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_pricing_tiers_parent_id_fk": {
+          "name": "pages_blocks_pricing_tiers_parent_id_fk",
+          "tableFrom": "pages_blocks_pricing_tiers",
+          "tableTo": "pages_blocks_pricing",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pages_blocks_pricing": {
+      "name": "pages_blocks_pricing",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_path": {
+          "name": "_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "layout_type": {
+          "name": "layout_type",
+          "type": "enum_pages_blocks_pricing_layout_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'cards'"
+        },
+        "billing_show_billing_toggle": {
+          "name": "billing_show_billing_toggle",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "billing_monthly_label": {
+          "name": "billing_monthly_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Monthly'"
+        },
+        "billing_yearly_label": {
+          "name": "billing_yearly_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Yearly'"
+        },
+        "intro_heading": {
+          "name": "intro_heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intro_subheading": {
+          "name": "intro_subheading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intro_show_storage_ethos": {
+          "name": "intro_show_storage_ethos",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "intro_storage_notice": {
+          "name": "intro_storage_notice",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Sustainable by Design: We don’t charge for storage.'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "enum_pages_blocks_pricing_currency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'GBP'"
+        },
+        "block_name": {
+          "name": "block_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pages_blocks_pricing_order_idx": {
+          "name": "pages_blocks_pricing_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_pricing_parent_id_idx": {
+          "name": "pages_blocks_pricing_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_blocks_pricing_path_idx": {
+          "name": "pages_blocks_pricing_path_idx",
+          "columns": [
+            {
+              "expression": "_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_blocks_pricing_parent_id_fk": {
+          "name": "pages_blocks_pricing_parent_id_fk",
+          "tableFrom": "pages_blocks_pricing",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.pages": {
       "name": "pages",
       "schema": "",
@@ -1707,6 +2097,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "is_protected": {
+          "name": "is_protected",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -3454,6 +3851,414 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public._pages_v_blocks_pricing_tiers_features": {
+      "name": "_pages_v_blocks_pricing_tiers_features",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "feature": {
+          "name": "feature",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_pricing_tiers_features_order_idx": {
+          "name": "_pages_v_blocks_pricing_tiers_features_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_pricing_tiers_features_parent_id_idx": {
+          "name": "_pages_v_blocks_pricing_tiers_features_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_pricing_tiers_features_parent_id_fk": {
+          "name": "_pages_v_blocks_pricing_tiers_features_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_pricing_tiers_features",
+          "tableTo": "_pages_v_blocks_pricing_tiers",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_pricing_tiers": {
+      "name": "_pages_v_blocks_pricing_tiers",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price": {
+          "name": "price",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highlight": {
+          "name": "highlight",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accent": {
+          "name": "accent",
+          "type": "enum__pages_v_blocks_pricing_tiers_accent",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'primary'"
+        },
+        "cta_type": {
+          "name": "cta_type",
+          "type": "enum__pages_v_blocks_pricing_tiers_cta_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'reference'"
+        },
+        "cta_new_tab": {
+          "name": "cta_new_tab",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_url": {
+          "name": "cta_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_label": {
+          "name": "cta_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta_appearance": {
+          "name": "cta_appearance",
+          "type": "enum__pages_v_blocks_pricing_tiers_cta_appearance",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'default'"
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_pricing_tiers_order_idx": {
+          "name": "_pages_v_blocks_pricing_tiers_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_pricing_tiers_parent_id_idx": {
+          "name": "_pages_v_blocks_pricing_tiers_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_pricing_tiers_parent_id_fk": {
+          "name": "_pages_v_blocks_pricing_tiers_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_pricing_tiers",
+          "tableTo": "_pages_v_blocks_pricing",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public._pages_v_blocks_pricing": {
+      "name": "_pages_v_blocks_pricing",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_path": {
+          "name": "_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "layout_type": {
+          "name": "layout_type",
+          "type": "enum__pages_v_blocks_pricing_layout_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'cards'"
+        },
+        "billing_show_billing_toggle": {
+          "name": "billing_show_billing_toggle",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "billing_monthly_label": {
+          "name": "billing_monthly_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Monthly'"
+        },
+        "billing_yearly_label": {
+          "name": "billing_yearly_label",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Yearly'"
+        },
+        "intro_heading": {
+          "name": "intro_heading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intro_subheading": {
+          "name": "intro_subheading",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intro_show_storage_ethos": {
+          "name": "intro_show_storage_ethos",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "intro_storage_notice": {
+          "name": "intro_storage_notice",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Sustainable by Design: We don’t charge for storage.'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "enum__pages_v_blocks_pricing_currency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'GBP'"
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "block_name": {
+          "name": "block_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "_pages_v_blocks_pricing_order_idx": {
+          "name": "_pages_v_blocks_pricing_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_pricing_parent_id_idx": {
+          "name": "_pages_v_blocks_pricing_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "_pages_v_blocks_pricing_path_idx": {
+          "name": "_pages_v_blocks_pricing_path_idx",
+          "columns": [
+            {
+              "expression": "_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "_pages_v_blocks_pricing_parent_id_fk": {
+          "name": "_pages_v_blocks_pricing_parent_id_fk",
+          "tableFrom": "_pages_v_blocks_pricing",
+          "tableTo": "_pages_v",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public._pages_v": {
       "name": "_pages_v",
       "schema": "",
@@ -3532,6 +4337,13 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "version_is_protected": {
+          "name": "version_is_protected",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "version_updated_at": {
           "name": "version_updated_at",
@@ -4769,6 +5581,30 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'medium'"
+        },
+        "alt": {
+          "name": "alt",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caption": {
+          "name": "caption",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "link": {
+          "name": "link",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instance_id": {
+          "name": "instance_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -4887,6 +5723,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'medium'"
+        },
+        "items_order": {
+          "name": "items_order",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "block_name": {
           "name": "block_name",
@@ -5351,6 +6193,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "title": {
           "name": "title",
           "type": "jsonb",
@@ -5418,6 +6266,12 @@
           "notNull": false,
           "default": "'#ffffff'"
         },
+        "folder_id": {
+          "name": "folder_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp(3) with time zone",
@@ -5454,6 +6308,21 @@
           "columns": [
             {
               "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "portfolios_folder_idx": {
+          "name": "portfolios_folder_idx",
+          "columns": [
+            {
+              "expression": "folder_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5502,6 +6371,19 @@
           "tableTo": "users",
           "columnsFrom": [
             "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "portfolios_folder_id_payload_folders_id_fk": {
+          "name": "portfolios_folder_id_payload_folders_id_fk",
+          "tableFrom": "portfolios",
+          "tableTo": "payload_folders",
+          "columnsFrom": [
+            "folder_id"
           ],
           "columnsTo": [
             "id"
@@ -7214,6 +8096,209 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.payload_folders_folder_type": {
+      "name": "payload_folders_folder_type",
+      "schema": "",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "enum_payload_folders_folder_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "payload_folders_folder_type_order_idx": {
+          "name": "payload_folders_folder_type_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_folders_folder_type_parent_idx": {
+          "name": "payload_folders_folder_type_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payload_folders_folder_type_parent_fk": {
+          "name": "payload_folders_folder_type_parent_fk",
+          "tableFrom": "payload_folders_folder_type",
+          "tableTo": "payload_folders",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.payload_folders": {
+      "name": "payload_folders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "folder_id": {
+          "name": "folder_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "payload_folders_name_idx": {
+          "name": "payload_folders_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_folders_folder_idx": {
+          "name": "payload_folders_folder_idx",
+          "columns": [
+            {
+              "expression": "folder_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_folders_updated_at_idx": {
+          "name": "payload_folders_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_folders_created_at_idx": {
+          "name": "payload_folders_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "payload_folders_folder_id_payload_folders_id_fk": {
+          "name": "payload_folders_folder_id_payload_folders_id_fk",
+          "tableFrom": "payload_folders",
+          "tableTo": "payload_folders",
+          "columnsFrom": [
+            "folder_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.payload_locked_documents": {
       "name": "payload_locked_documents",
       "schema": "",
@@ -7365,6 +8450,12 @@
         },
         "form_submissions_id": {
           "name": "form_submissions_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payload_folders_id": {
+          "name": "payload_folders_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -7520,6 +8611,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "payload_locked_documents_rels_payload_folders_id_idx": {
+          "name": "payload_locked_documents_rels_payload_folders_id_idx",
+          "columns": [
+            {
+              "expression": "payload_folders_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -7620,6 +8726,19 @@
           "tableTo": "form_submissions",
           "columnsFrom": [
             "form_submissions_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_payload_folders_fk": {
+          "name": "payload_locked_documents_rels_payload_folders_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "payload_folders",
+          "columnsFrom": [
+            "payload_folders_id"
           ],
           "columnsTo": [
             "id"
@@ -8569,6 +9688,48 @@
         "success"
       ]
     },
+    "public.enum_pages_blocks_pricing_tiers_accent": {
+      "name": "enum_pages_blocks_pricing_tiers_accent",
+      "schema": "public",
+      "values": [
+        "primary",
+        "secondary",
+        "tertiary"
+      ]
+    },
+    "public.enum_pages_blocks_pricing_tiers_cta_type": {
+      "name": "enum_pages_blocks_pricing_tiers_cta_type",
+      "schema": "public",
+      "values": [
+        "reference",
+        "custom"
+      ]
+    },
+    "public.enum_pages_blocks_pricing_tiers_cta_appearance": {
+      "name": "enum_pages_blocks_pricing_tiers_cta_appearance",
+      "schema": "public",
+      "values": [
+        "default",
+        "outline"
+      ]
+    },
+    "public.enum_pages_blocks_pricing_layout_type": {
+      "name": "enum_pages_blocks_pricing_layout_type",
+      "schema": "public",
+      "values": [
+        "cards",
+        "asymmetric"
+      ]
+    },
+    "public.enum_pages_blocks_pricing_currency": {
+      "name": "enum_pages_blocks_pricing_currency",
+      "schema": "public",
+      "values": [
+        "GBP",
+        "USD",
+        "EUR"
+      ]
+    },
     "public.enum_pages_hero_type": {
       "name": "enum_pages_hero_type",
       "schema": "public",
@@ -8685,6 +9846,48 @@
         "success"
       ]
     },
+    "public.enum__pages_v_blocks_pricing_tiers_accent": {
+      "name": "enum__pages_v_blocks_pricing_tiers_accent",
+      "schema": "public",
+      "values": [
+        "primary",
+        "secondary",
+        "tertiary"
+      ]
+    },
+    "public.enum__pages_v_blocks_pricing_tiers_cta_type": {
+      "name": "enum__pages_v_blocks_pricing_tiers_cta_type",
+      "schema": "public",
+      "values": [
+        "reference",
+        "custom"
+      ]
+    },
+    "public.enum__pages_v_blocks_pricing_tiers_cta_appearance": {
+      "name": "enum__pages_v_blocks_pricing_tiers_cta_appearance",
+      "schema": "public",
+      "values": [
+        "default",
+        "outline"
+      ]
+    },
+    "public.enum__pages_v_blocks_pricing_layout_type": {
+      "name": "enum__pages_v_blocks_pricing_layout_type",
+      "schema": "public",
+      "values": [
+        "cards",
+        "asymmetric"
+      ]
+    },
+    "public.enum__pages_v_blocks_pricing_currency": {
+      "name": "enum__pages_v_blocks_pricing_currency",
+      "schema": "public",
+      "values": [
+        "GBP",
+        "USD",
+        "EUR"
+      ]
+    },
     "public.enum__pages_v_version_hero_type": {
       "name": "enum__pages_v_version_hero_type",
       "schema": "public",
@@ -8792,6 +9995,13 @@
       "values": [
         "message",
         "redirect"
+      ]
+    },
+    "public.enum_payload_folders_folder_type": {
+      "name": "enum_payload_folders_folder_type",
+      "schema": "public",
+      "values": [
+        "portfolios"
       ]
     },
     "public.enum_header_nav_items_link_type": {
