@@ -13,6 +13,14 @@ import FramehouseLogo from '@/assets/framehouse_logo_expanded_color.svg'
 import HubLogo from '@/assets/hub/framehouse_hub_logo_color.svg'
 
 import { useHeader } from '@/providers/HeaderProvider'
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from '@/components/ui/navigation-menu'
 
 type Props = {
   header: Header
@@ -27,7 +35,7 @@ export function HeaderClient({ header }: Props) {
     { id: '1', link: { url: '/product', label: 'Product' } },
     { id: '2', link: { url: '/pricing', label: 'Pricing' } },
     { id: '3', link: { url: '/learn', label: 'Learn' } },
-    { id: '4', link: { url: '/company', label: 'Company' } },
+    { id: '4', link: { url: '/about', label: 'Company' } },
   ]
   const menu = (header.navItems && header.navItems.length > 0) ? header.navItems : defaultMenu
 
@@ -68,20 +76,70 @@ export function HeaderClient({ header }: Props) {
           </Link>
 
           {/* 2. Desktop Navigation (Center) */}
-          <nav className="hidden lg:flex items-center justify-center gap-8 flex-1">
-            {menu.map((item: any) => (
-              <CMSLink
-                key={item.id}
-                {...item.link}
-                size={'clear'}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap',
-                  {
-                    'text-primary': item.link.url && item.link.url !== '/' ? pathname.includes(item.link.url) : false,
+          <nav className="hidden lg:flex items-center justify-center flex-1">
+            <NavigationMenu>
+              <NavigationMenuList className="gap-2">
+                {menu.map((item: any) => {
+                  if (item.group) {
+                    return (
+                      <NavigationMenuItem key={item.id}>
+                        <NavigationMenuTrigger className={cn(
+                          'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap bg-transparent',
+                          {
+                            'text-primary': item.subItems?.some((si: any) => si.link.url && pathname.includes(si.link.url))
+                          }
+                        )}>
+                          {item.menuTitle}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <ul className="grid w-[400px] gap-3 p-6 md:w-[500px] md:grid-cols-2 lg:w-[600px] bg-white dark:bg-[#1a1c1c] rounded-xl border border-black/5 dark:border-white/5">
+                            {item.subItems?.map((subItem: any) => (
+                              <li key={subItem.id}>
+                                <NavigationMenuLink asChild>
+                                  <CMSLink
+                                    {...subItem.link}
+                                    className={cn(
+                                      "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                                      "hover:bg-primary/5 group"
+                                    )}
+                                  >
+                                    <div className="text-sm font-medium leading-none group-hover:text-primary transition-colors">
+                                      {subItem.link.label}
+                                    </div>
+                                    {subItem.link.description && (
+                                      <p className="line-clamp-2 text-xs leading-snug text-muted-foreground mt-1">
+                                        {subItem.link.description}
+                                      </p>
+                                    )}
+                                  </CMSLink>
+                                </NavigationMenuLink>
+                              </li>
+                            ))}
+                          </ul>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    )
                   }
-                )}
-              />
-            ))}
+
+                  return (
+                    <NavigationMenuItem key={item.id}>
+                      <NavigationMenuLink asChild>
+                        <CMSLink
+                          {...item.link}
+                          size={'clear'}
+                          className={cn(
+                            'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap px-4 py-2 rounded-md hover:bg-accent/50',
+                            {
+                              'text-primary': item.link.url && item.link.url !== '/' ? pathname.includes(item.link.url) : false,
+                            }
+                          )}
+                        />
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  )
+                })}
+              </NavigationMenuList>
+            </NavigationMenu>
           </nav>
 
           {/* 3. RHS Actions (Right) */}

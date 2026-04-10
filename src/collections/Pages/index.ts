@@ -155,7 +155,7 @@ export const Pages: CollectionConfig = {
   hooks: {
     afterChange: [revalidatePage],
     afterDelete: [revalidateDelete],
-    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features'], 'This is a core system page and cannot be deleted.')],
+    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features', 'hub'], 'This is a core system page and cannot be deleted.')],
   },
   versions: {
     drafts: {
