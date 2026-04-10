@@ -13,7 +13,13 @@ const HOLES = [BlueHole, CreamHole, LightBlueHole, OrangeHole, RedHole]
 
 import { createSeededRandom } from '@/utilities/seeded-random'
 
-export const SprocketDivider = ({ className }: { className?: string }) => {
+export const SprocketDivider = ({ className, speed = 'medium' }: { className?: string; speed?: 'slow' | 'medium' | 'fast' }) => {
+  const speeds = {
+    slow: 'animate-marquee-slow',
+    medium: 'animate-marquee',
+    fast: 'animate-marquee-fast',
+  }
+
   // Generate a large randomized sequence of holes to hide the loop
   const displayHoles = useMemo(() => {
     const random = createSeededRandom('sprocket-divider-v1')
@@ -28,7 +34,7 @@ export const SprocketDivider = ({ className }: { className?: string }) => {
 
   return (
     <div className={cn("relative w-full overflow-hidden bg-background py-2", className)}>
-      <div className="flex w-max animate-marquee ">
+      <div className={cn("flex w-max", speeds[speed])}>
         {/* First set of holes */}
         <div className="flex shrink-0">
           {displayHoles.map((Hole, index) => (

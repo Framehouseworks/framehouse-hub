@@ -221,6 +221,7 @@ export interface Page {
     | BannerBlock
     | FormBlock
     | PricingBlock
+    | SprocketDividerBlock
   )[];
   meta?: {
     title?: string | null;
@@ -545,6 +546,7 @@ export interface ContentBlock {
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;
+        media?: (number | null) | Media;
         richText?: {
           root: {
             type: string;
@@ -973,6 +975,17 @@ export interface PricingBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SprocketDividerBlock".
+ */
+export interface SprocketDividerBlock {
+  backgroundColor?: ('white' | 'surface_low') | null;
+  speed?: ('slow' | 'medium' | 'fast') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'sprocketDivider';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1151,6 +1164,7 @@ export interface PagesSelect<T extends boolean = true> {
         banner?: T | BannerBlockSelect<T>;
         formBlock?: T | FormBlockSelect<T>;
         pricing?: T | PricingBlockSelect<T>;
+        sprocketDivider?: T | SprocketDividerBlockSelect<T>;
       };
   meta?:
     | T
@@ -1202,6 +1216,7 @@ export interface ContentBlockSelect<T extends boolean = true> {
     | T
     | {
         size?: T;
+        media?: T;
         richText?: T;
         enableLink?: T;
         link?:
@@ -1346,6 +1361,16 @@ export interface PricingBlockSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SprocketDividerBlock_select".
+ */
+export interface SprocketDividerBlockSelect<T extends boolean = true> {
+  backgroundColor?: T;
+  speed?: T;
   id?: T;
   blockName?: T;
 }

@@ -7,6 +7,7 @@ import type { ContentBlock as ContentBlockProps } from '@/payload-types'
 import { motion, useInView } from 'framer-motion'
 
 import { CMSLink } from '../../components/Link'
+import { Media as MediaComponent } from '@/components/Media'
 
 export const ContentBlock: React.FC<
   ContentBlockProps & {
@@ -83,7 +84,6 @@ export const ContentBlock: React.FC<
             columns.length > 0 &&
             columns.map((col, index) => {
               const { enableLink, link, richText, size } = col
-
               const isFirstInAsymmetric = layoutStyle === 'asymmetric' && index === 0
 
               return (
@@ -99,6 +99,11 @@ export const ContentBlock: React.FC<
                   )}
                   key={index}
                 >
+                  {col.media && (
+                    <div className="mb-8 overflow-hidden rounded-xl border border-black/5 dark:border-white/5 bg-neutral-100/50 dark:bg-neutral-800/20 p-4 md:p-8">
+                      <MediaComponent resource={col.media} className="w-full h-auto max-h-[440px] object-contain grayscale hover:grayscale-0 transition-all duration-700 ease-[0.23,1,0.32,1]" />
+                    </div>
+                  )}
                   {richText && <RichText data={richText} enableGutter={false} />}
 
                   {enableLink && (

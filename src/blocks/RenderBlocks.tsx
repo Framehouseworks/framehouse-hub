@@ -1,3 +1,4 @@
+import { About3Block } from '@/blocks/About3/Component'
 import { ArchiveBlock } from '@/blocks/ArchiveBlock/Component'
 import { BannerBlock } from '@/blocks/Banner/Component'
 import { CallToActionBlock } from '@/blocks/CallToAction/Component'
@@ -6,6 +7,7 @@ import { ContentBlock } from '@/blocks/Content/Component'
 import { FormBlock } from '@/blocks/Form/Component'
 import { MediaBlock } from '@/blocks/MediaBlock/Component'
 import { PricingBlock } from '@/blocks/Pricing/Component'
+import { SprocketDividerBlock } from '@/blocks/SprocketDivider/Component'
 import { ThreeItemGridBlock } from '@/blocks/ThreeItemGrid/Component'
 import { toKebabCase } from '@/utilities/toKebabCase'
 import React, { Fragment } from 'react'
@@ -13,6 +15,7 @@ import React, { Fragment } from 'react'
 import type { Page } from '../payload-types'
 
 const blockComponents = {
+  about3: About3Block,
   archive: ArchiveBlock,
   banner: BannerBlock,
   carousel: CarouselBlock,
@@ -21,6 +24,7 @@ const blockComponents = {
   formBlock: FormBlock,
   mediaBlock: MediaBlock,
   pricing: PricingBlock,
+  sprocketDivider: SprocketDividerBlock,
   threeItemGrid: ThreeItemGridBlock,
 }
 
@@ -42,11 +46,10 @@ export const RenderBlocks: React.FC<{
 
             if (Block) {
               return (
-                <div className="my-16" key={index}>
-                  {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+                <Fragment key={index}>
                   {/* @ts-ignore - weird type mismatch here */}
                   <Block id={toKebabCase(blockName!)} {...block} />
-                </div>
+                </Fragment>
               )
             }
           }

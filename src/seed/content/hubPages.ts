@@ -14,13 +14,7 @@ export const aboutPageData = {
             type: 'heading',
             tag: 'h1',
             version: 1,
-            children: [
-              {
-                text: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.',
-                type: 'text',
-                version: 1,
-              },
-            ],
+            children: [{ text: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.', type: 'text', version: 1 }],
             direction: 'ltr',
             format: '',
             indent: 0,
@@ -35,47 +29,57 @@ export const aboutPageData = {
   },
   layout: [
     {
-      blockType: 'content',
-      style: 'mission',
-      backgroundColor: 'surface_low',
-      columns: [
+      blockType: 'about3',
+      title: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.',
+      description: 'To help the world’s most successful brands manage, transform, and deliver engaging visual experiences at scale.',
+      mainImage: null as any,
+      secondaryImage: null as any,
+      breakout: {
+        title: 'Hundreds of visual components at Framehouse Hub',
+        description: 'Providing businesses with effective tools to improve workflows, boost efficiency, and encourage growth.',
+        buttonText: 'Join the Revolution',
+        buttonUrl: '/pricing',
+      },
+      companies: [
+        { logo: null as any },
+        { logo: null as any },
+        { logo: null as any },
+        { logo: null as any },
+        { logo: null as any },
+        { logo: null as any },
+      ],
+      achievementsTitle: 'Impact in Numbers',
+      achievementsDescription: 'Our platform processes millions of assets daily with clinical precision.',
+      achievements: [
+        { label: 'Asset Capacity', value: '30PB+' },
+        { label: 'Global Creators', value: '45K+' },
+        { label: 'Uptime Precision', value: '99.9%' },
+        { label: 'Media Transcoded', value: '1.2B+' },
+      ],
+      contentSections: [
         {
-          size: 'full',
-          richText: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  version: 1,
-                  children: [
-                    {
-                      text: 'To help the world’s most successful brands manage, transform, and deliver engaging visual experiences at scale.',
-                      type: 'text',
-                      version: 1,
-                    },
-                  ],
-                  direction: 'ltr',
-                  format: '',
-                  indent: 0,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          title: 'THE VISION',
+          content: 'We envision a world where every visual asset is accessible, optimized, and ready for high-prestige delivery. Our platform bridges the gap between massive technical complexity and editorial elegance.',
+        },
+        {
+          title: 'THE DNA',
+          content: 'Founded in 2026, Framehouse Hub was born from a simple realization: the digital world is cluttered, but your brand’s assets shouldn’t be. We built the museum-grade solution we needed.',
         },
       ],
     },
     {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'white',
+      speed: 'slow',
+    },
+    {
       blockType: 'content',
       layoutStyle: 'asymmetric',
-      backgroundColor: 'white',
+      backgroundColor: 'surface_low',
       columns: [
         {
           size: 'oneThird',
+          media: null as any, // Injected during seed
           richText: {
             root: {
               type: 'root',
@@ -83,7 +87,7 @@ export const aboutPageData = {
                 {
                   type: 'paragraph',
                   version: 1,
-                  children: [{ text: 'OUR STORY', type: 'text', version: 1 }],
+                  children: [{ text: 'THE VISION', type: 'text', version: 1 }],
                   direction: 'ltr',
                   format: '',
                   indent: 0,
@@ -107,7 +111,7 @@ export const aboutPageData = {
                   version: 1,
                   children: [
                     {
-                      text: 'Founded in 2026, Framehouse Hub was born from a simple realization: the digital world is cluttered, but your brand’s assets shouldn’t be. We encountered the same tedious management challenges every creative team faces, and we built the museum-grade solution we needed.',
+                      text: 'We envision a world where every visual asset is accessible, optimized, and ready for high-prestige delivery. Our platform bridges the gap between massive technical complexity and editorial elegance.',
                       type: 'text',
                       version: 1,
                     },
@@ -127,9 +131,14 @@ export const aboutPageData = {
       ],
     },
     {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'surface_low',
+      speed: 'medium',
+    },
+    {
       blockType: 'threeItemGrid',
       style: 'pillars',
-      backgroundColor: 'surface_low',
+      backgroundColor: 'white',
       items: [
         {
           title: 'Precision AI',
@@ -149,9 +158,14 @@ export const aboutPageData = {
       ],
     },
     {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'white',
+      speed: 'fast',
+    },
+    {
       blockType: 'content',
       layoutStyle: 'asymmetric',
-      backgroundColor: 'white',
+      backgroundColor: 'surface_low',
       columns: [
         {
           size: 'oneThird',
@@ -186,7 +200,7 @@ export const aboutPageData = {
                   version: 1,
                   children: [
                     {
-                      text: "The world's most popular brands run on Framehouse Hub.",
+                      text: "The world's most popular brands run on Framehouse Hub. We empower them to manage and deliver their core visual identity with clinical precision.",
                       type: 'text',
                       version: 1,
                     },
@@ -209,63 +223,6 @@ export const aboutPageData = {
       blockType: 'carousel',
       style: 'logoWall',
       populateBy: 'collection',
-    },
-    {
-      blockType: 'content',
-      layoutStyle: 'asymmetric',
-      backgroundColor: 'white',
-      columns: [
-        {
-          size: 'oneThird',
-          richText: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  version: 1,
-                  children: [{ text: 'OUR PARTNERS', type: 'text', version: 1 }],
-                  direction: 'ltr',
-                  format: '',
-                  indent: 0,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
-        },
-        {
-          size: 'twoThirds',
-          richText: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  version: 1,
-                  children: [
-                    {
-                      text: 'Partnering with Framehouse means business. We bridge the gap between technical complexity and creative excellence.',
-                      type: 'text',
-                      version: 1,
-                    },
-                  ],
-                  direction: 'ltr',
-                  format: '',
-                  indent: 0,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
-        },
-      ],
     },
   ],
   meta: {

@@ -34,6 +34,14 @@ const columnFields: Field[] = [
     ],
   },
   {
+    name: 'media',
+    type: 'upload',
+    relationTo: 'media',
+    admin: {
+      condition: (_, { size }) => size !== 'full',
+    },
+  },
+  {
     name: 'richText',
     type: 'richText',
     editor: lexicalEditor({

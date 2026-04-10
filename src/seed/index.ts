@@ -80,6 +80,33 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 })),
               }
             }
+            if (block.blockType === 'content' && block.layoutStyle === 'asymmetric' && block.columns) {
+              return {
+                ...block,
+                columns: block.columns.map((col: any, i: number) => {
+                  // In asymmetric, the 4-column side (usually first) should have the technical drawing
+                  if (i === 0 && col.size !== 'full') {
+                    return { ...col, media: col.media || fallbackMediaIds[1 % fallbackMediaIds.length] }
+                  }
+                  return col
+                }),
+              }
+            }
+            if (block.blockType === 'about3') {
+              return {
+                ...block,
+                mainImage: block.mainImage || fallbackMediaIds[0],
+                secondaryImage: block.secondaryImage || fallbackMediaIds[1 % fallbackMediaIds.length],
+                breakout: {
+                  ...block.breakout,
+                  logo: block.breakout?.logo || fallbackMediaIds[2 % fallbackMediaIds.length],
+                },
+                companies: block.companies?.map((item: any, i: number) => ({
+                  ...item,
+                  logo: item.logo || fallbackMediaIds[i % fallbackMediaIds.length],
+                })),
+              }
+            }
             return block
           })
         }
@@ -237,6 +264,24 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       }
     } catch (err) {
       payload.logger.error(`Error syncing Header global: ${err instanceof Error ? err.message : String(err)}`)
+    }
+
+    // 5. Sync Footer Global
+    try {
+      payload.logger.info('Updating Footer global...')
+      await payload.updateGlobal({
+        slug: 'footer',
+        data: {
+          navItems: [
+            { link: { label: 'About', url: '/about', type: 'custom' } },
+            { link: { label: 'Platform', url: '/hub', type: 'custom' } },
+            { link: { label: 'Pricing', url: '/pricing', type: 'custom' } },
+            { link: { label: 'Login', url: '/login', type: 'custom' } },
+          ],
+        },
+      })
+    } catch (err) {
+      payload.logger.error(`Error syncing Footer global: ${err instanceof Error ? err.message : String(err)}`)
     }
 
     payload.logger.info('Seeding complete.')
