@@ -10,6 +10,7 @@ import { Content } from '@/blocks/Content/config'
 import { FormBlock } from '@/blocks/Form/config'
 import { MediaBlock } from '@/blocks/MediaBlock/config'
 import { Pricing } from '@/blocks/Pricing/config'
+import { SprocketDivider } from '@/blocks/SprocketDivider/config'
 import { ThreeItemGrid } from '@/blocks/ThreeItemGrid/config'
 import { hero } from '@/fields/hero'
 import { slugField } from '@/fields/slug'
@@ -99,6 +100,7 @@ export const Pages: CollectionConfig = {
                 Banner,
                 FormBlock,
                 Pricing,
+                SprocketDivider,
               ],
               required: true,
             },
@@ -155,7 +157,7 @@ export const Pages: CollectionConfig = {
   hooks: {
     afterChange: [revalidatePage],
     afterDelete: [revalidateDelete],
-    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features'], 'This is a core system page and cannot be deleted.')],
+    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features', 'hub'], 'This is a core system page and cannot be deleted.')],
   },
   versions: {
     drafts: {

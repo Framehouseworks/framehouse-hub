@@ -4,9 +4,9 @@ import redirects from './redirects.js'
 
 const NEXT_PUBLIC_SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    qualities: [10, 25, 50, 75, 90, 100],
     remotePatterns: [
       ...[NEXT_PUBLIC_SERVER_URL /* 'https://example.com' */].map((item) => {
         const url = new URL(item)

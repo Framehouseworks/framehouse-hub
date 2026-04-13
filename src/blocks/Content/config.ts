@@ -34,6 +34,14 @@ const columnFields: Field[] = [
     ],
   },
   {
+    name: 'media',
+    type: 'upload',
+    relationTo: 'media',
+    admin: {
+      condition: (_, { size }) => size !== 'full',
+    },
+  },
+  {
     name: 'richText',
     type: 'richText',
     editor: lexicalEditor({
@@ -65,6 +73,43 @@ export const Content: Block = {
   slug: 'content',
   interfaceName: 'ContentBlock',
   fields: [
+    {
+      name: 'style',
+      type: 'select',
+      defaultValue: 'default',
+      options: [
+        {
+          label: 'Default',
+          value: 'default',
+        },
+        {
+          label: 'Mission Statement',
+          value: 'mission',
+        },
+      ],
+      admin: {
+        description: 'Choose "Mission Statement" for high-impact, centered editorial text (e.g. for About Us page).',
+      },
+    },
+    {
+      name: 'backgroundColor',
+      type: 'select',
+      defaultValue: 'white',
+      options: [
+        { label: 'White', value: 'white' },
+        { label: 'Surface Low', value: 'surface_low' },
+      ],
+    },
+    {
+      name: 'layoutStyle',
+      type: 'select',
+      defaultValue: 'default',
+      options: [
+        { label: 'Default (Balanced)', value: 'default' },
+        { label: 'Asymmetric (4/8)', value: 'asymmetric' },
+        { label: 'Side-by-Side (5/7)', value: 'side_by_side' },
+      ],
+    },
     {
       name: 'columns',
       type: 'array',

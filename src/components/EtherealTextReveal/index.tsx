@@ -21,7 +21,7 @@ const Word = ({
   range,
   ghostColor = "rgba(128, 128, 128, 0.15)",
   glowColor = "#bb1800",
-  revealColor = "currentColor",
+  revealColor = "rgb(0, 0, 0)",
   glowIntensity = 120,
   baseOpacity = 0.1
 }: WordProps) => {
@@ -78,7 +78,8 @@ const Word = ({
           opacity,
           color,
           y,
-          scale
+          scale,
+          transition: { ease: [0.23, 1, 0.32, 1] }
         }}
         className="relative inline-block text-foreground dark:text-white font-medium will-change-[opacity,color,transform]"
       >

@@ -221,6 +221,7 @@ export interface Page {
     | BannerBlock
     | FormBlock
     | PricingBlock
+    | SprocketDividerBlock
   )[];
   meta?: {
     title?: string | null;
@@ -536,9 +537,16 @@ export interface CallToActionBlock {
  * via the `definition` "ContentBlock".
  */
 export interface ContentBlock {
+  /**
+   * Choose "Mission Statement" for high-impact, centered editorial text (e.g. for About Us page).
+   */
+  style?: ('default' | 'mission') | null;
+  backgroundColor?: ('white' | 'surface_low') | null;
+  layoutStyle?: ('default' | 'asymmetric' | 'side_by_side') | null;
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;
+        media?: (number | null) | Media;
         richText?: {
           root: {
             type: string;
@@ -637,6 +645,7 @@ export interface Category {
  * via the `definition` "CarouselBlock".
  */
 export interface CarouselBlock {
+  style?: ('default' | 'logoWall') | null;
   populateBy?: ('collection' | 'selection') | null;
   relationTo?: 'media' | null;
   categories?: (number | Category)[] | null;
@@ -669,7 +678,20 @@ export interface CarouselBlock {
  * via the `definition` "ThreeItemGridBlock".
  */
 export interface ThreeItemGridBlock {
+  backgroundColor?: ('white' | 'surface_low') | null;
+  style?: ('default' | 'pillars') | null;
   media?: (number | Media)[] | null;
+  items?:
+    | {
+        title: string;
+        /**
+         * Provide an editorial takeaway for this pillar.
+         */
+        description: string;
+        media: number | Media;
+        id?: string | null;
+      }[]
+    | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'threeItemGrid';
@@ -953,6 +975,17 @@ export interface PricingBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SprocketDividerBlock".
+ */
+export interface SprocketDividerBlock {
+  backgroundColor?: ('white' | 'surface_low') | null;
+  speed?: ('slow' | 'medium' | 'fast') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'sprocketDivider';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1131,6 +1164,7 @@ export interface PagesSelect<T extends boolean = true> {
         banner?: T | BannerBlockSelect<T>;
         formBlock?: T | FormBlockSelect<T>;
         pricing?: T | PricingBlockSelect<T>;
+        sprocketDivider?: T | SprocketDividerBlockSelect<T>;
       };
   meta?:
     | T
@@ -1175,10 +1209,14 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
  * via the `definition` "ContentBlock_select".
  */
 export interface ContentBlockSelect<T extends boolean = true> {
+  style?: T;
+  backgroundColor?: T;
+  layoutStyle?: T;
   columns?:
     | T
     | {
         size?: T;
+        media?: T;
         richText?: T;
         enableLink?: T;
         link?:
@@ -1224,6 +1262,7 @@ export interface ArchiveBlockSelect<T extends boolean = true> {
  * via the `definition` "CarouselBlock_select".
  */
 export interface CarouselBlockSelect<T extends boolean = true> {
+  style?: T;
   populateBy?: T;
   relationTo?: T;
   categories?: T;
@@ -1239,7 +1278,17 @@ export interface CarouselBlockSelect<T extends boolean = true> {
  * via the `definition` "ThreeItemGridBlock_select".
  */
 export interface ThreeItemGridBlockSelect<T extends boolean = true> {
+  backgroundColor?: T;
+  style?: T;
   media?: T;
+  items?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        media?: T;
+        id?: T;
+      };
   id?: T;
   blockName?: T;
 }
@@ -1312,6 +1361,16 @@ export interface PricingBlockSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SprocketDividerBlock_select".
+ */
+export interface SprocketDividerBlockSelect<T extends boolean = true> {
+  backgroundColor?: T;
+  speed?: T;
   id?: T;
   blockName?: T;
 }
@@ -1668,7 +1727,12 @@ export interface Header {
   id: number;
   navItems?:
     | {
-        link: {
+        /**
+         * Check to turn this link into a dropdown menu.
+         */
+        group?: boolean | null;
+        menuTitle?: string | null;
+        link?: {
           type?: ('reference' | 'custom') | null;
           newTab?: boolean | null;
           reference?: {
@@ -1678,6 +1742,17 @@ export interface Header {
           url?: string | null;
           label: string;
         };
+        subItems?:
+          | {
+              link?: {
+                /**
+                 * Briefly describe this link (shown in megamenu).
+                 */
+                description?: string | null;
+              };
+              id?: string | null;
+            }[]
+          | null;
         id?: string | null;
       }[]
     | null;
@@ -1783,6 +1858,8 @@ export interface HeaderSelect<T extends boolean = true> {
   navItems?:
     | T
     | {
+        group?: T;
+        menuTitle?: T;
         link?:
           | T
           | {
@@ -1791,6 +1868,16 @@ export interface HeaderSelect<T extends boolean = true> {
               reference?: T;
               url?: T;
               label?: T;
+            };
+        subItems?:
+          | T
+          | {
+              link?:
+                | T
+                | {
+                    description?: T;
+                  };
+              id?: T;
             };
         id?: T;
       };
