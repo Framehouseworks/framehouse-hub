@@ -4,6 +4,15 @@ export const Carousel: Block = {
   slug: 'carousel',
   fields: [
     {
+      name: 'style',
+      type: 'select',
+      defaultValue: 'default',
+      options: [
+        { label: 'Gallery (Default)', value: 'default' },
+        { label: 'Logo Wall', value: 'logoWall' },
+      ],
+    },
+    {
       name: 'populateBy',
       type: 'select',
       defaultValue: 'collection',

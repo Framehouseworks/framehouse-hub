@@ -11,7 +11,7 @@ export const CarouselBlock: React.FC<
     id?: DefaultDocumentIDType
   }
 > = async (props) => {
-  const { id, categories, limit = 3, populateBy, selectedDocs } = props
+  const { id, categories, limit = 3, populateBy, selectedDocs, style } = props
 
   let products: Media[] = []
 
@@ -42,16 +42,19 @@ export const CarouselBlock: React.FC<
 
     products = fetchedProducts.docs
   } else if (selectedDocs?.length) {
-    products = selectedDocs.map((post) => {
-      if (typeof post.value !== 'string') return post.value
-    }) as Media[]
+    products = selectedDocs
+      .map((post) => {
+        if (typeof post.value === 'object') return post.value as Media
+        return null
+      })
+      .filter(Boolean) as Media[]
   }
 
   if (!products?.length) return null
 
   return (
     <div className=" w-full pb-6 pt-1">
-      <CarouselClient products={products} />
+      <CarouselClient products={products} style={style} />
     </div>
   )
 }
