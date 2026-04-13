@@ -110,6 +110,11 @@ export const About3: Block = {
           type: 'textarea',
           required: true,
         },
+        {
+          name: 'media',
+          type: 'upload',
+          relationTo: 'media',
+        },
       ],
     },
   ],

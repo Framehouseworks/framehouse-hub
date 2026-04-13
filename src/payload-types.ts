@@ -542,7 +542,7 @@ export interface ContentBlock {
    */
   style?: ('default' | 'mission') | null;
   backgroundColor?: ('white' | 'surface_low') | null;
-  layoutStyle?: ('default' | 'asymmetric') | null;
+  layoutStyle?: ('default' | 'asymmetric' | 'side_by_side') | null;
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;

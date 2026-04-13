@@ -80,13 +80,21 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 })),
               }
             }
-            if (block.blockType === 'content' && block.layoutStyle === 'asymmetric' && block.columns) {
+            if (
+              block.blockType === 'content' &&
+              (block.layoutStyle === 'asymmetric' || block.layoutStyle === 'side_by_side') &&
+              block.columns
+            ) {
               return {
                 ...block,
                 columns: block.columns.map((col: any, i: number) => {
-                  // In asymmetric, the 4-column side (usually first) should have the technical drawing
-                  if (i === 0 && col.size !== 'full') {
-                    return { ...col, media: col.media || fallbackMediaIds[1 % fallbackMediaIds.length] }
+                  // In these layouts, ensure at least one column has media if it's meant to be there
+                  if (col.media === null && i === 0 && col.size !== 'full') {
+                    return { ...col, media: fallbackMediaIds[1 % fallbackMediaIds.length] }
+                  }
+                  // For side_by_side, we often want the other column to have media too if it's reversed
+                  if (block.layoutStyle === 'side_by_side' && col.media === null && i === 1) {
+                    return { ...col, media: fallbackMediaIds[2 % fallbackMediaIds.length] }
                   }
                   return col
                 }),
@@ -104,6 +112,19 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 companies: block.companies?.map((item: any, i: number) => ({
                   ...item,
                   logo: item.logo || fallbackMediaIds[i % fallbackMediaIds.length],
+                })),
+                contentSections: block.contentSections?.map((section: any, i: number) => ({
+                  ...section,
+                  media: section.media || fallbackMediaIds[(i + 1) % fallbackMediaIds.length],
+                })),
+              }
+            }
+            if (block.blockType === 'carousel' && block.populateBy === 'selection' && block.selectedDocs) {
+              return {
+                ...block,
+                selectedDocs: block.selectedDocs.map((item: any, i: number) => ({
+                  ...item,
+                  value: item.value || fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
               }
             }

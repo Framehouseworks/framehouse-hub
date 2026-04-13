@@ -107,6 +107,7 @@ export const Content: Block = {
       options: [
         { label: 'Default (Balanced)', value: 'default' },
         { label: 'Asymmetric (4/8)', value: 'asymmetric' },
+        { label: 'Side-by-Side (5/7)', value: 'side_by_side' },
       ],
     },
     {

@@ -27,91 +27,109 @@ export const About3Block: React.FC<About3BlockProps> = (props) => {
   } = props
 
   return (
-    <section className="py-16 md:py-32 bg-white dark:bg-[#1a1c1c]">
+    <section className="py-24 md:py-48 bg-white dark:bg-[#1a1c1c] overflow-hidden">
       <div className="container">
         {/* Header */}
-        <div className="mb-14 flex flex-col gap-5 lg:w-2/3">
+        <div className="mb-20 flex flex-col gap-8 lg:w-2/3">
             <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-10%' }}
-              transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-              className="text-5xl font-rubik tracking-tighter lg:text-7xl uppercase"
+              transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+              className="text-6xl font-rubik tracking-tighter lg:text-8xl uppercase leading-[0.9]"
             >
               {title}
             </motion.h1>
             <motion.p 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-10%' }}
-              transition={{ duration: 0.8, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-              className="text-lg text-neutral-500 dark:text-neutral-400 md:text-xl max-w-2xl leading-relaxed"
+              transition={{ duration: 1, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+              className="text-xl text-on_surface/70 dark:text-on_surface/50 md:text-2xl max-w-2xl leading-relaxed font-inter"
             >
               {description}
             </motion.p>
         </div>
 
         {/* Hero Grid */}
-        <div className="grid gap-7 lg:grid-cols-3">
-          <div className="lg:col-span-2 overflow-hidden rounded-[24px]">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: '-10%' }}
+            transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+            className="lg:col-span-2 overflow-hidden rounded-[24px] bg-[#f3f3f4] dark:bg-[#252828] border border-black/5 dark:border-white/5"
+          >
             {mainImage && (
               <MediaComponent 
                 resource={mainImage} 
-                className="w-full h-full min-h-[400px] max-h-[620px] object-cover" 
+                className="w-full h-full min-h-[400px] max-h-[700px] object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]" 
               />
             )}
-          </div>
+          </motion.div>
           
-          <div className="flex flex-col gap-7 md:flex-row lg:flex-col">
-            {/* Breakout Card */}
-            <div className="flex flex-col justify-between gap-6 rounded-[24px] bg-[#f3f3f4] dark:bg-[#252828] p-7 md:w-1/2 lg:w-auto hover:bg-[#ececeec] dark:hover:bg-[#2a2d2d] transition-colors duration-500">
+          <div className="flex flex-col gap-8 md:flex-row lg:flex-col">
+            {/* Breakout Card - Glassmorphism applied */}
+            <motion.div 
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: '-10%' }}
+              transition={{ duration: 1, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
+              className="flex flex-col justify-between gap-8 rounded-[24px] bg-white/70 dark:bg-[#252828]/70 backdrop-blur-[20px] border border-black/5 dark:border-white/5 p-8 md:w-1/2 lg:w-auto hover:bg-white dark:hover:bg-[#2a2d2d] transition-colors duration-700 shadow-[0px_20px_40px_rgba(26,28,28,0.06)]"
+            >
               {breakout?.logo && (
                 <div className="h-12 w-auto flex items-center">
                    <MediaComponent 
                     resource={breakout.logo} 
-                    className="h-full w-auto object-contain dark:invert grayscale brightness-0 opacity-40" 
+                    className="h-full w-auto object-contain dark:invert grayscale opacity-30" 
                   />
                 </div>
               )}
               <div>
-                <p className="mb-2 text-lg font-semibold tracking-tight">{breakout?.title}</p>
-                <p className="text-neutral-500 dark:text-neutral-400 text-sm leading-relaxed">{breakout?.description}</p>
+                <p className="mb-3 text-xl font-semibold tracking-tight leading-tight">{breakout?.title}</p>
+                <p className="text-on_surface/60 dark:text-on_surface/40 text-sm leading-relaxed font-inter">{breakout?.description}</p>
               </div>
               {breakout?.buttonText && (
-                <Button variant="outline" className="mr-auto rounded-full font-rubik text-[10px] uppercase tracking-[0.2em]" asChild>
+                <Button variant="outline" className="mr-auto rounded-full font-rubik text-[10px] uppercase tracking-[0.2em] h-10 px-8" asChild>
                   <a href={breakout.buttonUrl || '#'}>
                     {breakout.buttonText}
                   </a>
                 </Button>
               )}
-            </div>
+            </motion.div>
             
             {/* Secondary Image */}
-            <div className="grow basis-0 rounded-[24px] overflow-hidden md:w-1/2 lg:min-h-0 lg:w-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-10%' }}
+              transition={{ duration: 1, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
+              className="grow basis-0 rounded-[24px] overflow-hidden md:w-1/2 lg:min-h-0 lg:w-auto border border-black/5 dark:border-white/5"
+            >
               {secondaryImage && (
                 <MediaComponent 
                   resource={secondaryImage} 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]" 
                 />
               )}
-            </div>
+            </motion.div>
           </div>
         </div>
 
         {/* Logo Wall */}
         {companies && companies.length > 0 && (
-          <div className="py-24 md:py-32">
+          <div className="py-32 md:py-48 border-y border-black/5 dark:border-white/5 my-24">
             <Marquee>
               <MarqueeContent speed={40}>
                 {companies.map((item, idx) => (
                   <MarqueeItem
                     key={idx}
-                    className="mx-12 flex items-center opacity-40 hover:opacity-100 transition-opacity duration-700 grayscale hover:grayscale-0"
+                    className="mx-16 flex items-center opacity-30 hover:opacity-100 transition-opacity duration-700 grayscale hover:grayscale-0"
                   >
                     {item.logo && (
                       <MediaComponent 
                         resource={item.logo} 
-                        className="h-7 md:h-8 w-auto object-contain dark:invert" 
+                        className="h-8 md:h-10 w-auto object-contain dark:invert" 
                       />
                     )}
                   </MarqueeItem>
@@ -124,44 +142,69 @@ export const About3Block: React.FC<About3BlockProps> = (props) => {
         )}
 
         {/* Achievements */}
-        <div className="relative overflow-hidden rounded-[24px] bg-[#f3f3f4] dark:bg-[#252828] p-7 md:p-16">
-          <div className="flex flex-col gap-4 text-center md:text-left">
-            <h2 className="text-3xl font-rubik tracking-tighter uppercase md:text-5xl">
+        <motion.div 
+          initial={{ opacity: 0, y: 60 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-10%' }}
+          transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+          className="relative overflow-hidden rounded-[32px] bg-[#f3f3f4] dark:bg-[#252828] p-10 md:p-24"
+        >
+          <div className="flex flex-col gap-6 text-center md:text-left max-w-3xl">
+            <h2 className="text-4xl font-rubik tracking-tighter uppercase md:text-6xl leading-[0.9]">
               {achievementsTitle}
             </h2>
-            <p className="max-w-xl text-neutral-500 dark:text-neutral-400 leading-relaxed">
+            <p className="text-lg md:text-xl text-on_surface/60 dark:text-on_surface/40 leading-relaxed font-inter">
               {achievementsDescription}
             </p>
           </div>
-          <div className="mt-16 md:mt-24 grid grid-cols-2 gap-x-4 gap-y-12 md:flex md:flex-wrap md:justify-between">
+          <div className="mt-20 md:mt-32 grid grid-cols-2 gap-x-8 gap-y-16 md:flex md:flex-wrap md:justify-between">
             {achievements?.map((item, idx) => (
-              <div
-                className="flex flex-col gap-2 text-center md:text-left"
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: idx * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                className="flex flex-col gap-3 text-center md:text-left"
                 key={idx}
               >
-                <span className="font-rubik text-4xl md:text-6xl tracking-tighter uppercase leading-none">
+                <span className="font-rubik text-5xl md:text-8xl tracking-tighter uppercase leading-none text-primary">
                   {item.value}
                 </span>
-                <p className="text-xs md:text-sm font-mono uppercase tracking-[0.4em] text-neutral-400">
+                <p className="text-[10px] md:text-xs font-rubik uppercase tracking-[0.4em] text-on_surface/40 dark:text-on_surface/30">
                   {item.label}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Content Sections */}
         {contentSections && contentSections.length > 0 && (
-          <div className="mx-auto grid max-w-5xl gap-16 py-24 md:grid-cols-2 md:gap-32 md:py-48">
+          <div className="mx-auto grid max-w-6xl gap-20 py-32 md:grid-cols-2 md:gap-40 md:py-56">
             {contentSections.map((section, idx) => (
-              <div key={idx} className="flex flex-col gap-6">
-                <h2 className="text-xs font-rubik uppercase tracking-[0.4em] text-primary">
+              <motion.div 
+                key={idx} 
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-10%' }}
+                transition={{ duration: 1, delay: idx * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                className="flex flex-col gap-8"
+              >
+                {section.media && (
+                  <div className="mb-4 overflow-hidden rounded-[24px] border border-black/5 dark:border-white/5 bg-neutral-100/30 dark:bg-neutral-800/20 p-2 lg:p-4">
+                    <MediaComponent 
+                      resource={section.media} 
+                      className="w-full h-auto aspect-video object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]" 
+                    />
+                  </div>
+                )}
+                <h2 className="text-xs font-rubik uppercase tracking-[0.5em] text-primary/80">
                   {section.title}
                 </h2>
-                <p className="text-lg leading-relaxed text-neutral-500 dark:text-neutral-400 whitespace-pre-line font-inter">
+                <p className="text-xl md:text-2xl leading-[1.6] text-on_surface/80 dark:text-on_surface/60 whitespace-pre-line font-inter font-light tracking-tight">
                   {section.content}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
