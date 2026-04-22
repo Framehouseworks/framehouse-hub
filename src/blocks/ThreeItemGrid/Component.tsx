@@ -1,10 +1,9 @@
 'use client'
 import type { Media, ThreeItemGridBlock as ThreeItemGridBlockProps } from '@/payload-types'
 import { cn } from '@/utilities/cn'
-import { motion, useInView } from 'framer-motion'
-import React, { useRef } from 'react'
+import { motion } from 'framer-motion'
+import React from 'react'
 
-import { CMSLink } from '@/components/Link'
 import { Media as MediaComponent } from '@/components/Media'
 
 export const ThreeItemGridBlock: React.FC<
@@ -14,8 +13,6 @@ export const ThreeItemGridBlock: React.FC<
   }
 > = (props) => {
   const { media, style, items: itemsData, backgroundColor, className } = props
-  const containerRef = useRef(null)
-  const isInView = useInView(containerRef, { once: true, margin: '-10%' })
 
   const bgClasses = {
     white: 'bg-white dark:bg-[#1a1c1c]',
@@ -31,7 +28,7 @@ export const ThreeItemGridBlock: React.FC<
   // 1. Pillars (Shelf) Layout
   if (style === 'pillars' && itemsData && itemsData.length > 0) {
     return (
-      <section className={sectionClasses} ref={containerRef}>
+      <section className={sectionClasses}>
         <div className="container">
           <div className="flex flex-col gap-12 md:gap-24">
             {itemsData.map((item, i) => {

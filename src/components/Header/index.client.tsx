@@ -1,11 +1,10 @@
 'use client'
 import { CMSLink } from '@/components/Link'
 import { cn } from '@/utilities/cn'
-import { motion, useMotionValueEvent, useScroll } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
 import type { Header } from 'src/payload-types'
 import { MobileMenu } from './MobileMenu'
 
@@ -79,36 +78,36 @@ export function HeaderClient({ header }: Props) {
           <nav className="hidden lg:flex items-center justify-center flex-1">
             <NavigationMenu>
               <NavigationMenuList className="gap-2">
-                {menu.map((item: any) => {
+                {menu.map((item: Record<string, unknown>) => {
                   if (item.group) {
                     return (
-                      <NavigationMenuItem key={item.id}>
+                      <NavigationMenuItem key={item.id as string}>
                         <NavigationMenuTrigger className={cn(
                           'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap bg-transparent',
                           {
-                            'text-primary': item.subItems?.some((si: any) => si.link.url && pathname.includes(si.link.url))
+                            'text-primary': (item.subItems as Record<string, unknown>[])?.some((si: Record<string, unknown>) => (si.link as Record<string, unknown>).url && pathname.includes((si.link as Record<string, unknown>).url as string))
                           }
                         )}>
-                          {item.menuTitle}
+                          {item.menuTitle as string}
                         </NavigationMenuTrigger>
                         <NavigationMenuContent>
                           <ul className="grid w-[400px] gap-3 p-6 md:w-[500px] md:grid-cols-2 lg:w-[600px] bg-white dark:bg-[#1a1c1c] rounded-xl border border-black/5 dark:border-white/5">
-                            {item.subItems?.map((subItem: any) => (
-                              <li key={subItem.id}>
+                            {(item.subItems as Record<string, unknown>[])?.map((subItem: Record<string, unknown>) => (
+                              <li key={subItem.id as string}>
                                 <NavigationMenuLink asChild>
                                   <CMSLink
-                                    {...subItem.link}
+                                    {...(subItem.link as Record<string, unknown>)}
                                     className={cn(
                                       "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
                                       "hover:bg-primary/5 group"
                                     )}
                                   >
                                     <div className="text-sm font-medium leading-none group-hover:text-primary transition-colors">
-                                      {subItem.link.label}
+                                      {(subItem.link as Record<string, unknown>).label as string}
                                     </div>
-                                    {subItem.link.description && (
+                                    {!!(subItem.link as Record<string, unknown>).description && (
                                       <p className="line-clamp-2 text-xs leading-snug text-muted-foreground mt-1">
-                                        {subItem.link.description}
+                                        {(subItem.link as Record<string, unknown>).description as string}
                                       </p>
                                     )}
                                   </CMSLink>
@@ -122,15 +121,15 @@ export function HeaderClient({ header }: Props) {
                   }
 
                   return (
-                    <NavigationMenuItem key={item.id}>
+                    <NavigationMenuItem key={item.id as string}>
                       <NavigationMenuLink asChild>
                         <CMSLink
-                          {...item.link}
+                          {...(item.link as Record<string, unknown>)}
                           size={'clear'}
                           className={cn(
                             'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap px-4 py-2 rounded-md hover:bg-accent/50',
                             {
-                              'text-primary': item.link.url && item.link.url !== '/' ? pathname.includes(item.link.url) : false,
+                              'text-primary': (item.link as Record<string, unknown>).url && (item.link as Record<string, unknown>).url !== '/' ? pathname.includes((item.link as Record<string, unknown>).url as string) : false,
                             }
                           )}
                         />
@@ -166,7 +165,7 @@ export function HeaderClient({ header }: Props) {
 
             {/* Mobile Navigation Trigger */}
             <div className="lg:hidden">
-              <MobileMenu menu={menu as any} />
+              <MobileMenu menu={menu as Record<string, unknown>[]} />
             </div>
           </div>
         </div>

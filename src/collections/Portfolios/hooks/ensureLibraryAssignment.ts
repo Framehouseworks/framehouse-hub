@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-export const ensureLibraryAssignment: CollectionBeforeChangeHook = async ({ data, req, operation }) => {
+export const ensureLibraryAssignment: CollectionBeforeChangeHook = async ({ data, req, operation: _operation }) => {
     // 1. If a folder is already assigned, we don't interfere (allows subfolder placement)
     if (data.folder) {
         return data

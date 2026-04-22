@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    CREATE TYPE "public"."enum_pages_blocks_content_background_color" AS ENUM('white', 'surface_low');
   CREATE TYPE "public"."enum_pages_blocks_content_layout_style" AS ENUM('default', 'asymmetric');
@@ -20,7 +20,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_pages_v_blocks_three_item_grid" ADD COLUMN "background_color" "enum__pages_v_blocks_three_item_grid_background_color" DEFAULT 'white';`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "pages_blocks_content" DROP COLUMN "background_color";
   ALTER TABLE "pages_blocks_content" DROP COLUMN "layout_style";

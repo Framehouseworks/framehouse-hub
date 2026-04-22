@@ -43,13 +43,13 @@ export const PricingPageContent: React.FC<{ initialData: PricingType }> = ({ ini
       />
 
       {/* Social Proof */}
-      <PartnerShowcase logos={initialData.partnerLogos} />
+      <PartnerShowcase logos={initialData.partnerLogos || undefined} />
 
       {/* Final Conversion Path */}
       <EnterpriseCTA 
-        heading={initialData.enterpriseHeading}
-        description={initialData.enterpriseDescription}
-        ctaLabel={initialData.enterpriseCtaLabel}
+        heading={initialData.enterpriseHeading ?? undefined}
+        description={initialData.enterpriseDescription ?? undefined}
+        ctaLabel={initialData.enterpriseCtaLabel ?? undefined}
       />
     </main>
   )

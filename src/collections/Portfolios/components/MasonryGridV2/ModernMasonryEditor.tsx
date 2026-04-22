@@ -29,7 +29,7 @@ import React, { useCallback, useMemo } from 'react'
 interface GalleryItem {
     id: string
     instanceId?: string
-    media: string | any
+    media: string | { id: string }
     size?: 'small' | 'medium' | 'large' | 'full'
     caption?: string
     alt?: string
@@ -39,10 +39,10 @@ interface GalleryItem {
  * Universal Array Guard
  * Handles Payload 3.x internal 'object-as-array' state and null/undefined values.
  */
-const asArray = <T extends any>(val: any): T[] => {
+const asArray = <T,>(val: unknown): T[] => {
     if (!val) return []
-    if (Array.isArray(val)) return val
-    if (typeof val === 'object') {
+    if (Array.isArray(val)) return val as T[]
+    if (typeof val === 'object' && val !== null) {
         return Object.values(val) as T[]
     }
     return []
@@ -64,11 +64,13 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
         let order: string[] = []
         try {
             if (manifest) order = JSON.parse(manifest)
-        } catch (e) { }
+        } catch (e: unknown) {
+            console.error('Failed to parse itemsOrder:', e)
+        }
 
-        const poolMap = new Map()
+        const poolMap = new Map<string, GalleryItem>()
         pool.forEach(item => {
-            const iid = item.instanceId || (item as any).instance_id
+            const iid = item.instanceId
             if (iid) poolMap.set(iid, item)
         })
 
@@ -77,13 +79,13 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 
         order.forEach(id => {
             if (poolMap.has(id)) {
-                sorted.push(poolMap.get(id))
+                sorted.push(poolMap.get(id)!)
                 usedIds.add(id)
             }
         })
 
         pool.forEach(item => {
-            const iid = item.instanceId || (item as any).instance_id
+            const iid = item.instanceId
             if (iid && !usedIds.has(iid)) {
                 sorted.push(item)
             }
@@ -94,7 +96,7 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 
     const commitChanges = useCallback((newPool: GalleryItem[], newOrderIds?: string[]) => {
         const validatedPool = asArray<GalleryItem>(newPool)
-        const orderIds = newOrderIds || validatedPool.map(i => i.instanceId || (i as any).instance_id).filter(Boolean) as string[]
+        const orderIds = newOrderIds || validatedPool.map(i => i.instanceId).filter(Boolean) as string[]
         const manifestString = JSON.stringify(orderIds)
 
         // Phase 1: Mark as dirty & update form state
@@ -116,20 +118,20 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
             dispatchFields({
                 type: 'UPDATE',
                 path: `${path}.${index}.instanceId`,
-                value: item.instanceId || (item as any).instance_id
+                value: item.instanceId
             })
         })
     }, [setItemsValue, setOrderValue, dispatchFields, path, itemsOrderPath])
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = (event: { active: { id: string | number }, over: { id: string | number } | null }) => {
         const { active, over } = event
         if (active && over && active.id !== over.id) {
-            const oldIndex = displayItems.findIndex((item) => (item.instanceId || (item as any).instance_id) === active.id)
-            const newIndex = displayItems.findIndex((item) => (item.instanceId || (item as any).instance_id) === over.id)
+            const oldIndex = displayItems.findIndex((item) => item.instanceId === active.id)
+            const newIndex = displayItems.findIndex((item) => item.instanceId === over.id)
 
             if (oldIndex !== -1 && newIndex !== -1) {
                 const newItems = arrayMove(displayItems, oldIndex, newIndex)
-                const newOrderIds = newItems.map(i => (i.instanceId || (i as any).instance_id) as string)
+                const newOrderIds = newItems.map(i => i.instanceId as string)
                 commitChanges(pool, newOrderIds)
             }
         }
@@ -147,7 +149,7 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
         const currentPool = asArray<GalleryItem>(pool)
         const newInstanceId = `inst_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`
         const newItem: GalleryItem = {
-            id: undefined as any,
+            id: '',
             instanceId: newInstanceId,
             media: docID,
             size: 'medium',
@@ -159,12 +161,13 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
 
     const handleRemoveItem = (instanceId: string) => {
         const currentPool = asArray<GalleryItem>(pool)
-        const newPool = currentPool.filter(i => (i.instanceId || (i as any).instance_id) !== instanceId)
-
+        const newPool = currentPool.filter(i => (i.instanceId || (i as unknown as Record<string, unknown>).instance_id) !== instanceId)
         let order: string[] = []
         try {
             if (manifest) order = JSON.parse(manifest)
-        } catch (e) { }
+        } catch (e: unknown) {
+            console.error('Failed to parse itemsOrder:', e)
+        }
         const newOrder = order.filter(id => id !== instanceId)
 
         commitChanges(newPool, newOrder)
@@ -173,7 +176,7 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
     const handleUpdateSize = (instanceId: string, size: GalleryItem['size']) => {
         const currentPool = asArray<GalleryItem>(pool)
         const newPool = currentPool.map(item => {
-            const iid = item.instanceId || (item as any).instance_id
+            const iid = item.instanceId || (item as unknown as Record<string, unknown>).instance_id
             if (iid === instanceId) {
                 return { ...item, size }
             }
@@ -223,9 +226,9 @@ export const ModernMasonryEditor: React.FC<{ path: string }> = ({ path }) => {
                     gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
                     gap: '20px'
                 }}>
-                    <SortableContext items={displayItems.map(i => (i.instanceId || (i as any).instance_id) as string)} strategy={rectSortingStrategy}>
+                    <SortableContext items={displayItems.map(i => (i.instanceId || (i as unknown as Record<string, unknown>).instance_id) as string)} strategy={rectSortingStrategy}>
                         {displayItems.map((item) => {
-                            const iid = (item.instanceId || (item as any).instance_id) as string
+                            const iid = (item.instanceId || (item as unknown as Record<string, unknown>).instance_id) as string
                             return (
                                 <SortableGridItem
                                     key={iid}
@@ -315,7 +318,7 @@ const SortableGridItem: React.FC<{
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: (item.instanceId || (item as any).instance_id) as string })
+    } = useSortable({ id: (item.instanceId as string) })
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -384,11 +387,9 @@ const MediaThumbnail: React.FC<{ id: string, serverURL: string }> = ({ id, serve
         const imageUrl = data.url ? `${serverURL}${data.url}` : null;
         if (imageUrl) {
             return (
-                <img
-                    src={imageUrl}
-                    alt={data.alt || 'Thumbnail'}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                    <Thumbnail doc={data} size="medium" />
+                </div>
             )
         }
         return <Thumbnail doc={data} size="medium" />

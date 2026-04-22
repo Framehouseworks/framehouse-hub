@@ -5,11 +5,11 @@ export const portfolioEndpoints: CollectionConfig['endpoints'] = [
         path: '/:id',
         method: 'patch',
         handler: async (req) => {
-            const { id } = req.routeParams
+            const { id } = req.routeParams as { id: string }
             const { payload } = req
 
             // Remove the id field from the request body to prevent validation errors
-            const requestData = req.data as Record<string, any> | undefined
+            const requestData = req.data as Record<string, unknown> | undefined
             const { id: _removedId, ...updateData } = requestData || {}
 
             try {
@@ -21,10 +21,11 @@ export const portfolioEndpoints: CollectionConfig['endpoints'] = [
                 })
 
                 return Response.json(updatedPortfolio)
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const err = error as Error & { status?: number }
                 return Response.json(
-                    { errors: [{ message: error.message }] },
-                    { status: error.status || 500 }
+                    { errors: [{ message: err.message }] },
+                    { status: err.status || 500 }
                 )
             }
         },

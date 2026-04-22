@@ -17,8 +17,8 @@ export const generateMeta = async (args: { doc: Page | Media }): Promise<Metadat
     ogImage = `${process.env.NEXT_PUBLIC_SERVER_URL}${doc.meta.image.url}`
   }
 
-  const title = (doc as any)?.meta?.title || (doc as any)?.title || (doc as any)?.filename || 'Framehouse Hub'
-  const description = (doc as any)?.meta?.description || ''
+  const title = ('meta' in doc && doc.meta?.title) || ('title' in doc && doc.title) || ('filename' in doc && doc.filename) || 'Framehouse Hub'
+  const description = ('meta' in doc && doc.meta?.description) || ''
 
   return {
     description,
@@ -32,7 +32,7 @@ export const generateMeta = async (args: { doc: Page | Media }): Promise<Metadat
         ]
         : undefined,
       title,
-      url: Array.isArray((doc as any)?.slug) ? (doc as any)?.slug.join('/') : '/',
+      url: 'slug' in doc && Array.isArray(doc.slug) ? doc.slug.join('/') : '/',
     }),
     title,
   }

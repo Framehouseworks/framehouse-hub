@@ -24,7 +24,6 @@ export const PricingCard: React.FC<PricingCardProps> = ({
   features,
   ctaText,
   highlight = false,
-  accentColor = "bg-primary",
   billingCycle = 'monthly'
 }) => {
   const price = billingCycle === 'monthly' ? priceMonthly : priceAnnual

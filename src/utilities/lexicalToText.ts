@@ -1,4 +1,11 @@
-export const lexicalToText = (node: any): string => {
+interface LexicalNode {
+    root?: LexicalNode
+    text?: string
+    children?: LexicalNode[]
+    [key: string]: unknown
+}
+
+export const lexicalToText = (node: LexicalNode | null | undefined): string => {
     if (!node) return ''
 
     // If it's the root object

@@ -47,7 +47,7 @@ export const RenderBlocks: React.FC<{
             if (Block) {
               return (
                 <Fragment key={index}>
-                  {/* @ts-ignore - weird type mismatch here */}
+                  {/* @ts-expect-error - weird type mismatch here */}
                   <Block id={toKebabCase(blockName!)} {...block} />
                 </Fragment>
               )

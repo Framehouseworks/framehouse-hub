@@ -1,6 +1,6 @@
 'use client'
 import Image, { StaticImageData } from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import React from 'react'
 
 import ShowcasePreview from '@/assets/hub/hub_preview.webp'

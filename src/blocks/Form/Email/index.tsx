@@ -14,7 +14,7 @@ export const Email: React.FC<
   EmailField & {
     errors: Partial<
       FieldErrorsImpl<{
-        [x: string]: any
+        [x: string]: unknown
       }>
     >
     register: UseFormRegister<FieldValues>

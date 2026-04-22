@@ -1,4 +1,5 @@
-import type { Payload } from 'payload'
+import type { Payload, PaginatedDocs } from 'payload'
+import type { Media } from '@/payload-types'
 import { aboutPageData, hubPageData } from './content/hubPages'
 
 export const seedHubContent = async (payload: Payload): Promise<void> => {
@@ -51,7 +52,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           size: 100,
         },
       })
-      mediaDocs = { docs: [newMedia] } as any
+      mediaDocs = { docs: [newMedia] } as unknown as PaginatedDocs<Media>
     }
 
     const fallbackMediaIds = mediaDocs.docs.map(doc => doc.id)
@@ -70,65 +71,68 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
         // 1. Enrich layout blocks with media if available
         if (pageData.layout && fallbackMediaIds.length > 0) {
-          pageData.layout = pageData.layout.map((block: any) => {
-            if (block.blockType === 'threeItemGrid' && block.style === 'pillars' && block.items) {
+          // @ts-expect-error - Dynamic block enrichment type mismatch
+          pageData.layout = pageData.layout.map((block: Record<string, unknown>) => {
+            const typedBlock = block
+            if (typedBlock.blockType === 'threeItemGrid' && typedBlock.style === 'pillars' && typedBlock.items) {
               return {
-                ...block,
-                items: block.items.map((item: any, i: number) => ({
-                  ...item,
-                  media: item.media || fallbackMediaIds[i % fallbackMediaIds.length],
+                ...typedBlock,
+                items: (typedBlock.items as unknown[]).map((item: unknown, i: number) => ({
+                  ...(item as Record<string, unknown>),
+                  media: (item as Record<string, unknown>)['media'] || fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
               }
             }
             if (
-              block.blockType === 'content' &&
-              (block.layoutStyle === 'asymmetric' || block.layoutStyle === 'side_by_side') &&
-              block.columns
+              typedBlock.blockType === 'content' &&
+              (typedBlock.layoutStyle === 'asymmetric' || typedBlock.layoutStyle === 'side_by_side') &&
+              typedBlock.columns
             ) {
               return {
-                ...block,
-                columns: block.columns.map((col: any, i: number) => {
+                ...typedBlock,
+                columns: (typedBlock.columns as unknown[]).map((col: unknown, i: number) => {
                   // In these layouts, ensure at least one column has media if it's meant to be there
-                  if (col.media === null && i === 0 && col.size !== 'full') {
-                    return { ...col, media: fallbackMediaIds[1 % fallbackMediaIds.length] }
+                  const typedCol = col as Record<string, unknown>
+                  if (typedCol['media'] === null && i === 0 && typedCol['size'] !== 'full') {
+                    return { ...typedCol, media: fallbackMediaIds[1 % fallbackMediaIds.length] }
                   }
                   // For side_by_side, we often want the other column to have media too if it's reversed
-                  if (block.layoutStyle === 'side_by_side' && col.media === null && i === 1) {
-                    return { ...col, media: fallbackMediaIds[2 % fallbackMediaIds.length] }
+                  if (typedBlock.layoutStyle === 'side_by_side' && typedCol['media'] === null && i === 1) {
+                    return { ...typedCol, media: fallbackMediaIds[2 % fallbackMediaIds.length] }
                   }
-                  return col
+                  return typedCol
                 }),
               }
             }
-            if (block.blockType === 'about3') {
+            if (typedBlock.blockType === 'about3') {
               return {
-                ...block,
-                mainImage: block.mainImage || fallbackMediaIds[0],
-                secondaryImage: block.secondaryImage || fallbackMediaIds[1 % fallbackMediaIds.length],
+                ...typedBlock,
+                mainImage: typedBlock.mainImage || fallbackMediaIds[0],
+                secondaryImage: typedBlock.secondaryImage || fallbackMediaIds[1 % fallbackMediaIds.length],
                 breakout: {
-                  ...block.breakout,
-                  logo: block.breakout?.logo || fallbackMediaIds[2 % fallbackMediaIds.length],
+                  ...(typedBlock.breakout as Record<string, unknown>),
+                  logo: (typedBlock.breakout as Record<string, unknown>)?.logo || fallbackMediaIds[2 % fallbackMediaIds.length],
                 },
-                companies: block.companies?.map((item: any, i: number) => ({
-                  ...item,
-                  logo: item.logo || fallbackMediaIds[i % fallbackMediaIds.length],
+                companies: (typedBlock.companies as unknown[])?.map((item: unknown, i: number) => ({
+                  ...(item as Record<string, unknown>),
+                  logo: (item as Record<string, unknown>).logo || fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
-                contentSections: block.contentSections?.map((section: any, i: number) => ({
-                  ...section,
-                  media: section.media || fallbackMediaIds[(i + 1) % fallbackMediaIds.length],
+                contentSections: (typedBlock.contentSections as unknown[])?.map((section: unknown, i: number) => ({
+                  ...(section as Record<string, unknown>),
+                  media: (section as Record<string, unknown>).media || fallbackMediaIds[(i + 1) % fallbackMediaIds.length],
                 })),
               }
             }
-            if (block.blockType === 'carousel' && block.populateBy === 'selection' && block.selectedDocs) {
+            if (typedBlock.blockType === 'carousel' && typedBlock.populateBy === 'selection' && typedBlock.selectedDocs) {
               return {
-                ...block,
-                selectedDocs: block.selectedDocs.map((item: any, i: number) => ({
-                  ...item,
-                  value: item.value || fallbackMediaIds[i % fallbackMediaIds.length],
+                ...typedBlock,
+                selectedDocs: (typedBlock.selectedDocs as unknown[]).map((item: unknown, i: number) => ({
+                  ...(item as Record<string, unknown>),
+                  value: ((item as Record<string, unknown>).value as string | number) || fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
               }
             }
-            return block
+            return typedBlock
           })
         }
 
@@ -142,12 +146,14 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           await payload.update({
             collection: 'pages',
             id: existingPages.docs[0].id,
+            // @ts-expect-error - Dynamic page data type mismatch
             data: pageData,
           })
         } else {
           payload.logger.info(`Creating page [${slug}]...`)
           await payload.create({
             collection: 'pages',
+            // @ts-expect-error - Dynamic page data type mismatch
             data: pageData,
           })
         }
@@ -259,13 +265,15 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
       if (header) {
         payload.logger.info('Updating Header global with Company dropdown links...')
-        const updatedNavItems = header.navItems?.map((item: any) => {
+        const updatedNavItems = (header.navItems as Record<string, unknown>[])?.map((item: Record<string, unknown>) => {
           // If it's the "Company" item from Phase 1, ensure sub-items point to our new pages
-          if (item.menuTitle?.toLowerCase().includes('company') || item.link?.label?.toLowerCase().includes('company')) {
+          const menuTitle = item.menuTitle as string | undefined;
+          const link = item.link as { label?: string } | undefined;
+          if (menuTitle?.toLowerCase().includes('company') || link?.label?.toLowerCase().includes('company')) {
             return {
               ...item,
               group: true,
-              menuTitle: item.menuTitle || 'Company',
+              menuTitle: menuTitle || 'Company',
               link: null, // Clear singular link to satisfy group condition
               subItems: [
                 { link: { label: 'About Us', url: '/about', type: 'custom' } },

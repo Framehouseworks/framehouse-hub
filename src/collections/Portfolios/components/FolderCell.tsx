@@ -8,8 +8,8 @@ export const FolderCell: React.FC<DefaultCellComponentProps> = (props) => {
     const { cellData, rowData } = props
     const { config } = useConfig()
     const {
-        routes: { admin: adminRoute, api: apiRoute }
-    } = config as any
+        routes: { admin: adminRoute, api: apiRoute } = { admin: '/admin', api: '/api' }
+    } = config as unknown as { routes: { admin: string, api: string } }
 
     // cellData might be the folder ID or a folder object
     // If used as a virtual field cell, we look at rowData.folder (the internal field)
@@ -26,7 +26,7 @@ export const FolderCell: React.FC<DefaultCellComponentProps> = (props) => {
 
             try {
                 setLoading(true)
-                const folderSlug = (config as any).folders?.slug || 'payload-folders'
+                const folderSlug = (config as unknown as { folders?: { slug: string } }).folders?.slug || 'payload-folders'
                 // Fetch with depth to get parents
                 const response = await fetch(`${apiRoute}/${folderSlug}/${folderId}?depth=10`, {
                     headers: {
@@ -63,7 +63,7 @@ export const FolderCell: React.FC<DefaultCellComponentProps> = (props) => {
     }, [folderId, apiRoute, config])
 
     const collectionSlug = 'portfolios'
-    const foldersSlug = (config as any).folders?.slug || 'payload-folders'
+    const foldersSlug = (config as unknown as { folders?: { slug: string } }).folders?.slug || 'payload-folders'
 
     const [libraryId, setLibraryId] = useState<string | null>(null)
 

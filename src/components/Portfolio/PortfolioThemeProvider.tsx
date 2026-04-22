@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext } from 'react'
 
-interface ThemeConfig {
+export interface ThemeConfig {
     fontPairing?: 'modern-sans' | 'classic-serif' | 'tech-mono'
     backgroundColor?: string | null
     textColor?: string | null

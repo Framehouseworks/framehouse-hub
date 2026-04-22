@@ -36,7 +36,7 @@ export const Header: GlobalConfig = {
                 condition: (_, siblingData) => siblingData?.group,
                 width: '70%',
               },
-              validate: (value, { siblingData }) => {
+              validate: (value: unknown, { siblingData }: { siblingData: Record<string, unknown> }) => {
                 if (siblingData?.group && !value) {
                   return 'Menu title is required for dropdowns.'
                 }
@@ -49,7 +49,7 @@ export const Header: GlobalConfig = {
           appearances: false,
           overrides: {
             admin: {
-              condition: (_, siblingData) => !siblingData?.group,
+              condition: (_: unknown, siblingData: Record<string, unknown>) => !siblingData?.group,
             },
           },
         }),
@@ -58,7 +58,7 @@ export const Header: GlobalConfig = {
           type: 'array',
           label: 'Dropdown Links',
           admin: {
-            condition: (_, siblingData) => siblingData?.group,
+            condition: (_: unknown, siblingData: Record<string, unknown>) => !!siblingData?.group,
           },
           fields: [
             link({

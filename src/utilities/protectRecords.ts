@@ -18,7 +18,7 @@ export const protectCoreRecord = (
       })
 
       if (doc) {
-        const idValue = (doc as any).slug || (doc as any).name || (doc as any).id
+        const idValue = (doc as unknown as Record<string, unknown>).slug || (doc as unknown as Record<string, unknown>).name || (doc as unknown as Record<string, unknown>).id
         if (slugs.includes(String(idValue))) {
           throw new APIError(errorMessage, 403)
         }
@@ -32,11 +32,10 @@ export const protectCoreRecord = (
  * Access control to prevent modification of specific fields (like slug)
  * on core system records.
  */
-export const lockCoreField: FieldAccess = ({ req, doc }) => {
+export const lockCoreField: FieldAccess = ({ req: _req, doc: _doc }) => {
   const CORE_SLUGS = ['pricing', 'features', 'about']
   
-  if (doc && CORE_SLUGS.includes(doc.slug)) {
-    return false // Deny update for everyone if it's a core slug
+  if (_doc && CORE_SLUGS.includes((_doc as unknown as Record<string, unknown>).slug as string)) {    return false // Deny update for everyone if it's a core slug
   }
 
   return true

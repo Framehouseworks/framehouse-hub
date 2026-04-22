@@ -7,7 +7,7 @@ import { Media } from '@/components/Media'
 import type { Media as MediaType } from '@/payload-types'
 
 export type PartnerShowcaseProps = {
-  logos?: { logo: string | MediaType }[]
+  logos?: { logo: string | number | MediaType }[]
 }
 
 /**

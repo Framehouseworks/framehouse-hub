@@ -1,12 +1,12 @@
 'use client'
 
 import { cn } from '@/utilities/cn'
-import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { motion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
 import { useRef } from 'react'
 
 interface WordProps {
   children: string
-  progress: any
+  progress: MotionValue<number>
   range: [number, number]
   ghostColor?: string
   glowColor?: string
@@ -79,8 +79,8 @@ const Word = ({
           color,
           y,
           scale,
-          transition: { ease: [0.23, 1, 0.32, 1] }
         }}
+        transition={{ ease: [0.23, 1, 0.32, 1] }}
         className="relative inline-block text-foreground dark:text-white font-medium will-change-[opacity,color,transform]"
       >
         {children}
@@ -114,7 +114,8 @@ export const EtherealTextReveal = ({
 
   const { scrollYProgress } = useScroll({
     target: targetRef,
-    offset: viewportOffset as any
+    // @ts-expect-error - viewportOffset is a valid [string, string] but Framer Motion's type extraction is overly restrictive
+    offset: viewportOffset as [string, string]
   })
 
   const smoothProgress = useSpring(scrollYProgress, {

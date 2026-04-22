@@ -91,7 +91,7 @@ export const PRICING_DEFAULTS: Partial<Pricing> = {
       features: [
         { name: "Multi-Factor Authentication", plan1Value: "Included", plan2Value: "Included", plan3Value: "Included" },
         { name: "Role-Based Access Control", plan1Value: "—", plan2Value: "Included", plan3Value: "Included" },
-        { name: "Full Audit Logs", plan1Value: "—", plan2: "—", plan3Value: "Included" },
+        { name: "Full Audit Logs", plan1Value: "—", plan2Value: "—", plan3Value: "Included" },
         { name: "SAML SSO Integration", plan1Value: "—", plan2Value: "—", plan3Value: "Included" },
       ]
     }

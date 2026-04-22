@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import React from 'react'
 import type { Media } from '@/payload-types'
+import { RichText } from '@/components/RichText'
+import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical'
 
 interface Props {
   media: Media
@@ -26,8 +28,7 @@ export const MediaCard: React.FC<Props> = ({ media }) => {
       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
       {media.caption && (
         <div className="absolute bottom-0 left-0 right-0 p-2 text-sm text-white">
-          {media.caption}
-        </div>
+          <RichText data={media.caption as unknown as SerializedEditorState} />        </div>
       )}
     </div>
   )

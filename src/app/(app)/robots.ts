@@ -1,16 +1,14 @@
-/* eslint-disable no-restricted-exports */
-const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-  : 'http://localhost:3000'
+ 
+const url = process.env.NEXT_PUBLIC_SERVER_URL || 'https://hub.framehouseworks.com'
 
 export default function robots() {
   return {
-    host: baseUrl,
     rules: [
       {
         userAgent: '*',
+        allow: '/',
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${url}/sitemap.xml`,
   }
 }

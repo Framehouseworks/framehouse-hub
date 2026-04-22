@@ -1,7 +1,7 @@
 'use client'
 import clsx from 'clsx'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 type Props = {
   href: string
@@ -10,9 +10,7 @@ type Props = {
 
 export function Item({ href, title }: Props) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const active = pathname === href
-  const q = searchParams.get('q')
   const DynamicTag = active ? 'p' : Link
 
   return (

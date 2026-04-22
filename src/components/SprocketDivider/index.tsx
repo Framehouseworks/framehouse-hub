@@ -1,8 +1,7 @@
 'use client'
 import { cn } from '@/utilities/cn'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
-
+import { useMemo } from 'react'
 import BlueHole from '@/assets/sprocket-hole/sprocket_hole_blue.svg'
 import CreamHole from '@/assets/sprocket-hole/sprocket_hole_cream.svg'
 import LightBlueHole from '@/assets/sprocket-hole/sprocket_hole_light_blue.svg'

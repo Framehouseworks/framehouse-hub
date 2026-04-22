@@ -1,7 +1,7 @@
 'use client'
 
 import { motionTemplates, MotionType } from '@/utilities/motions'
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import React from 'react'
 
 interface MotionContainerProps {
@@ -19,7 +19,7 @@ export const MotionContainer: React.FC<MotionContainerProps> = ({
 }) => {
     const template = motionTemplates[type]
     const isFunction = typeof template === 'function'
-    const variants = isFunction ? (template as any)() : template
+    const variants = (isFunction ? (template as () => Record<string, unknown>)() : (template as Record<string, unknown>)) as unknown as Variants
 
     // If it's a stagger container, we need to handle it differently
     if (type === 'staggerContainer') {
@@ -35,14 +35,14 @@ export const MotionContainer: React.FC<MotionContainerProps> = ({
         )
     }
 
-    const templateTransition = (variants as any)?.transition || {}
+    const templateTransition = (variants as Record<string, unknown>)?.transition || {}
 
     return (
         <motion.div
             initial="initial"
             animate="animate"
             variants={variants}
-            transition={{ ...templateTransition, delay }}
+            transition={{ ...templateTransition as object, delay }}
             className={className}
         >
             {children}

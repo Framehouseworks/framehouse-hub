@@ -8,7 +8,7 @@ export const getServerSideURL = () => {
   }
 
   if (!url) {
-    url = 'http://localhost:3000'
+    url = 'https://hub.framehouseworks.com'
   }
 
   return url

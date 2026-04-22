@@ -1,5 +1,5 @@
 import type { CountryField } from '@payloadcms/plugin-form-builder/types'
-import type { Control, FieldErrorsImpl, FieldValues } from 'react-hook-form'
+import type { Control, FieldErrors, FieldValues } from 'react-hook-form'
 
 import { Label } from '@/components/ui/label'
 import {
@@ -12,18 +12,14 @@ import {
 import React from 'react'
 import { Controller } from 'react-hook-form'
 
-import { Error } from '../Error'
 import { Width } from '../Width'
 import { countryOptions } from './options'
+import { Error } from '../Error'
 
 export const Country: React.FC<
   CountryField & {
-    control: Control<FieldValues, any>
-    errors: Partial<
-      FieldErrorsImpl<{
-        [x: string]: any
-      }>
-    >
+    control: Control<FieldValues>
+    errors: FieldErrors<FieldValues>
   }
 > = ({ name, control, errors, label, required, width }) => {
   return (

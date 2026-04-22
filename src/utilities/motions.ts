@@ -1,4 +1,4 @@
-import { Transition, Variants } from "framer-motion";
+import { Target, Transition, Variants } from "framer-motion";
 
 /**
  * Standardized "Zipply" spring transition for a premium feel.
@@ -18,10 +18,17 @@ export type MotionType =
     | 'shimmer'
     | 'reveal';
 
+type MotionTemplate = Variants | {
+    initial?: Target;
+    animate?: Target;
+    exit?: Target;
+    transition?: Transition;
+} | ((staggerChildren?: number) => Variants);
+
 /**
  * Global Animation Templates
  */
-export const motionTemplates: Record<MotionType, any> = {
+export const motionTemplates: Record<MotionType, MotionTemplate> = {
     // Entrance animation for container blocks
     fadeEntrance: {
         initial: { opacity: 0, y: 30 },

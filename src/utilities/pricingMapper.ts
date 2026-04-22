@@ -17,7 +17,7 @@ export type PricingMode = 'summary' | 'detailed'
 
 export const mapPricingData = (
   data: PricingType,
-  mode: PricingMode = 'summary'
+  _mode: PricingMode = 'summary'
 ): MappedPricingPlan[] => {
   if (!data?.plans) return []
 
@@ -41,10 +41,10 @@ export const mapFeatureMatrix = (data: PricingType) => {
     category: cat.name,
     features: cat.features?.map((f) => ({
       name: f.name,
-      description: f.description,
-      plan1: f.plan1Value,
-      plan2: f.plan2Value,
-      plan3: f.plan3Value,
+      description: f.description ?? undefined,
+      plan1: f.plan1Value ?? '—',
+      plan2: f.plan2Value ?? '—',
+      plan3: f.plan3Value ?? '—',
     })) || [],
   }))
 }
