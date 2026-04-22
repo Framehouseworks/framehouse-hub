@@ -3,7 +3,7 @@ import type { Form as FormType } from '@payloadcms/plugin-form-builder/types'
 
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useState } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
+import { useForm, FormProvider, FieldValues, FieldErrors, UseFormRegister, Control } from 'react-hook-form'
 import { RichText } from '@/components/RichText'
 import { Button } from '@/components/ui/button'
 import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical'
@@ -143,8 +143,15 @@ export const FormBlock: React.FC<
                 {formFromProps &&
                   formFromProps.fields &&
                   formFromProps.fields?.map((field, index) => {
-                    const Field: React.FC<any> | undefined =
-                      fields?.[field.blockType as keyof typeof fields]
+                    const Field = fields?.[field.blockType as keyof typeof fields] as React.FC<{
+                      form: FormType
+                      control: Control<FieldValues>
+                      errors: FieldErrors<FieldValues>
+                      register: UseFormRegister<FieldValues>
+                      blockType?: string
+                      name?: string
+                      [key: string]: unknown
+                    }> | undefined
 
                     if (Field) {
                       return (

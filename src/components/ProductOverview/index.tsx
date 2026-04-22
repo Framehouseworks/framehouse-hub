@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/utilities/cn'
-import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { motion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
 import { useRef } from 'react'
 import React from 'react'
 import { EtherealTextReveal } from '../EtherealTextReveal'
@@ -15,7 +15,7 @@ const StepTag = ({
 }: {
   label: string,
   color: string,
-  progress: any,
+  progress: MotionValue<number>,
   threshold: number,
   xPosition: string
 }) => {
@@ -89,7 +89,7 @@ export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
   const T_PARA = [0.15, 0.4]
   const T_TRUNK_FULL = [0.2, 0.85]
   const T_PULSE_MOTION = [0.4, 0.9]
-  const T_TAGLINE = [0.9, 1.0]
+  const _T_TAGLINE = [0.9, 1.0]
 
   const horizA = useTransform(smoothProgress, T_HORIZ_A, [0, 1])
   const horizA_Opacity = useTransform(smoothProgress, [0, 0.01], [0, 1])
@@ -107,8 +107,6 @@ export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
   // Trunk is y=180 to y=450 (total 270px). Safety buffer of 8px.
   const pulseOpacity = useTransform(smoothProgress, [0.4, 0.45], [0, 1])
   const pulseY = useTransform(smoothProgress, T_PULSE_MOTION, [0, 262])
-
-  const taglineOpacity = useTransform(smoothProgress, T_TAGLINE, [0, 1])
 
   // Unified Styling
   const strokeW = 2.5

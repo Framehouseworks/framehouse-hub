@@ -69,7 +69,7 @@ export function MobileMenu({ menu }: Props) {
               {menu?.map((item, i) => (
                 <MobileNavItem 
                   key={item.id} 
-                  item={item as any} 
+                  item={item as Record<string, unknown>} 
                   index={i} 
                   onClose={() => setIsOpen(false)} 
                 />
@@ -127,7 +127,7 @@ export function MobileMenu({ menu }: Props) {
   )
 }
 
-function MobileNavItem({ item, index, onClose }: { item: any; index: number; onClose: () => void }) {
+function MobileNavItem({ item, index, onClose }: { item: Record<string, unknown>; index: number; onClose: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   if (item.group) {
@@ -149,7 +149,7 @@ function MobileNavItem({ item, index, onClose }: { item: any; index: number; onC
             "group-hover:text-primary",
             isExpanded ? "text-primary" : "text-neutral-900 dark:text-white"
           )}>
-            {item.menuTitle}
+            {item.menuTitle as string}
           </span>
           <motion.span
             animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -167,16 +167,16 @@ function MobileNavItem({ item, index, onClose }: { item: any; index: number; onC
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden flex flex-col items-center gap-4 mt-6"
             >
-              {item.subItems?.map((subItem: any, si: number) => (
+              {(item.subItems as Record<string, unknown>[] | undefined)?.map((subItem, si) => (
                 <motion.div
-                  key={subItem.id}
+                  key={subItem.id as string}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: si * 0.05 }}
                   onClick={onClose}
                 >
                   <CMSLink
-                    {...subItem.link}
+                    {...(subItem.link as Record<string, unknown>)}
                     size={'clear'}
                     className={cn(
                       "text-2xl sm:text-4xl font-rubik tracking-tighter uppercase transition-all duration-300",
@@ -204,7 +204,7 @@ function MobileNavItem({ item, index, onClose }: { item: any; index: number; onC
       onClick={onClose}
     >
       <CMSLink
-        {...item.link}
+        {...(item.link as Record<string, unknown>)}
         size={'clear'}
         className={cn(
           "text-4xl sm:text-6xl md:text-7xl font-rubik tracking-tighter uppercase transition-all duration-300",

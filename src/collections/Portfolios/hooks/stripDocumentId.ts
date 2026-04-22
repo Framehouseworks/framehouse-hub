@@ -4,7 +4,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 export const stripDocumentId: CollectionBeforeChangeHook = ({ data, operation }) => {
     if (operation === 'update' && data) {
         // Create a new object without the id field
-        const { id, ...cleanData } = data
+        const { id: _id, ...cleanData } = data
         return cleanData
     }
     return data

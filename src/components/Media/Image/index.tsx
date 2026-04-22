@@ -27,8 +27,6 @@ export const Image: React.FC<MediaProps> = (props) => {
     width: widthFromProps,
   } = props
 
-  const [isLoading, setIsLoading] = React.useState(true)
-
   let width: number | undefined | null
   let height: number | undefined | null
   let alt = altFromProps
@@ -37,7 +35,6 @@ export const Image: React.FC<MediaProps> = (props) => {
   if (!src && resource && typeof resource === 'object') {
     const {
       alt: altFromResource,
-      filename: fullFilename,
       height: fullHeight,
       url,
       width: fullWidth,
@@ -49,7 +46,7 @@ export const Image: React.FC<MediaProps> = (props) => {
 
     // Handle static paths or absolute URLs vs Payload relative paths
     const isStaticOrAbsolute = url?.startsWith('/') || url?.startsWith('http')
-    src = isStaticOrAbsolute ? url : `${process.env.NEXT_PUBLIC_SERVER_URL}${url}`
+    src = (isStaticOrAbsolute ? url : `${process.env.NEXT_PUBLIC_SERVER_URL}${url}`) || ''
   }
 
   // NOTE: this is used by the browser to determine which image to download at different screen sizes
@@ -67,7 +64,6 @@ export const Image: React.FC<MediaProps> = (props) => {
       height={!fill ? height || heightFromProps : undefined}
       onClick={onClick}
       onLoad={() => {
-        setIsLoading(false)
         if (typeof onLoadFromProps === 'function') {
           onLoadFromProps()
         }

@@ -5,7 +5,7 @@ export const aboutPageData = {
   isProtected: true,
   hero: {
     type: 'highImpact',
-    media: null as any, // Injected during seed
+    media: null as unknown, // Injected during seed
     richText: {
       root: {
         type: 'root',
@@ -32,22 +32,22 @@ export const aboutPageData = {
       blockType: 'about3',
       title: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.',
       description: 'To help the world’s most successful brands manage, transform, and deliver engaging visual experiences with clinical precision.',
-      mainImage: null as any,
-      secondaryImage: null as any,
+      mainImage: null as unknown,
+      secondaryImage: null as unknown,
       breakout: {
         title: 'Architecting 30PB+ of Visual Data',
         description: 'Providing enterprises with the high-prestige tools needed to organize, edit, and deliver the future of media.',
         buttonText: 'Join the Revolution',
         buttonUrl: '/pricing',
-        logo: null as any,
+        logo: null as unknown,
       },
       companies: [
-        { logo: null as any },
-        { logo: null as any },
-        { logo: null as any },
-        { logo: null as any },
-        { logo: null as any },
-        { logo: null as any },
+        { logo: null as unknown },
+        { logo: null as unknown },
+        { logo: null as unknown },
+        { logo: null as unknown },
+        { logo: null as unknown },
+        { logo: null as unknown },
       ],
       achievementsTitle: 'Clinical Impact',
       achievementsDescription: 'Our architecture is built for extreme scale and museum-grade precision.',
@@ -210,17 +210,17 @@ export const aboutPageData = {
         {
           title: 'Precision AI',
           description: 'Using advanced patented image and video processing to deliver flawless visual experiences.',
-          media: null as any,
+          media: null as unknown,
         },
         {
           title: 'Hybrid Scale',
           description: 'Reimagining the solutions needed to solve today’s visual media management challenges.',
-          media: null as any,
+          media: null as unknown,
         },
         {
           title: 'Editorial DNA',
           description: 'Passionate, collaborative, and hard working people spans the globe but constantly connected.',
-          media: null as any,
+          media: null as unknown,
         },
       ],
     },
@@ -291,12 +291,12 @@ export const aboutPageData = {
       style: 'logoWall',
       populateBy: 'selection',
       selectedDocs: [
-        { relationTo: 'media', value: null as any },
-        { relationTo: 'media', value: null as any },
-        { relationTo: 'media', value: null as any },
-        { relationTo: 'media', value: null as any },
-        { relationTo: 'media', value: null as any },
-        { relationTo: 'media', value: null as any },
+        { relationTo: 'media', value: null as unknown },
+        { relationTo: 'media', value: null as unknown },
+        { relationTo: 'media', value: null as unknown },
+        { relationTo: 'media', value: null as unknown },
+        { relationTo: 'media', value: null as unknown },
+        { relationTo: 'media', value: null as unknown },
       ],
     },
   ],
@@ -313,7 +313,7 @@ export const hubPageData = {
   isProtected: true,
   hero: {
     type: 'highImpact',
-    media: null as any, // Injected during seed
+    media: null as unknown, // Injected during seed
     richText: {
       root: {
         type: 'root',
@@ -349,17 +349,17 @@ export const hubPageData = {
         {
           title: 'Admin Studio',
           description: 'A powerful, headless command center for your entire digital ecosystem. Effortless asset management at scale.',
-          media: null as any, // Injected during seed
+          media: null as unknown, // Injected during seed
         },
         {
           title: 'Portfolio Generator',
           description: 'Transform raw data into high-prestige clinical portfolios. Tailored for precision and editorial impact.',
-          media: null as any, // Injected during seed
+          media: null as unknown, // Injected during seed
         },
         {
           title: 'Global Delivery',
           description: 'Lightning-fast delivery of your curated assets to any endpoint, anywhere in the world.',
-          media: null as any, // Injected during seed
+          media: null as unknown, // Injected during seed
         },
       ],
     },

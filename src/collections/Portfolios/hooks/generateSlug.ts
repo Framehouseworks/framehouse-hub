@@ -1,4 +1,4 @@
-import type { CollectionBeforeChangeHook } from 'payload'
+import type { CollectionBeforeChangeHook, Where } from 'payload'
 
 export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, operation, originalDoc }) => {
     if (operation === 'create' || operation === 'update') {
@@ -14,17 +14,17 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
             if (typeof title === 'string') {
                 plainTitle = title
             } else if (typeof title === 'object' && title !== null && 'root' in title) {
-                const extractText = (node: any): string => {
-                    if (node.text) return node.text
-                    if (node.children) {
-                        return node.children.map(extractText).join('')
+                const extractText = (node: Record<string, unknown>): string => {
+                    if (node.text) return node.text as string
+                    if (node.children && Array.isArray(node.children)) {
+                        return (node.children as Record<string, unknown>[]).map(extractText).join('')
                     }
                     return ''
                 }
-                plainTitle = extractText(title.root)
+                plainTitle = extractText(title.root as Record<string, unknown>)
             } else if (Array.isArray(title)) {
                 // Slate fallback
-                plainTitle = title.map((n: any) => n.children?.map((c: any) => c.text).join('')).join('')
+                plainTitle = (title as Record<string, unknown>[]).map((n: Record<string, unknown>) => (n.children as Record<string, unknown>[])?.map((c: Record<string, unknown>) => c.text as string).join('')).join('')
             }
         }
 
@@ -36,7 +36,7 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
         if (plainTitle && owner) {
 
             // Get user identifier
-            const rawUserId = typeof owner === 'object' && owner !== null ? (owner.id || (owner as any)._id) : owner
+            const rawUserId = typeof owner === 'object' && owner !== null ? ((owner as Record<string, unknown>).id || (owner as Record<string, unknown>)._id) : owner
             const userId = typeof rawUserId === 'string' ? parseInt(rawUserId, 10) : rawUserId
 
             if (!userId || isNaN(userId as number)) return data
@@ -44,11 +44,11 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
             try {
                 const user = await req.payload.findByID({
                     collection: 'users',
-                    id: userId,
+                    id: userId as number | string,
                 })
 
                 if (user && (user.name || user.email)) {
-                    const identifier = (user.name || user.email.split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '-')
+                    const identifier = (user.name || (user.email as string).split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '-')
                     const slugTitle = plainTitle.toLowerCase()
                         .trim()
                         .replace(/[^\w\s-]/g, '')
@@ -65,7 +65,7 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
                     let isUnique = false
                     let count = 0
                     while (!isUnique && count < 10) {
-                        const whereClause: any = {
+                        const whereClause: Where = {
                             slug: {
                                 equals: newSlug,
                             },

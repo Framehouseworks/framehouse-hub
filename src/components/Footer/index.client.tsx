@@ -109,7 +109,7 @@ export function FooterClient({ footer }: Props) {
   )
 }
 
-function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
+function FooterNavColumn({ title, items }: { title: string, items: Record<string, unknown>[] }) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -139,9 +139,9 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
             className="flex flex-col gap-3.5 overflow-hidden"
           >
             {items.map((item) => (
-              <li key={item.id}>
+              <li key={item.id as string}>
                 <CMSLink
-                  {...item.link}
+                  {...(item.link as Record<string, unknown>)}
                   appearance="link"
                   className="text-sm text-neutral-500 hover:text-primary transition-colors whitespace-nowrap"
                 />
@@ -154,9 +154,9 @@ function FooterNavColumn({ title, items }: { title: string, items: any[] }) {
       {/* Desktop fallback list (since AnimatePresence/window check can be tricky on SSR) */}
       <ul className="hidden md:flex flex-col gap-3">
         {items.map((item) => (
-          <li key={item.id}>
+          <li key={item.id as string}>
             <CMSLink
-              {...item.link}
+              {...(item.link as Record<string, unknown>)}
               appearance="link"
               className="text-sm text-neutral-500 hover:text-primary transition-colors whitespace-nowrap"
             />

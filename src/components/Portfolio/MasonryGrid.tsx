@@ -8,9 +8,9 @@ import { Lightbox } from './Lightbox'
 import { MotionContainer } from './MotionContainer'
 
 type GridItem = NonNullable<NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>>[number] & {
-    alt?: string
-    caption?: string
-    link?: string
+    alt?: string | null
+    caption?: string | null
+    link?: string | null
 }
 
 interface MasonryGridProps {
