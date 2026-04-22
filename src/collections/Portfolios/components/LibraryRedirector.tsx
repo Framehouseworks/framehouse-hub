@@ -16,9 +16,9 @@ export const LibraryRedirector: React.FC = () => {
 
     useEffect(() => {
         const displayAs = searchParams.get('displayAs')
-        const { routes: { admin: adminRoute, api: apiRoute } } = config as any
+        const { routes: { admin: adminRoute, api: apiRoute } } = config as unknown as { routes: { admin: string, api: string } }
         const portfolioPath = `${adminRoute}/collections/portfolios`
-        const foldersSlug = (config as any).folders?.slug || 'payload-folders'
+        const foldersSlug = (config as unknown as { folders?: { slug: string } }).folders?.slug || 'payload-folders'
         const foldersPath = `${adminRoute}/collections/${foldersSlug}`
 
         // Trigger redirect if:

@@ -43,3 +43,8 @@ next-env.d.ts
 
 public/media
 
+# reports and logs
+lint_report*.txt
+build_output.txt
+test.env
+

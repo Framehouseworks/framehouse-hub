@@ -26,7 +26,7 @@
       "@payload-config": ["./src/payload.config.ts"],
       "react": ["./node_modules/@types/react"],
       "@/*": ["./src/*"],
-      "@/payload-types": ["./src/payload-types.ts"],
+      "@/payload-types": ["./src/payload-types.ts"]
     }
   },
   "include": [
@@ -37,6 +37,7 @@
     "next.config.js"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "scripts"
   ]
 }

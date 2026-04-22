@@ -7,12 +7,16 @@ export const onInitExtension: Config['onInit'] = async (payload) => {
     // Patch the update operation to strip ID from incoming data
     const originalUpdate = payload.update.bind(payload)
 
-    payload.update = async (args: any) => {
-        if (args.collection === 'portfolios' && args.data) {
-            const { id, ...cleanData } = args.data
+    // @ts-expect-error - Complex overload mismatch in monkeypatch
+    payload.update = async (args: unknown) => {
+        const updateArgs = args as Record<string, unknown>
+        if (updateArgs.collection === 'portfolios' && updateArgs.data) {
+            const data = updateArgs.data as Record<string, unknown>
+            const id = data.id as string | undefined
             console.log('[Payload] Stripped ID from portfolios update:', id)
-            args.data = cleanData
+            const { id: _id, ...cleanData } = data
+            updateArgs.data = cleanData
         }
-        return originalUpdate(args)
+        return originalUpdate(args as Parameters<typeof payload.update>[0])
     }
 }

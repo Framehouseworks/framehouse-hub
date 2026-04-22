@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    CREATE TYPE "public"."enum_pages_blocks_sprocket_divider_background_color" AS ENUM('white', 'surface_low');
   CREATE TYPE "public"."enum_pages_blocks_sprocket_divider_speed" AS ENUM('slow', 'medium', 'fast');
@@ -43,7 +43,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_content_columns_media_idx" ON "_pages_v_blocks_content_columns" USING btree ("media_id");`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "pages_blocks_sprocket_divider" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_pages_v_blocks_sprocket_divider" DISABLE ROW LEVEL SECURITY;

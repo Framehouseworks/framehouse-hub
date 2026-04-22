@@ -4,7 +4,7 @@ import React, { useRef } from 'react'
 import { RichText } from '@/components/RichText'
 import type { DefaultDocumentIDType } from 'payload'
 import type { ContentBlock as ContentBlockProps } from '@/payload-types'
-import { motion, useInView } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 import { CMSLink } from '../../components/Link'
 import { Media as MediaComponent } from '@/components/Media'
@@ -17,7 +17,6 @@ export const ContentBlock: React.FC<
 > = (props) => {
   const { columns, style, backgroundColor, layoutStyle, className } = props
   const containerRef = useRef(null)
-  const isInView = useInView(containerRef, { once: true, margin: '-10%' })
 
   const bgClasses = {
     white: 'bg-white dark:bg-[#1a1c1c]',
@@ -107,24 +106,13 @@ export const ContentBlock: React.FC<
                 >
                   {col.media && (
                     <div className="mb-14 overflow-hidden rounded-[24px] border border-black/5 dark:border-white/5 bg-neutral-100/30 dark:bg-neutral-800/20 p-2 lg:p-4 shadow-sm hover:shadow-xl transition-shadow duration-1000">
-                      {typeof col.media === 'string' ? (
-                        <img 
-                          src={col.media} 
-                          alt="Placeholder" 
-                          className={cn(
-                            "w-full h-auto max-h-[600px] object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]",
-                            isSideBySide && "aspect-video"
-                          )} 
-                        />
-                      ) : (
-                        <MediaComponent 
-                          resource={col.media} 
-                          className={cn(
-                            "w-full h-auto max-h-[600px] object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]",
-                            isSideBySide && "aspect-video"
-                          )} 
-                        />
-                      )}
+                      <MediaComponent 
+                        resource={col.media} 
+                        className={cn(
+                          "w-full h-auto max-h-[600px] object-cover grayscale hover:grayscale-0 transition-all duration-1000 ease-[0.23,1,0.32,1]",
+                          isSideBySide && "aspect-video"
+                        )} 
+                      />
                     </div>
                   )}
                   <motion.div

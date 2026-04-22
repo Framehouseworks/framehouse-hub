@@ -1,7 +1,7 @@
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { MotionContainer } from '@/components/Portfolio/MotionContainer'
 import { PortfolioRenderer } from '@/components/Portfolio/PortfolioRenderer'
-import { PortfolioThemeProvider } from '@/components/Portfolio/PortfolioThemeProvider'
+import { PortfolioThemeProvider, type ThemeConfig } from '@/components/Portfolio/PortfolioThemeProvider'
 import { RichText } from '@/components/RichText'
 import { auth } from '@/utilities/auth'
 import configPromise from '@payload-config'
@@ -46,15 +46,15 @@ export default async function PortfolioPage({ params }: Props) {
     }
 
     // Normalize theme to handle nulls from Payload
-    const theme = {
+    const theme: ThemeConfig = {
         fontPairing: portfolio.theme?.fontPairing || 'modern-sans',
         backgroundColor: portfolio.theme?.backgroundColor || '#000000',
         textColor: portfolio.theme?.textColor || '#ffffff',
         accentColor: portfolio.theme?.accentColor || '#ffffff',
-    } as const
+    }
 
     return (
-        <PortfolioThemeProvider theme={theme as any}>
+        <PortfolioThemeProvider theme={theme}>
             <LivePreviewListener />
             <article className="min-h-screen pb-24 not-italic rounded-none">
                 {/* Minimalist Portfolio Header */}

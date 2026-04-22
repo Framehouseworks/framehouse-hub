@@ -7,9 +7,10 @@ import {
   MarqueeItem,
 } from "@/components/kibo-ui/marquee"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/utilities/cn"
+// import { cn } from '@/utilities/cn'
 import { Media as MediaComponent } from '@/components/Media'
 import type { About3Block as About3BlockProps } from '@/payload-types'
+// import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { motion } from 'framer-motion'
 
 export const About3Block: React.FC<About3BlockProps> = (props) => {
@@ -121,19 +122,21 @@ export const About3Block: React.FC<About3BlockProps> = (props) => {
           <div className="py-32 md:py-48 border-y border-black/5 dark:border-white/5 my-24">
             <Marquee>
               <MarqueeContent speed={40}>
-                {companies.map((item, idx) => (
-                  <MarqueeItem
-                    key={idx}
-                    className="mx-16 flex items-center opacity-30 hover:opacity-100 transition-opacity duration-700 grayscale hover:grayscale-0"
-                  >
-                    {item.logo && (
-                      <MediaComponent 
-                        resource={item.logo} 
-                        className="h-8 md:h-10 w-auto object-contain dark:invert" 
-                      />
-                    )}
-                  </MarqueeItem>
-                ))}
+                {companies.map((item, idx) => {
+                  return (
+                    <MarqueeItem
+                      key={idx}
+                      className="mx-16 flex items-center opacity-30 hover:opacity-100 transition-opacity duration-700 grayscale hover:grayscale-0"
+                    >
+                      {item.logo && (
+                        <MediaComponent 
+                          resource={item.logo} 
+                          className="h-8 md:h-10 w-auto object-contain dark:invert" 
+                        />
+                      )}
+                    </MarqueeItem>
+                  )
+                })}
               </MarqueeContent>
               <MarqueeFade side="left" className="from-white dark:from-[#1a1c1c] to-transparent backdrop-blur-[20px]" />
               <MarqueeFade side="right" className="from-transparent to-white dark:to-[#1a1c1c] backdrop-blur-[20px]" />
@@ -212,4 +215,4 @@ export const About3Block: React.FC<About3BlockProps> = (props) => {
     </section>
   )
 }
-致
+
