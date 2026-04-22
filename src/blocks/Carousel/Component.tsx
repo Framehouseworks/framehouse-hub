@@ -11,7 +11,7 @@ export const CarouselBlock: React.FC<
     id?: DefaultDocumentIDType
   }
 > = async (props) => {
-  const { id, categories, limit = 3, populateBy, selectedDocs, style } = props
+  const { categories, limit = 3, populateBy, selectedDocs, style } = props
 
   let products: Media[] = []
 
@@ -54,7 +54,7 @@ export const CarouselBlock: React.FC<
 
   return (
     <div className=" w-full pb-6 pt-1">
-      <CarouselClient products={products} style={style} />
+      <CarouselClient products={products} style={style || undefined} />
     </div>
   )
 }

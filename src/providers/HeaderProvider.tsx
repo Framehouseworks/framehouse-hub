@@ -16,7 +16,7 @@ const HeaderContext = createContext<HeaderContextType | undefined>(undefined)
 export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isVisible, setIsVisible] = useState(true)
   const [isScrolled, setIsScrolled] = useState(false)
-  const [headerHeight, setHeaderHeight] = useState(80) 
+  const [headerHeight] = useState(80)
   const [isOpaque, setIsOpaque] = useState(false)
   const { scrollY } = useScroll()
   const [lastScrollY, setLastScrollY] = useState(0)
