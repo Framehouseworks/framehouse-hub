@@ -10,6 +10,21 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: framehouse_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,14 +38,19 @@ jobs:
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Initialize Database Schema
+        run: npm run payload migrate
+        env:
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
+          PAYLOAD_SECRET: ci_secret
+
       - name: Lint Check
         run: npm run lint
 
       - name: Production Build Check
         run: npm run build
         env:
-          # Mock environment variables for build safety
-          DATABASE_URI: postgres://postgres@localhost:5432/payload
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
