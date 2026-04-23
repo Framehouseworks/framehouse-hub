@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+public/media
+*.log
+lint_report*.txt
+build_output.txt
+.env*
+! .env.example
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vscode
+.DS_Store
+README.md
+DESIGN.md
