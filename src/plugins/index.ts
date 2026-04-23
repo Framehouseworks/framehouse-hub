@@ -4,6 +4,7 @@ import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 import { Plugin } from 'payload'
 
+import { gcsStorage } from '@payloadcms/storage-gcs'
 import { Page } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
 
@@ -56,4 +57,21 @@ export const plugins: Plugin[] = [
       },
     },
   }),
+  // Only enable GCS if the bucket name is provided
+  ...(process.env.GCS_BUCKET
+    ? [
+        gcsStorage({
+          collections: {
+            media: true,
+          },
+          bucket: process.env.GCS_BUCKET,
+          options: {
+            projectId: process.env.GCS_PROJECT_ID,
+            credentials: process.env.GCS_CREDENTIALS
+              ? JSON.parse(process.env.GCS_CREDENTIALS)
+              : undefined,
+          },
+        }),
+      ]
+    : []),
 ]
