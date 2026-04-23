@@ -1,6 +1,6 @@
-import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
+import { MigrateDownArgs, MigrateUpArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TYPE "public"."enum_pages_blocks_content_layout_style" ADD VALUE 'side_by_side';
   ALTER TYPE "public"."enum__pages_v_blocks_content_layout_style" ADD VALUE 'side_by_side';
@@ -142,7 +142,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "_pages_v_blocks_about3_breakout_breakout_logo_idx" ON "_pages_v_blocks_about3" USING btree ("breakout_logo_id");`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    DROP TABLE "pages_blocks_about3_companies" CASCADE;
   DROP TABLE "pages_blocks_about3_achievements" CASCADE;

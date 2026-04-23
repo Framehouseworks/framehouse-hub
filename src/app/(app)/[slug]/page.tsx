@@ -34,7 +34,7 @@ export async function generateStaticParams() {
       })
 
     return params || []
-  } catch (error) {
+  } catch {
     return []
   }
 }
