@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
 import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
+import { About3 } from '@/blocks/About3/config'
 import { Archive } from '@/blocks/ArchiveBlock/config'
 import { Banner } from '@/blocks/Banner/config'
 import { CallToAction } from '@/blocks/CallToAction/config'
@@ -101,6 +102,7 @@ export const Pages: CollectionConfig = {
                 FormBlock,
                 Pricing,
                 SprocketDivider,
+                About3,
               ],
               required: true,
             },
