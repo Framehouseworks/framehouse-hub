@@ -1,15 +1,19 @@
-name: CI Validation Gate
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
+
+# Required for Workload Identity Federation
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
     services:
       postgres:
         image: postgres:15-alpine
@@ -54,22 +58,67 @@ jobs:
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
-  docker-build:
+  deploy:
     runs-on: ubuntu-latest
     needs: validate
+    # Only deploy on push to main or dev
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "env_name=prod" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "db_uri=${{ secrets.DATABASE_URI_PROD }}" >> $GITHUB_OUTPUT
+            echo "payload_secret=${{ secrets.PAYLOAD_SECRET_PROD }}" >> $GITHUB_OUTPUT
+            echo "bucket=framehouse-hub-prod" >> $GITHUB_OUTPUT
+          else
+            echo "env_name=dev" >> $GITHUB_OUTPUT
+            echo "tag=dev" >> $GITHUB_OUTPUT
+            echo "db_uri=${{ secrets.DATABASE_URI_DEV }}" >> $GITHUB_OUTPUT
+            echo "payload_secret=${{ secrets.PAYLOAD_SECRET_DEV }}" >> $GITHUB_OUTPUT
+            echo "bucket=framehouse-hub-dev" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push (Dry Run)
+      - name: Build and Push Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: framehouse-hub:ci
+          push: true
+          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: framehouse-hub-${{ steps.env.outputs.env_name }}
+          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
+          region: us-central1
+          env_vars: |
+            DATABASE_URI=${{ steps.env.outputs.db_uri }}
+            PAYLOAD_SECRET=${{ steps.env.outputs.payload_secret }}
+            GCS_BUCKET=${{ steps.env.outputs.bucket }}
+            GCS_PROJECT_ID=framehouse-hub
+            NEXT_PUBLIC_SERVER_URL=https://hub.framehouseworks.com
