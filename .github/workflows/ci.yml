@@ -116,24 +116,27 @@ jobs:
       - name: Run Migrations against Ephemeral Branch
         run: |
           # Ensure SSL mode is enabled
-          if [[ "${{ steps.neon.outputs.db_uri }}" != *"sslmode="* ]]; then
-            EXPORT_URI="${{ steps.neon.outputs.db_uri }}?sslmode=require"
+          if [[ "$RAW_URI" != *"sslmode="* ]]; then
+            export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
-            EXPORT_URI="${{ steps.neon.outputs.db_uri }}"
+            export DATABASE_URI="$RAW_URI"
           fi
           
           echo "Verifying migrations against ephemeral clone of ${{ steps.parent.outputs.branch }}..."
-          DATABASE_URI=$EXPORT_URI PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET_DEV }} npm run payload migrate
+          npm run payload migrate
         env:
           NODE_ENV: production
+          RAW_URI: ${{ steps.neon.outputs.db_uri }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
 
       - name: Cleanup Ephemeral Branch
         if: always()
         run: |
-          echo "Deleting ephemeral branch ${{ steps.neon.outputs.branch_name }}..."
-          neonctl branches delete "${{ steps.neon.outputs.branch_name }}" --project-id ${{ env.NEON_PROJECT_ID }} --force
+          echo "Deleting ephemeral branch $BRANCH_NAME..."
+          neonctl branches delete "$BRANCH_NAME" --project-id ${{ env.NEON_PROJECT_ID }} --force
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          BRANCH_NAME: ${{ steps.neon.outputs.branch_name }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -189,16 +192,19 @@ jobs:
       - name: Initialize Remote Database Schema (Persistent Env)
         run: |
           # Ensure SSL mode is enabled for Neon
-          if [[ "${{ steps.env.outputs.db_uri }}" != *"sslmode="* ]]; then
-            EXPORT_URI="${{ steps.env.outputs.db_uri }}?sslmode=require"
+          if [[ "$RAW_URI" != *"sslmode="* ]]; then
+            export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
-            EXPORT_URI="${{ steps.env.outputs.db_uri }}"
+            export DATABASE_URI="$RAW_URI"
           fi
           
-          echo "Applying migrations to persistent ${{ steps.env.outputs.env_name }} database..."
-          DATABASE_URI=$EXPORT_URI PAYLOAD_SECRET=${{ steps.env.outputs.payload_secret }} npm run payload migrate
+          echo "Applying migrations to persistent $ENV_NAME database..."
+          npm run payload migrate
         env:
           NODE_ENV: production
+          RAW_URI: ${{ steps.env.outputs.db_uri }}
+          PAYLOAD_SECRET: ${{ steps.env.outputs.payload_secret }}
+          ENV_NAME: ${{ steps.env.outputs.env_name }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
