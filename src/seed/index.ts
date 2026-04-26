@@ -1,5 +1,5 @@
-import type { Payload, PaginatedDocs } from 'payload'
 import type { Media } from '@/payload-types'
+import type { PaginatedDocs, Payload } from 'payload'
 import { aboutPageData, hubPageData } from './content/hubPages'
 
 export const seedHubContent = async (payload: Payload): Promise<void> => {
@@ -28,7 +28,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         const newUser = await payload.create({
           collection: 'users',
           data: {
-            email: 'admin@framehouse.io',
+            email: 'sys.admin@framehouseworks.com',
             password: 'password123',
             name: 'System Admin',
             roles: ['admin'],
