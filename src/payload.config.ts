@@ -28,14 +28,16 @@ import { Header } from '@/globals/Header'
 import { Pricing } from '@/globals/Pricing'
 import { plugins } from './plugins'
 
-
-
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-import { ensureFolderParenting, protectLibraryFolder } from '@/collections/Portfolios/hooks/protectLibrary'
+import {
+  ensureFolderParenting,
+  protectLibraryFolder,
+} from '@/collections/Portfolios/hooks/protectLibrary'
 
 export default buildConfig({
+  serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
   admin: {
     components: {
       graphics: {
@@ -121,10 +123,7 @@ export default buildConfig({
           const folders = await req.payload.find({
             collection: 'payload-folders',
             where: {
-              and: [
-                { name: { equals: 'Portfolio Library' } },
-                { folder: { exists: false } },
-              ],
+              and: [{ name: { equals: 'Portfolio Library' } }, { folder: { exists: false } }],
             },
             depth: 0,
             limit: 1,

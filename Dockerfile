@@ -29,7 +29,11 @@ ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
 ENV GCS_BUCKET=${GCS_BUCKET:-stub_bucket_for_importmap}
 ENV GCS_PROJECT_ID=$GCS_PROJECT_ID
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV IS_BUILD_PHASE=true
+
+# Provide "Build-Time Stubs" for Payload initialization
+# This allows generate:importmap and build to run without a live DB or real secrets
+ENV PAYLOAD_SECRET=build_time_only_secret
+ENV DATABASE_URI=postgres://localhost/mock_build_db
 
 # Provide "Build-Time Stubs" for Payload initialization
 # This allows generate:importmap and build to run without a live DB or real secrets
