@@ -22,7 +22,19 @@ WORKDIR /app
 
 # Accept build-time variables (Next.js requires these to be baked in during build)
 ARG NEXT_PUBLIC_SERVER_URL
+ARG GCS_BUCKET
+ARG GCS_PROJECT_ID
+
+# Set build-time environment
 ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
+ENV GCS_BUCKET=${GCS_BUCKET:-stub_bucket_for_importmap}
+ENV GCS_PROJECT_ID=$GCS_PROJECT_ID
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Provide "Build-Time Stubs" for Payload initialization
+# This allows generate:importmap and build to run without a live DB or real secrets
+ENV PAYLOAD_SECRET=build_time_only_secret
+ENV DATABASE_URI=postgres://localhost/mock_build_db
 
 # Sanity check: Fail the build if critical variables are missing to prevent "undefined" URLs
 RUN if [ -z "$NEXT_PUBLIC_SERVER_URL" ]; then \
@@ -33,11 +45,11 @@ RUN if [ -z "$NEXT_PUBLIC_SERVER_URL" ]; then \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Ensure public directory exists (handles cases where it might be empty/ignored)
+# Ensure public directory exists
 RUN mkdir -p public
 
-# Next.js telemetry disable
-ENV NEXT_TELEMETRY_DISABLED=1
+# Generate the importMap to ensure all client components/plugins are registered
+RUN npx payload generate:importmap
 
 RUN npm run build
 
