@@ -58,6 +58,7 @@ export const plugins: Plugin[] = [
     },
   }),
   // Only enable GCS if the bucket name is provided
+  // This prevents seeding failures in local/CI environments that don't use GCS
   ...(process.env.GCS_BUCKET
     ? [
         gcsStorage({
