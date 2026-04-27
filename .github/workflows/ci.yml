@@ -189,12 +189,14 @@ jobs:
             echo "db_uri=${{ secrets.DATABASE_URI_PROD }}" >> $GITHUB_OUTPUT
             echo "payload_secret=${{ secrets.PAYLOAD_SECRET_PROD }}" >> $GITHUB_OUTPUT
             echo "bucket=framehouse-hub-prod" >> $GITHUB_OUTPUT
+            echo "public_url=https://hub.framehouseworks.com" >> $GITHUB_OUTPUT
           else
             echo "env_name=dev" >> $GITHUB_OUTPUT
             echo "tag=dev" >> $GITHUB_OUTPUT
             echo "db_uri=${{ secrets.DATABASE_URI_DEV }}" >> $GITHUB_OUTPUT
             echo "payload_secret=${{ secrets.PAYLOAD_SECRET_DEV }}" >> $GITHUB_OUTPUT
             echo "bucket=framehouse-hub-dev" >> $GITHUB_OUTPUT
+            echo "public_url=https://framehouse-hub-dev-588985538639.us-central1.run.app" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup Node.js (Migration Runner)
@@ -232,6 +234,8 @@ jobs:
           context: .
           push: true
           tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
+          build-args: |
+            NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -246,4 +250,4 @@ jobs:
             PAYLOAD_SECRET=${{ steps.env.outputs.payload_secret }}
             GCS_BUCKET=${{ steps.env.outputs.bucket }}
             GCS_PROJECT_ID=framehouse-hub
-            NEXT_PUBLIC_SERVER_URL=https://hub.framehouseworks.com
+            NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
