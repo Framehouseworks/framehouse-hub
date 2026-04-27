@@ -251,3 +251,4 @@ jobs:
             GCS_BUCKET=${{ steps.env.outputs.bucket }}
             GCS_PROJECT_ID=framehouse-hub
             NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
+            SEED_SECRET=${{ secrets.SEED_SECRET }}
