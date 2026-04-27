@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "--- Running Pre-Push Safety Gates ---"
+
+# 1. Global Linting Check
+echo "Running global lint check..."
+npm run lint
+
+# 2. Production Build Check
+echo "Running production build check..."
+npm run build
+
+# 3. Local-CI Parity (The 'Smart Seed' Check)
+# This verifies migrations and seeding against a fresh DB instance
+echo "Running local verification (Blank-Slate Seed)..."
+./scripts/verify-local.sh
+
+echo "--- All Pre-Push Checks Passed ---"
