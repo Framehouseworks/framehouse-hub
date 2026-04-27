@@ -19,6 +19,17 @@ RUN npm ci --legacy-peer-deps
 # Stage 3: Build the application
 FROM base AS builder
 WORKDIR /app
+
+# Accept build-time variables (Next.js requires these to be baked in during build)
+ARG NEXT_PUBLIC_SERVER_URL
+ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
+
+# Sanity check: Fail the build if critical variables are missing to prevent "undefined" URLs
+RUN if [ -z "$NEXT_PUBLIC_SERVER_URL" ]; then \
+    echo "ERROR: NEXT_PUBLIC_SERVER_URL is not set. This variable is required for building the client-side bundle."; \
+    exit 1; \
+    fi
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
