@@ -5,7 +5,6 @@ import { defaultTheme, themeLocalStorageKey } from '../shared'
 
 export const InitTheme: React.FC = () => {
   return (
-    // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
     <Script
       dangerouslySetInnerHTML={{
         __html: `

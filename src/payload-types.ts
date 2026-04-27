@@ -222,6 +222,7 @@ export interface Page {
     | FormBlock
     | PricingBlock
     | SprocketDividerBlock
+    | About3Block
   )[];
   meta?: {
     title?: string | null;
@@ -986,6 +987,49 @@ export interface SprocketDividerBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "About3Block".
+ */
+export interface About3Block {
+  title: string;
+  description?: string | null;
+  mainImage: number | Media;
+  secondaryImage: number | Media;
+  breakout: {
+    logo?: (number | null) | Media;
+    title: string;
+    description?: string | null;
+    buttonText?: string | null;
+    buttonUrl?: string | null;
+  };
+  companies?:
+    | {
+        logo: number | Media;
+        id?: string | null;
+      }[]
+    | null;
+  achievementsTitle?: string | null;
+  achievementsDescription?: string | null;
+  achievements?:
+    | {
+        label: string;
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  contentSections?:
+    | {
+        title: string;
+        content: string;
+        media?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'about3';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1165,6 +1209,7 @@ export interface PagesSelect<T extends boolean = true> {
         formBlock?: T | FormBlockSelect<T>;
         pricing?: T | PricingBlockSelect<T>;
         sprocketDivider?: T | SprocketDividerBlockSelect<T>;
+        about3?: T | About3BlockSelect<T>;
       };
   meta?:
     | T
@@ -1371,6 +1416,50 @@ export interface PricingBlockSelect<T extends boolean = true> {
 export interface SprocketDividerBlockSelect<T extends boolean = true> {
   backgroundColor?: T;
   speed?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "About3Block_select".
+ */
+export interface About3BlockSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  mainImage?: T;
+  secondaryImage?: T;
+  breakout?:
+    | T
+    | {
+        logo?: T;
+        title?: T;
+        description?: T;
+        buttonText?: T;
+        buttonUrl?: T;
+      };
+  companies?:
+    | T
+    | {
+        logo?: T;
+        id?: T;
+      };
+  achievementsTitle?: T;
+  achievementsDescription?: T;
+  achievements?:
+    | T
+    | {
+        label?: T;
+        value?: T;
+        id?: T;
+      };
+  contentSections?:
+    | T
+    | {
+        title?: T;
+        content?: T;
+        media?: T;
+        id?: T;
+      };
   id?: T;
   blockName?: T;
 }

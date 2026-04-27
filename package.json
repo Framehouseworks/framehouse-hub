@@ -15,11 +15,13 @@
     "lint:fix": "cross-env NODE_OPTIONS=--no-deprecation next lint --fix",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
+    "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx ./src/seed/standalone.ts",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "stripe-webhooks": "stripe listen --forward-to localhost:3000/api/stripe/webhooks",
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test",
-    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts"
+    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -32,6 +34,7 @@
     "@payloadcms/plugin-form-builder": "3.64.0",
     "@payloadcms/plugin-seo": "3.64.0",
     "@payloadcms/richtext-lexical": "3.64.0",
+    "@payloadcms/storage-gcs": "3.64.0",
     "@payloadcms/ui": "3.64.0",
     "@radix-ui/react-accordion": "1.2.11",
     "@radix-ui/react-checkbox": "^1.1.4",
@@ -55,6 +58,7 @@
     "next": "^15.5.4",
     "next-themes": "0.4.6",
     "payload": "3.64.0",
+    "pg": "^8.11.0",
     "prism-react-renderer": "^2.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -62,7 +66,6 @@
     "react-hook-form": "7.54.1",
     "sharp": "0.34.2",
     "sonner": "^1.7.2",
-    "pg": "^8.11.0",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7"
   },
@@ -84,6 +87,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
     "jsdom": "26.1.0",
     "lint-staged": "^15.2.2",
     "playwright": "1.56.1",
@@ -102,6 +106,15 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "sharp"
+    ]
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml}": [
+      "prettier --write"
     ]
   }
 }

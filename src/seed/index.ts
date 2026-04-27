@@ -1,9 +1,14 @@
-import type { Payload, PaginatedDocs } from 'payload'
 import type { Media } from '@/payload-types'
+import type { PaginatedDocs, Payload } from 'payload'
 import { aboutPageData, hubPageData } from './content/hubPages'
 
 export const seedHubContent = async (payload: Payload): Promise<void> => {
   payload.logger.info('Seeding Company and Hub pages...')
+
+  // Fail-fast if secrets are missing
+  if (!process.env.PAYLOAD_SECRET) {
+    throw new Error('PAYLOAD_SECRET is missing. Cannot proceed with seeding.')
+  }
 
   try {
     // 0. Ensure we have at least one media item for fallbacks
@@ -28,11 +33,12 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         const newUser = await payload.create({
           collection: 'users',
           data: {
-            email: 'admin@framehouse.io',
+            email: 'sys.admin@framehouseworks.com',
             password: 'password123',
             name: 'System Admin',
             roles: ['admin'],
           },
+          context: { disableRevalidate: true },
         })
         ownerId = newUser.id
       }
@@ -46,16 +52,20 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           status: 'ready',
         },
         file: {
-          data: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64'),
+          data: Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+            'base64',
+          ),
           name: 'placeholder.png',
           mimetype: 'image/png',
           size: 100,
         },
+        context: { disableRevalidate: true },
       })
       mediaDocs = { docs: [newMedia] } as unknown as PaginatedDocs<Media>
     }
 
-    const fallbackMediaIds = mediaDocs.docs.map(doc => doc.id)
+    const fallbackMediaIds = mediaDocs.docs.map((doc) => doc.id)
 
     const pagesToSeed = [aboutPageData, hubPageData]
 
@@ -65,7 +75,10 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         const { slug } = pageData
 
         // Enrich Hero with media
-        if (pageData.hero && (pageData.hero.type === 'highImpact' || pageData.hero.type === 'mediumImpact')) {
+        if (
+          pageData.hero &&
+          (pageData.hero.type === 'highImpact' || pageData.hero.type === 'mediumImpact')
+        ) {
           pageData.hero.media = fallbackMediaIds[0]
         }
 
@@ -74,18 +87,25 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           // @ts-expect-error - Dynamic block enrichment type mismatch
           pageData.layout = pageData.layout.map((block: Record<string, unknown>) => {
             const typedBlock = block
-            if (typedBlock.blockType === 'threeItemGrid' && typedBlock.style === 'pillars' && typedBlock.items) {
+            if (
+              typedBlock.blockType === 'threeItemGrid' &&
+              typedBlock.style === 'pillars' &&
+              typedBlock.items
+            ) {
               return {
                 ...typedBlock,
                 items: (typedBlock.items as unknown[]).map((item: unknown, i: number) => ({
                   ...(item as Record<string, unknown>),
-                  media: (item as Record<string, unknown>)['media'] || fallbackMediaIds[i % fallbackMediaIds.length],
+                  media:
+                    (item as Record<string, unknown>)['media'] ||
+                    fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
               }
             }
             if (
               typedBlock.blockType === 'content' &&
-              (typedBlock.layoutStyle === 'asymmetric' || typedBlock.layoutStyle === 'side_by_side') &&
+              (typedBlock.layoutStyle === 'asymmetric' ||
+                typedBlock.layoutStyle === 'side_by_side') &&
               typedBlock.columns
             ) {
               return {
@@ -97,7 +117,11 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                     return { ...typedCol, media: fallbackMediaIds[1 % fallbackMediaIds.length] }
                   }
                   // For side_by_side, we often want the other column to have media too if it's reversed
-                  if (typedBlock.layoutStyle === 'side_by_side' && typedCol['media'] === null && i === 1) {
+                  if (
+                    typedBlock.layoutStyle === 'side_by_side' &&
+                    typedCol['media'] === null &&
+                    i === 1
+                  ) {
                     return { ...typedCol, media: fallbackMediaIds[2 % fallbackMediaIds.length] }
                   }
                   return typedCol
@@ -108,28 +132,45 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
               return {
                 ...typedBlock,
                 mainImage: typedBlock.mainImage || fallbackMediaIds[0],
-                secondaryImage: typedBlock.secondaryImage || fallbackMediaIds[1 % fallbackMediaIds.length],
+                secondaryImage:
+                  typedBlock.secondaryImage || fallbackMediaIds[1 % fallbackMediaIds.length],
                 breakout: {
                   ...(typedBlock.breakout as Record<string, unknown>),
-                  logo: (typedBlock.breakout as Record<string, unknown>)?.logo || fallbackMediaIds[2 % fallbackMediaIds.length],
+                  logo:
+                    (typedBlock.breakout as Record<string, unknown>)?.logo ||
+                    fallbackMediaIds[2 % fallbackMediaIds.length],
                 },
                 companies: (typedBlock.companies as unknown[])?.map((item: unknown, i: number) => ({
                   ...(item as Record<string, unknown>),
-                  logo: (item as Record<string, unknown>).logo || fallbackMediaIds[i % fallbackMediaIds.length],
+                  logo:
+                    (item as Record<string, unknown>).logo ||
+                    fallbackMediaIds[i % fallbackMediaIds.length],
                 })),
-                contentSections: (typedBlock.contentSections as unknown[])?.map((section: unknown, i: number) => ({
-                  ...(section as Record<string, unknown>),
-                  media: (section as Record<string, unknown>).media || fallbackMediaIds[(i + 1) % fallbackMediaIds.length],
-                })),
+                contentSections: (typedBlock.contentSections as unknown[])?.map(
+                  (section: unknown, i: number) => ({
+                    ...(section as Record<string, unknown>),
+                    media:
+                      (section as Record<string, unknown>).media ||
+                      fallbackMediaIds[(i + 1) % fallbackMediaIds.length],
+                  }),
+                ),
               }
             }
-            if (typedBlock.blockType === 'carousel' && typedBlock.populateBy === 'selection' && typedBlock.selectedDocs) {
+            if (
+              typedBlock.blockType === 'carousel' &&
+              typedBlock.populateBy === 'selection' &&
+              typedBlock.selectedDocs
+            ) {
               return {
                 ...typedBlock,
-                selectedDocs: (typedBlock.selectedDocs as unknown[]).map((item: unknown, i: number) => ({
-                  ...(item as Record<string, unknown>),
-                  value: ((item as Record<string, unknown>).value as string | number) || fallbackMediaIds[i % fallbackMediaIds.length],
-                })),
+                selectedDocs: (typedBlock.selectedDocs as unknown[]).map(
+                  (item: unknown, i: number) => ({
+                    ...(item as Record<string, unknown>),
+                    value:
+                      ((item as Record<string, unknown>).value as string | number) ||
+                      fallbackMediaIds[i % fallbackMediaIds.length],
+                  }),
+                ),
               }
             }
             return typedBlock
@@ -148,6 +189,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             id: existingPages.docs[0].id,
             // @ts-expect-error - Dynamic page data type mismatch
             data: pageData,
+            context: { disableRevalidate: true },
           })
         } else {
           payload.logger.info(`Creating page [${slug}]...`)
@@ -155,10 +197,13 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             collection: 'pages',
             // @ts-expect-error - Dynamic page data type mismatch
             data: pageData,
+            context: { disableRevalidate: true },
           })
         }
       } catch (err) {
-        payload.logger.error(`Error processing page [${pageData.slug}]: ${err instanceof Error ? err.message : String(err)}`)
+        payload.logger.error(
+          `Error processing page [${pageData.slug}]: ${err instanceof Error ? err.message : String(err)}`,
+        )
       }
     }
 
@@ -247,14 +292,18 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
               ],
             },
           ],
-          partnerLogos: fallbackMediaIds.slice(0, 3).map(id => ({ logo: id })),
+          partnerLogos: fallbackMediaIds.slice(0, 3).map((id) => ({ logo: id })),
           enterpriseHeading: 'Architect your custom solution.',
-          enterpriseDescription: 'For high-volume production houses requiring custom integrations and global scale.',
+          enterpriseDescription:
+            'For high-volume production houses requiring custom integrations and global scale.',
           enterpriseCtaLabel: 'Talk to an Architect',
         },
+        context: { disableRevalidate: true },
       })
     } catch (err) {
-      payload.logger.error(`Error syncing Pricing global: ${err instanceof Error ? err.message : String(err)}`)
+      payload.logger.error(
+        `Error syncing Pricing global: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
 
     // 4. Sync Header Global
@@ -265,34 +314,42 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
       if (header) {
         payload.logger.info('Updating Header global with Company dropdown links...')
-        const updatedNavItems = (header.navItems as Record<string, unknown>[])?.map((item: Record<string, unknown>) => {
-          // If it's the "Company" item from Phase 1, ensure sub-items point to our new pages
-          const menuTitle = item.menuTitle as string | undefined;
-          const link = item.link as { label?: string } | undefined;
-          if (menuTitle?.toLowerCase().includes('company') || link?.label?.toLowerCase().includes('company')) {
-            return {
-              ...item,
-              group: true,
-              menuTitle: menuTitle || 'Company',
-              link: null, // Clear singular link to satisfy group condition
-              subItems: [
-                { link: { label: 'About Us', url: '/about', type: 'custom' } },
-                { link: { label: 'Hub', url: '/hub', type: 'custom' } },
-              ],
+        const updatedNavItems = (header.navItems as Record<string, unknown>[])?.map(
+          (item: Record<string, unknown>) => {
+            // If it's the "Company" item from Phase 1, ensure sub-items point to our new pages
+            const menuTitle = item.menuTitle as string | undefined
+            const link = item.link as { label?: string } | undefined
+            if (
+              menuTitle?.toLowerCase().includes('company') ||
+              link?.label?.toLowerCase().includes('company')
+            ) {
+              return {
+                ...item,
+                group: true,
+                menuTitle: menuTitle || 'Company',
+                link: null, // Clear singular link to satisfy group condition
+                subItems: [
+                  { link: { label: 'About Us', url: '/about', type: 'custom' } },
+                  { link: { label: 'Hub', url: '/hub', type: 'custom' } },
+                ],
+              }
             }
-          }
-          return item
-        })
+            return item
+          },
+        )
 
         await payload.updateGlobal({
           slug: 'header',
           data: {
             navItems: updatedNavItems,
           },
+          context: { disableRevalidate: true },
         })
       }
     } catch (err) {
-      payload.logger.error(`Error syncing Header global: ${err instanceof Error ? err.message : String(err)}`)
+      payload.logger.error(
+        `Error syncing Header global: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
 
     // 5. Sync Footer Global
@@ -308,9 +365,12 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             { link: { label: 'Login', url: '/login', type: 'custom' } },
           ],
         },
+        context: { disableRevalidate: true },
       })
     } catch (err) {
-      payload.logger.error(`Error syncing Footer global: ${err instanceof Error ? err.message : String(err)}`)
+      payload.logger.error(
+        `Error syncing Footer global: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
 
     payload.logger.info('Seeding complete.')

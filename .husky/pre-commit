@@ -1,0 +1,2 @@
+echo "--- Running Pre-Commit Fast Checks ---"
+npx lint-staged

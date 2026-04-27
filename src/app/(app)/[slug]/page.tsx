@@ -3,36 +3,42 @@ import type { Metadata } from 'next'
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { RenderHero } from '@/heros/RenderHero'
 import { generateMeta } from '@/utilities/generateMeta'
-import configPromise from '@payload-config'
+import { getPayloadClient } from '@/utilities/getPayloadClient'
 import { draftMode } from 'next/headers'
-import { getPayload } from 'payload'
 
 import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {
-  const payload = await getPayload({ config: configPromise })
-  const pages = await payload.find({
-    collection: 'pages',
-    draft: false,
-    limit: 1000,
-    overrideAccess: false,
-    pagination: false,
-    select: {
-      slug: true,
-    },
-  })
+  try {
+    const payload = await getPayloadClient()
+    if (!payload) return []
 
-  const params = pages.docs
-    ?.filter((doc) => {
-      return doc.slug !== 'home'
-    })
-    .map(({ slug }) => {
-      return { slug }
+    const pages = await payload.find({
+      collection: 'pages',
+      draft: false,
+      limit: 1000,
+      overrideAccess: false,
+      pagination: false,
+      select: {
+        slug: true,
+      },
     })
 
-  return params
+    const params = pages.docs
+      ?.filter((doc) => {
+        return doc.slug !== 'home'
+      })
+      .map(({ slug }) => {
+        return { slug }
+      })
+
+    return params || []
+  } catch {
+    // Gracefully handle database being unavailable during build
+    return []
+  }
 }
 
 type Args = {
@@ -69,13 +75,20 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
     slug,
   })
 
+  if (!page) {
+    return {
+      title: 'Framehouse Hub',
+    }
+  }
+
   return generateMeta({ doc: page })
 }
 
 const queryPageBySlug = async ({ slug }: { slug: string }) => {
   const { isEnabled: draft } = await draftMode()
 
-  const payload = await getPayload({ config: configPromise })
+  const payload = await getPayloadClient()
+  if (!payload) return null
 
   const result = await payload.find({
     collection: 'pages',
