@@ -24,21 +24,12 @@ ARG NEXT_PUBLIC_SERVER_URL
 ARG GCS_BUCKET
 ARG GCS_PROJECT_ID
 
-# Set build-time environment
+# Set build-time environment (Non-sensitive)
 ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
 ENV GCS_BUCKET=${GCS_BUCKET:-stub_bucket_for_importmap}
 ENV GCS_PROJECT_ID=$GCS_PROJECT_ID
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Provide "Build-Time Stubs" for Payload initialization
-# This allows generate:importmap and build to run without a live DB or real secrets
-ENV PAYLOAD_SECRET=build_time_only_secret
-ENV DATABASE_URI=postgres://localhost/mock_build_db
-
-# Provide "Build-Time Stubs" for Payload initialization
-# This allows generate:importmap and build to run without a live DB or real secrets
-ENV PAYLOAD_SECRET=build_time_only_secret
-ENV DATABASE_URI=postgres://localhost/mock_build_db
+ENV IS_BUILD_PHASE=true
 
 # Sanity check: Fail the build if critical variables are missing
 RUN if [ -z "$NEXT_PUBLIC_SERVER_URL" ]; then \
@@ -52,10 +43,10 @@ COPY . .
 # Ensure public directory exists
 RUN mkdir -p public
 
-# Generate the importMap to ensure all client components/plugins are registered
-RUN npx payload generate:importmap
-
-RUN npm run build
+# Generate the importMap and Build the application
+# We use inline environment variables for sensitive stubs to prevent them from being baked into the final image layers
+RUN PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db npx payload generate:importmap
+RUN PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db npm run build
 
 # Stage 4: Production runner
 FROM base AS runner
