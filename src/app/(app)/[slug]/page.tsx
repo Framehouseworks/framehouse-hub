@@ -3,9 +3,8 @@ import type { Metadata } from 'next'
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { RenderHero } from '@/heros/RenderHero'
 import { generateMeta } from '@/utilities/generateMeta'
-import configPromise from '@payload-config'
+import { getPayloadClient } from '@/utilities/getPayloadClient'
 import { draftMode } from 'next/headers'
-import { getPayload } from 'payload'
 
 import { notFound } from 'next/navigation'
 
@@ -13,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateStaticParams() {
   try {
-    const payload = await getPayload({ config: configPromise })
+    const payload = await getPayloadClient()
     const pages = await payload.find({
       collection: 'pages',
       draft: false,
@@ -35,6 +34,7 @@ export async function generateStaticParams() {
 
     return params || []
   } catch {
+    // Gracefully handle database being unavailable during build
     return []
   }
 }
@@ -79,7 +79,7 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
 const queryPageBySlug = async ({ slug }: { slug: string }) => {
   const { isEnabled: draft } = await draftMode()
 
-  const payload = await getPayload({ config: configPromise })
+  const payload = await getPayloadClient()
 
   const result = await payload.find({
     collection: 'pages',

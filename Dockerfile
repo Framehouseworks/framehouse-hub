@@ -6,7 +6,6 @@ RUN corepack enable
 
 # Stage 2: Install dependencies
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -36,7 +35,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PAYLOAD_SECRET=build_time_only_secret
 ENV DATABASE_URI=postgres://localhost/mock_build_db
 
-# Sanity check: Fail the build if critical variables are missing to prevent "undefined" URLs
+# Provide "Build-Time Stubs" for Payload initialization
+# This allows generate:importmap and build to run without a live DB or real secrets
+ENV PAYLOAD_SECRET=build_time_only_secret
+ENV DATABASE_URI=postgres://localhost/mock_build_db
+
+# Sanity check: Fail the build if critical variables are missing
 RUN if [ -z "$NEXT_PUBLIC_SERVER_URL" ]; then \
     echo "ERROR: NEXT_PUBLIC_SERVER_URL is not set. This variable is required for building the client-side bundle."; \
     exit 1; \
