@@ -13,6 +13,8 @@ export const dynamic = 'force-dynamic'
 export async function generateStaticParams() {
   try {
     const payload = await getPayloadClient()
+    if (!payload) return []
+
     const pages = await payload.find({
       collection: 'pages',
       draft: false,
@@ -73,6 +75,12 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
     slug,
   })
 
+  if (!page) {
+    return {
+      title: 'Framehouse Hub',
+    }
+  }
+
   return generateMeta({ doc: page })
 }
 
@@ -80,6 +88,7 @@ const queryPageBySlug = async ({ slug }: { slug: string }) => {
   const { isEnabled: draft } = await draftMode()
 
   const payload = await getPayloadClient()
+  if (!payload) return null
 
   const result = await payload.find({
     collection: 'pages',

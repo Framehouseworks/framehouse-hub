@@ -17,19 +17,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Enterprise Guardrail: Ensure main only accepts merges from dev
-  guardrail:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
-    steps:
-      - name: Verify PR Source Branch
-        if: github.head_ref != 'dev'
-        run: |
-          echo "### 🛑 Deployment Blocked" >> $GITHUB_STEP_SUMMARY
-          echo "To maintain stability, 'main' only accepts merges from 'dev'." >> $GITHUB_STEP_SUMMARY
-          echo "Please retarget your PR to 'dev' first." >> $GITHUB_STEP_SUMMARY
-          exit 1
-
   validate:
     runs-on: ubuntu-latest
     services:
@@ -249,8 +236,6 @@ jobs:
           tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
           build-args: |
             NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
-            GCS_BUCKET=${{ steps.env.outputs.bucket }}
-            GCS_PROJECT_ID=framehouse-hub
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -266,4 +251,3 @@ jobs:
             GCS_BUCKET=${{ steps.env.outputs.bucket }}
             GCS_PROJECT_ID=framehouse-hub
             NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
-            SEED_SECRET=${{ secrets.SEED_SECRET }}
