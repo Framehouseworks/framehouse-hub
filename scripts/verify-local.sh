@@ -12,7 +12,7 @@ for arg in "$@"; do
   fi
 done
 
-# Load environment variables for basic Payload config (e.g., PAYLOAD_SECRET)
+# Load environment variables
 if [ ! -f .env ]; then
     echo "Error: .env file not found. Please create one based on .env.example."
     exit 1
@@ -20,23 +20,40 @@ fi
 
 echo "--- Starting Local 'Blank-Slate' Verification ---"
 
-# 1. Configuration
+# Configuration
 CONTAINER_NAME="frh-verify-db"
 POSTGRES_PASSWORD="password"
 POSTGRES_DB="framehouse_test"
 PORT=5433
 
-# Cleanup any existing container from a failed previous run
+# Cleanup Function
+cleanup() {
+    if [ "$KEEP_OPEN" = false ]; then
+        echo "4. Cleaning up temporary resources..."
+        docker stop "$CONTAINER_NAME" > /dev/null 2>&1 || true
+        docker rm "$CONTAINER_NAME" > /dev/null 2>&1 || true
+    fi
+}
+
+# Trap unexpected exits (Ctrl+C, errors) unless KEEP_OPEN is true
+if [ "$KEEP_OPEN" = false ]; then
+    trap cleanup EXIT
+fi
+
+# 1. Cleanup any existing container from a failed previous run
 docker stop "$CONTAINER_NAME" > /dev/null 2>&1 || true
 docker rm "$CONTAINER_NAME" > /dev/null 2>&1 || true
 
 # 2. Spin up a temporary Postgres container
 echo "1. Initializing temporary database container on port $PORT..."
-docker run --name "$CONTAINER_NAME" \
+if ! docker run --name "$CONTAINER_NAME" \
   -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
   -e POSTGRES_DB=$POSTGRES_DB \
   -p $PORT:5432 \
-  -d postgres:15-alpine > /dev/null
+  -d postgres:15-alpine > /dev/null 2>&1; then
+    echo "Error: Failed to start Docker container. Is port $PORT already in use?"
+    exit 1
+fi
 
 # Wait for postgres to be ready
 echo "   Waiting for database to initialize..."
@@ -47,8 +64,6 @@ until docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; do
   COUNT=$((COUNT + 1))
   if [ $COUNT -ge $MAX_RETRIES ]; then
     echo "Error: Database failed to start in time."
-    docker stop "$CONTAINER_NAME" > /dev/null
-    docker rm "$CONTAINER_NAME" > /dev/null
     exit 1
   fi
 done
@@ -64,7 +79,7 @@ DATABASE_URI=$TEST_DATABASE_URI npm run payload migrate
 echo "3. Running 'Day Zero' seeding test..."
 DATABASE_URI=$TEST_DATABASE_URI npm run seed
 
-# 6. Cleanup or Persist
+# 6. Final Instructions if Persisting
 if [ "$KEEP_OPEN" = true ]; then
     echo "----------------------------------------------"
     echo "✅ Local Verification Successful (PERSISTENT)"
@@ -76,9 +91,6 @@ if [ "$KEEP_OPEN" = true ]; then
     echo "When finished, run './scripts/cleanup-local.sh' to dismantle."
     echo "----------------------------------------------"
 else
-    echo "4. Cleaning up temporary resources..."
-    docker stop "$CONTAINER_NAME" > /dev/null
-    docker rm "$CONTAINER_NAME" > /dev/null
     echo "----------------------------------------------"
     echo "✅ Local Verification Successful"
     echo "The schema and seed logic are PR-Ready."
