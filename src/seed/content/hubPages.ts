@@ -14,7 +14,9 @@ export const aboutPageData = {
             type: 'heading',
             tag: 'h1',
             version: 1,
-            children: [{ text: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.', type: 'text', version: 1 }],
+            children: [
+              { text: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.', type: 'text', version: 1 },
+            ],
             direction: 'ltr',
             format: '',
             indent: 0,
@@ -31,12 +33,14 @@ export const aboutPageData = {
     {
       blockType: 'about3',
       title: 'WE ARCHITECT THE FRAMEWORKS OF TOMORROW.',
-      description: 'To help the world’s most successful brands manage, transform, and deliver engaging visual experiences with clinical precision.',
+      description:
+        'To help the world’s most successful brands manage, transform, and deliver engaging visual experiences with clinical precision.',
       mainImage: null as unknown,
       secondaryImage: null as unknown,
       breakout: {
         title: 'Architecting 30PB+ of Visual Data',
-        description: 'Providing enterprises with the high-prestige tools needed to organize, edit, and deliver the future of media.',
+        description:
+          'Providing enterprises with the high-prestige tools needed to organize, edit, and deliver the future of media.',
         buttonText: 'Join the Revolution',
         buttonUrl: '/pricing',
         logo: null as unknown,
@@ -50,7 +54,8 @@ export const aboutPageData = {
         { logo: null as unknown },
       ],
       achievementsTitle: 'Clinical Impact',
-      achievementsDescription: 'Our architecture is built for extreme scale and museum-grade precision.',
+      achievementsDescription:
+        'Our architecture is built for extreme scale and museum-grade precision.',
       achievements: [
         { label: 'Storage Grade', value: '30PB+' },
         { label: 'Uptime Score', value: '99.9%' },
@@ -60,19 +65,23 @@ export const aboutPageData = {
       contentSections: [
         {
           title: 'THE ARCHITECTURE',
-          content: 'Built on a globally distributed edge network, Framehouse Hub ensures your assets are always close to your audience, delivered with sub-millisecond latency.',
+          content:
+            'Built on a globally distributed edge network, Framehouse Hub ensures your assets are always close to your audience, delivered with sub-millisecond latency.',
         },
         {
           title: 'THE PRECISION',
-          content: 'Every asset is subjected to patented clinical AI optimization, ensuring visual fidelity while minimizing payload overhead across all devices.',
+          content:
+            'Every asset is subjected to patented clinical AI optimization, ensuring visual fidelity while minimizing payload overhead across all devices.',
         },
         {
           title: 'THE SCALE',
-          content: 'From boutique creative agencies to global production houses, our infrastructure scales dynamically to meet the most demanding workloads.',
+          content:
+            'From boutique creative agencies to global production houses, our infrastructure scales dynamically to meet the most demanding workloads.',
         },
         {
           title: 'THE FUTURE',
-          content: 'We are pioneering the integration of generative archival technologies, allowing brands to not just manage history, but create the future.',
+          content:
+            'We are pioneering the integration of generative archival technologies, allowing brands to not just manage history, but create the future.',
         },
       ],
     },
@@ -88,7 +97,7 @@ export const aboutPageData = {
       columns: [
         {
           size: 'oneThird',
-          media: 'https://picsum.photos/seed/vision/1200/800',
+          media: null,
           richText: {
             root: {
               type: 'root',
@@ -174,7 +183,7 @@ export const aboutPageData = {
         },
         {
           size: 'oneThird',
-          media: 'https://picsum.photos/seed/story/1200/800',
+          media: null,
           richText: {
             root: {
               type: 'root',
@@ -209,17 +218,20 @@ export const aboutPageData = {
       items: [
         {
           title: 'Precision AI',
-          description: 'Using advanced patented image and video processing to deliver flawless visual experiences.',
+          description:
+            'Using advanced patented image and video processing to deliver flawless visual experiences.',
           media: null as unknown,
         },
         {
           title: 'Hybrid Scale',
-          description: 'Reimagining the solutions needed to solve today’s visual media management challenges.',
+          description:
+            'Reimagining the solutions needed to solve today’s visual media management challenges.',
           media: null as unknown,
         },
         {
           title: 'Editorial DNA',
-          description: 'Passionate, collaborative, and hard working people spans the globe but constantly connected.',
+          description:
+            'Passionate, collaborative, and hard working people spans the globe but constantly connected.',
           media: null as unknown,
         },
       ],
@@ -348,17 +360,20 @@ export const hubPageData = {
       items: [
         {
           title: 'Admin Studio',
-          description: 'A powerful, headless command center for your entire digital ecosystem. Effortless asset management at scale.',
+          description:
+            'A powerful, headless command center for your entire digital ecosystem. Effortless asset management at scale.',
           media: null as unknown, // Injected during seed
         },
         {
           title: 'Portfolio Generator',
-          description: 'Transform raw data into high-prestige clinical portfolios. Tailored for precision and editorial impact.',
+          description:
+            'Transform raw data into high-prestige clinical portfolios. Tailored for precision and editorial impact.',
           media: null as unknown, // Injected during seed
         },
         {
           title: 'Global Delivery',
-          description: 'Lightning-fast delivery of your curated assets to any endpoint, anywhere in the world.',
+          description:
+            'Lightning-fast delivery of your curated assets to any endpoint, anywhere in the world.',
           media: null as unknown, // Injected during seed
         },
       ],

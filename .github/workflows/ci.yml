@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
   pull_request:
-    branches: [ main, dev ]
+    branches: [main, dev]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -98,14 +98,14 @@ jobs:
         run: |
           BRANCH_NAME="gh-pr-${{ github.event.number }}-${{ github.run_id }}"
           echo "Creating branch $BRANCH_NAME from ${{ steps.parent.outputs.branch }}..."
-          
+
           # Create the branch and capture the connection string
           neonctl branches create --name "$BRANCH_NAME" --parent "${{ steps.parent.outputs.branch }}" --project-id ${{ env.NEON_PROJECT_ID }}
-          
+
           # Get the connection string for the new branch
           # Note: We use the default role for migrations
           CONNECTION_STRING=$(neonctl connection-string "$BRANCH_NAME" --project-id ${{ env.NEON_PROJECT_ID }})
-          
+
           # Mask the connection string in logs
           echo "::add-mask::$CONNECTION_STRING"
           echo "db_uri=$CONNECTION_STRING" >> $GITHUB_OUTPUT
@@ -121,13 +121,30 @@ jobs:
           else
             export DATABASE_URI="$RAW_URI"
           fi
-          
+
           echo "Verifying migrations against ephemeral clone of ${{ steps.parent.outputs.branch }}..."
           npm run payload migrate
         env:
           NODE_ENV: production
           RAW_URI: ${{ steps.neon.outputs.db_uri }}
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
+
+      - name: Seed Ephemeral Database
+        run: |
+          # Ensure SSL mode is enabled
+          if [[ "$RAW_URI" != *"sslmode="* ]]; then
+            export DATABASE_URI="${RAW_URI}?sslmode=require"
+          else
+            export DATABASE_URI="$RAW_URI"
+          fi
+
+          echo "Verifying 'Day Zero' seeding against ephemeral clone..."
+          npm run seed
+        env:
+          NODE_ENV: production
+          RAW_URI: ${{ steps.neon.outputs.db_uri }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
+          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
       - name: Cleanup Ephemeral Branch
         if: always()
@@ -143,7 +160,7 @@ jobs:
     needs: validate
     # Only deploy on push (merge) to main or dev
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -197,7 +214,7 @@ jobs:
           else
             export DATABASE_URI="$RAW_URI"
           fi
-          
+
           echo "Applying migrations to persistent $ENV_NAME database..."
           npm run payload migrate
         env:
