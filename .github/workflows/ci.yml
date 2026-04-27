@@ -17,6 +17,19 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Enterprise Guardrail: Ensure main only accepts merges from dev
+  guardrail:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - name: Verify PR Source Branch
+        if: github.head_ref != 'dev'
+        run: |
+          echo "### 🛑 Deployment Blocked" >> $GITHUB_STEP_SUMMARY
+          echo "To maintain stability, 'main' only accepts merges from 'dev'." >> $GITHUB_STEP_SUMMARY
+          echo "Please retarget your PR to 'dev' first." >> $GITHUB_STEP_SUMMARY
+          exit 1
+
   validate:
     runs-on: ubuntu-latest
     services:
