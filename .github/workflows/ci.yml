@@ -6,19 +6,40 @@ on:
   pull_request:
     branches: [main, dev]
 
+# Concurrency Control: Prevents multiple deployments to the same environment from overlapping.
+# For PRs, it cancels the previous run. For branch pushes, it queues them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   NEON_PROJECT_ID: curly-sound-15805517
 
-# Required for Workload Identity Federation and PR comments (if added later)
+# Required for Workload Identity Federation and PR comments
 permissions:
   id-token: write
   contents: read
   pull-requests: write
 
 jobs:
+  # Enterprise Guardrail: Ensure main only accepts merges from dev
+  guardrail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - name: Verify PR Source Branch
+        if: github.head_ref != 'dev'
+        run: |
+          echo "### 🛑 Deployment Blocked" >> $GITHUB_STEP_SUMMARY
+          echo "To maintain stability, 'main' only accepts merges from 'dev'." >> $GITHUB_STEP_SUMMARY
+          echo "Please retarget your PR to 'dev' first." >> $GITHUB_STEP_SUMMARY
+          exit 1
+
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:15-alpine
@@ -66,6 +87,7 @@ jobs:
   # High-Fidelity Validation: Test migrations against a clone of real data
   validate-remote-migrations:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: validate
     if: github.event_name == 'pull_request'
     steps:
@@ -103,7 +125,6 @@ jobs:
           neonctl branches create --name "$BRANCH_NAME" --parent "${{ steps.parent.outputs.branch }}" --project-id ${{ env.NEON_PROJECT_ID }}
 
           # Get the connection string for the new branch
-          # Note: We use the default role for migrations
           CONNECTION_STRING=$(neonctl connection-string "$BRANCH_NAME" --project-id ${{ env.NEON_PROJECT_ID }})
 
           # Mask the connection string in logs
@@ -115,7 +136,6 @@ jobs:
 
       - name: Run Migrations against Ephemeral Branch
         run: |
-          # Ensure SSL mode is enabled
           if [[ "$RAW_URI" != *"sslmode="* ]]; then
             export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
@@ -131,7 +151,6 @@ jobs:
 
       - name: Seed Ephemeral Database
         run: |
-          # Ensure SSL mode is enabled
           if [[ "$RAW_URI" != *"sslmode="* ]]; then
             export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
@@ -155,11 +174,17 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           BRANCH_NAME: ${{ steps.neon.outputs.branch_name }}
 
-  deploy:
+  # Development Pipeline: Automated deployment to the dev environment
+  deploy-dev:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: validate
-    # Only deploy on push (merge) to main or dev
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    env:
+      ENV_NAME: dev
+      DOCKER_TAG: dev
+      GCS_BUCKET: framehouse-hub-dev
+      PUBLIC_URL: https://framehouse-hub-dev-588985538639.us-central1.run.app
 
     steps:
       - name: Checkout Repository
@@ -180,24 +205,92 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
-      - name: Determine Environment
-        id: env
+      - name: Setup Node.js (Migration Runner)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Initialize Remote Database Schema (Dev)
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "env_name=prod" >> $GITHUB_OUTPUT
-            echo "tag=latest" >> $GITHUB_OUTPUT
-            echo "db_uri=${{ secrets.DATABASE_URI_PROD }}" >> $GITHUB_OUTPUT
-            echo "payload_secret=${{ secrets.PAYLOAD_SECRET_PROD }}" >> $GITHUB_OUTPUT
-            echo "bucket=framehouse-hub-prod" >> $GITHUB_OUTPUT
-            echo "public_url=https://hub.framehouseworks.com" >> $GITHUB_OUTPUT
+          if [[ "$RAW_URI" != *"sslmode="* ]]; then
+            export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
-            echo "env_name=dev" >> $GITHUB_OUTPUT
-            echo "tag=dev" >> $GITHUB_OUTPUT
-            echo "db_uri=${{ secrets.DATABASE_URI_DEV }}" >> $GITHUB_OUTPUT
-            echo "payload_secret=${{ secrets.PAYLOAD_SECRET_DEV }}" >> $GITHUB_OUTPUT
-            echo "bucket=framehouse-hub-dev" >> $GITHUB_OUTPUT
-            echo "public_url=https://framehouse-hub-dev-588985538639.us-central1.run.app" >> $GITHUB_OUTPUT
+            export DATABASE_URI="$RAW_URI"
           fi
+
+          echo "Applying migrations to persistent dev database..."
+          npm run payload migrate
+        env:
+          NODE_ENV: production
+          RAW_URI: ${{ secrets.DATABASE_URI_DEV }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Image (Dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
+          build-args: |
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            GCS_PROJECT_ID=framehouse-hub
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run (Dev)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: framehouse-hub-${{ env.ENV_NAME }}
+          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
+          region: us-central1
+          env_vars: |
+            DATABASE_URI=${{ secrets.DATABASE_URI_DEV }}
+            PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET_DEV }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            GCS_PROJECT_ID=framehouse-hub
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            SEED_SECRET=${{ secrets.SEED_SECRET }}
+
+  # Main Deployment Pipeline: Blueprint for production environment
+  # Currently GATED until production infrastructure is established.
+  deploy-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: validate
+    # Gated: Only runs on push to main AND if PROD_READY secret is 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && false # BLUEPRINT: Set to 'true' when prod infra is ready
+    env:
+      ENV_NAME: prod
+      DOCKER_TAG: latest
+      GCS_BUCKET: framehouse-hub-prod
+      PUBLIC_URL: https://hub.framehouseworks.com
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
 
       - name: Setup Node.js (Migration Runner)
         uses: actions/setup-node@v4
@@ -208,46 +301,47 @@ jobs:
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Initialize Remote Database Schema (Persistent Env)
+      - name: Initialize Remote Database Schema (Prod)
         run: |
-          # Ensure SSL mode is enabled for Neon
           if [[ "$RAW_URI" != *"sslmode="* ]]; then
             export DATABASE_URI="${RAW_URI}?sslmode=require"
           else
             export DATABASE_URI="$RAW_URI"
           fi
 
-          echo "Applying migrations to persistent $ENV_NAME database..."
+          echo "Applying migrations to persistent prod database..."
           npm run payload migrate
         env:
           NODE_ENV: production
-          RAW_URI: ${{ steps.env.outputs.db_uri }}
-          PAYLOAD_SECRET: ${{ steps.env.outputs.payload_secret }}
-          ENV_NAME: ${{ steps.env.outputs.env_name }}
+          RAW_URI: ${{ secrets.DATABASE_URI_PROD }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_PROD }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Image
+      - name: Build and Push Image (Prod)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
+          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
           build-args: |
-            NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            GCS_PROJECT_ID=framehouse-hub
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run (Prod)
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: framehouse-hub-${{ steps.env.outputs.env_name }}
-          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ steps.env.outputs.tag }}
+          service: framehouse-hub-${{ env.ENV_NAME }}
+          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
           region: us-central1
           env_vars: |
-            DATABASE_URI=${{ steps.env.outputs.db_uri }}
-            PAYLOAD_SECRET=${{ steps.env.outputs.payload_secret }}
-            GCS_BUCKET=${{ steps.env.outputs.bucket }}
+            DATABASE_URI=${{ secrets.DATABASE_URI_PROD }}
+            PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET_PROD }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
             GCS_PROJECT_ID=framehouse-hub
-            NEXT_PUBLIC_SERVER_URL=${{ steps.env.outputs.public_url }}
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            SEED_SECRET=${{ secrets.SEED_SECRET }}
