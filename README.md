@@ -1,3 +1,6 @@
+<img width="1500" height="600" alt="Header Bar HUB" src="https://github.com/user-attachments/assets/18a3b1be-059e-4bc0-bcc7-df4d23780bf4" />
+
+
 # Framehouse Hub
 
 **Framehouse Hub** is a premium digital asset management and high-resolution gallery platform. Built with a focus on professional creatives and their clients, it provides a seamless workflow for managing, proofing, and delivering high-quality visual content.
