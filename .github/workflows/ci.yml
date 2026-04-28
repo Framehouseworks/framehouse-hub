@@ -266,7 +266,7 @@ jobs:
     timeout-minutes: 25
     needs: validate
     # Gated: Only runs on push to main AND if PROD_READY secret is 'true'
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.PROD_READY == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && false # BLUEPRINT: Set to 'true' when prod infra is ready
     env:
       ENV_NAME: prod
       DOCKER_TAG: latest
