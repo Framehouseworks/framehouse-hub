@@ -1,0 +1,155 @@
+name: Continuous Development (Dev)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip destructive steps (Database Migration & Cloud Run Update)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-dev-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NEON_PROJECT_ID: curly-sound-15805517
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: framehouse_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Initialize Database Schema (Local)
+        run: npm run payload migrate
+        env:
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
+          PAYLOAD_SECRET: ci_secret
+
+      - name: Production Build Check
+        run: npm run build
+        env:
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
+          PAYLOAD_SECRET: ci_secret
+          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: validate
+    env:
+      ENV_NAME: dev
+      DOCKER_TAG: dev
+      GCS_BUCKET: framehouse-hub-dev
+      PUBLIC_URL: https://framehouse-hub-dev-588985538639.us-central1.run.app
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Setup Node.js (Migration Runner)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Initialize Remote Database Schema (Dev)
+        # Skip destructive migration if dry_run is true
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          if [[ "$RAW_URI" != *"sslmode="* ]]; then
+            export DATABASE_URI="${RAW_URI}?sslmode=require"
+          else
+            export DATABASE_URI="$RAW_URI"
+          fi
+
+          echo "Applying migrations to persistent dev database..."
+          npm run payload migrate
+        env:
+          NODE_ENV: production
+          RAW_URI: ${{ secrets.DATABASE_URI_DEV }}
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Image (Dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
+          build-args: |
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            GCS_PROJECT_ID=framehouse-hub
+          cache-from: type=gha,scope=${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+
+      - name: Deploy to Cloud Run (Dev)
+        # Skip destructive deployment if dry_run is true
+        if: github.event.inputs.dry_run != 'true'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: framehouse-hub-${{ env.ENV_NAME }}
+          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
+          region: us-central1
+          env_vars: |
+            DATABASE_URI=${{ secrets.DATABASE_URI_DEV }}
+            PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET_DEV }}
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            GCS_PROJECT_ID=framehouse-hub
+            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            SEED_SECRET=${{ secrets.SEED_SECRET }}
