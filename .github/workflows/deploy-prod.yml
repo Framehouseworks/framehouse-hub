@@ -110,7 +110,6 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Initialize Remote Database Schema (Prod)
-        # Note: Migration runner still uses GitHub Secrets (Shadow Secret strategy)
         if: github.event.inputs.dry_run != 'true'
         run: |
           if [[ "$RAW_URI" != *"sslmode="* ]]; then
@@ -149,11 +148,12 @@ jobs:
           service: framehouse-hub-${{ env.ENV_NAME }}
           image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
           region: us-central1
-          # Runtime Secrets fetched directly from GCP Secret Manager
+          # Use 'set' strategy to ensure clean-state configuration
+          env_vars_update_strategy: set
+          secrets_update_strategy: set
           secrets: |
             DATABASE_URI=DATABASE_URI_PROD:latest
             PAYLOAD_SECRET=PAYLOAD_SECRET_PROD:latest
-          # Non-sensitive configuration via Env Vars
           env_vars: |
             GCS_BUCKET=${{ env.GCS_BUCKET }}
             GCS_PROJECT_ID=framehouse-hub
