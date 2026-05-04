@@ -19,41 +19,45 @@ const Word = ({
   children,
   progress,
   range,
-  ghostColor = "rgba(128, 128, 128, 0.15)",
-  glowColor = "#bb1800",
-  revealColor = "rgb(0, 0, 0)",
+  ghostColor = 'var(--ethereal-ghost)',
+  glowColor = '#bb1800',
+  revealColor = 'var(--ethereal-reveal)',
   glowIntensity = 120,
-  baseOpacity = 0.1
+  baseOpacity = 0.1,
 }: WordProps) => {
   const delta = (range[1] - range[0]) * 0.8
 
   const opacity = useTransform(
     progress,
     [range[0] - delta, range[0], range[1], range[1] + delta],
-    [baseOpacity, 1, 1, 1]
+    [baseOpacity, 1, 1, 1],
   )
 
   const color = useTransform(
     progress,
     [range[0] - delta, range[0], (range[0] + range[1]) / 2, range[1], range[1] + delta],
-    [ghostColor, glowColor, glowColor, revealColor, revealColor]
+    [ghostColor, glowColor, glowColor, revealColor, revealColor],
   )
 
   // Physical Backdrop Glow: A dedicated element behind the text
   const glowOpacity = useTransform(
     progress,
     [range[0] - delta, range[0], (range[0] + range[1]) / 2, range[1], range[1] + delta],
-    [0, 0.5, 0.5, 0, 0]
+    [0, 0.5, 0.5, 0, 0],
   )
 
   const y = useTransform(progress, range, [2, 0])
-  const scale = useTransform(progress, [range[0] - delta, (range[0] + range[1]) / 2, range[1] + delta], [0.99, 1.02, 1])
+  const scale = useTransform(
+    progress,
+    [range[0] - delta, (range[0] + range[1]) / 2, range[1] + delta],
+    [0.99, 1.02, 1],
+  )
 
   return (
     <span className="relative inline-block mr-[0.25em] last:mr-0 group">
       {/* 1. Ghost Layer (Stationary) */}
       <span
-        className="absolute inset-0 select-none text-foreground dark:text-white"
+        className="absolute inset-0 select-none text-foreground dark:text-white font-medium"
         style={{ opacity: baseOpacity }}
         aria-hidden="true"
       >
@@ -66,7 +70,7 @@ const Word = ({
           opacity: glowOpacity,
           scale: 1, // Even wider bloom
           filter: `blur(${glowIntensity * 1.2}px)`,
-          background: glowColor
+          background: glowColor,
         }}
         className="absolute inset-0 rounded-full select-none pointer-events-none -z-20 will-change-opacity"
         aria-hidden="true"
@@ -103,38 +107,38 @@ interface EtherealTextRevealProps {
 export const EtherealTextReveal = ({
   text,
   className,
-  viewportOffset = ["start 90%", "center center"],
+  viewportOffset = ['start 90%', 'center center'],
   align = 'center',
   baseOpacity = 0.1,
   glowColor,
   revealColor,
-  glowIntensity = 16
+  glowIntensity = 16,
 }: EtherealTextRevealProps) => {
   const targetRef = useRef<HTMLDivElement>(null)
 
   const { scrollYProgress } = useScroll({
     target: targetRef,
     // @ts-expect-error - viewportOffset is a valid [string, string] but Framer Motion's type extraction is overly restrictive
-    offset: viewportOffset as [string, string]
+    offset: viewportOffset as [string, string],
   })
 
   const smoothProgress = useSpring(scrollYProgress, {
     stiffness: 90,
     damping: 25,
-    mass: 0.5
+    mass: 0.5,
   })
 
-  const words = text.split(" ")
-  const defaultGlow = "#bb1800"
+  const words = text.split(' ')
+  const defaultGlow = '#bb1800'
 
   return (
-    <div ref={targetRef} className={cn("relative leading-tight py-12", className)}>
+    <div ref={targetRef} className={cn('relative leading-tight py-12', className)}>
       <div
         className={cn(
-          "flex flex-wrap items-center",
-          align === 'center' && "justify-center",
-          align === 'start' && "justify-start",
-          align === 'end' && "justify-end"
+          'flex flex-wrap items-center',
+          align === 'center' && 'justify-center',
+          align === 'start' && 'justify-start',
+          align === 'end' && 'justify-end',
         )}
       >
         {words.map((word, i) => {
@@ -160,9 +164,13 @@ export const EtherealTextReveal = ({
       <style jsx>{`
         div {
           --ethereal-glow: ${defaultGlow};
+          --ethereal-reveal: #000000;
+          --ethereal-ghost: rgba(0, 0, 0, 0.1);
         }
-        :global(.dark) div {
+        :global([data-theme='dark']) div {
           --ethereal-glow: #ff4d4d;
+          --ethereal-reveal: #ffffff;
+          --ethereal-ghost: rgba(255, 255, 255, 0.15);
         }
       `}</style>
     </div>
