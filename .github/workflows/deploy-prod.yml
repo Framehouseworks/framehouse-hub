@@ -148,9 +148,9 @@ jobs:
           service: framehouse-hub-${{ env.ENV_NAME }}
           image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
           region: us-central1
-          # Use 'set' strategy to ensure clean-state configuration
-          env_vars_update_strategy: set
-          secrets_update_strategy: set
+          # Corrected strategy: 'overwrite' is the valid value for a clean reset
+          env_vars_update_strategy: overwrite
+          secrets_update_strategy: overwrite
           secrets: |
             DATABASE_URI=DATABASE_URI_PROD:latest
             PAYLOAD_SECRET=PAYLOAD_SECRET_PROD:latest
