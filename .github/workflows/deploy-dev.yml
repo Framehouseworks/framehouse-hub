@@ -106,7 +106,6 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Initialize Remote Database Schema (Dev)
-        # Skip destructive migration if dry_run is true
         if: github.event.inputs.dry_run != 'true'
         run: |
           if [[ "$RAW_URI" != *"sslmode="* ]]; then
@@ -139,16 +138,19 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ github.workflow }}
 
       - name: Deploy to Cloud Run (Dev)
-        # Skip destructive deployment if dry_run is true
         if: github.event.inputs.dry_run != 'true'
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: framehouse-hub-${{ env.ENV_NAME }}
           image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
           region: us-central1
+          # Corrected strategy: 'overwrite' is the valid value for a clean reset
+          env_vars_update_strategy: overwrite
+          secrets_update_strategy: overwrite
+          secrets: |
+            DATABASE_URI=DATABASE_URI_DEV:latest
+            PAYLOAD_SECRET=PAYLOAD_SECRET_DEV:latest
           env_vars: |
-            DATABASE_URI=${{ secrets.DATABASE_URI_DEV }}
-            PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET_DEV }}
             GCS_BUCKET=${{ env.GCS_BUCKET }}
             GCS_PROJECT_ID=framehouse-hub
             NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
