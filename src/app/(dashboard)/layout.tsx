@@ -24,7 +24,22 @@ const rubik = Rubik_Mono_One({
   variable: '--font-rubik',
 })
 
+import { headers as getHeaders } from 'next/headers'
+import configPromise from '@payload-config'
+import { getPayload } from 'payload'
+import { redirect } from 'next/navigation'
+
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
+  const headers = await getHeaders()
+  const payload = await getPayload({ config: configPromise })
+  const { user } = await payload.auth({ headers })
+
+  if (!user) {
+    redirect(
+      '/login?warning=' + encodeURIComponent('You must be logged in to access the dashboard.'),
+    )
+  }
+
   return (
     <html
       className={cn(GeistSans.variable, GeistMono.variable, varela.variable, rubik.variable)}
@@ -38,7 +53,6 @@ export default async function DashboardRootLayout({ children }: { children: Reac
       </head>
       <body className="bg-background text-foreground transition-colors duration-300">
         <Providers>
-          <AdminBar />
           <LivePreviewListener />
           {children}
         </Providers>
