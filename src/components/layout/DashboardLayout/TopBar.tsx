@@ -1,10 +1,9 @@
 'use client'
 
 import React from 'react'
-import { Search, Bell, User as UserIcon } from 'lucide-react'
+import { Search, Bell } from 'lucide-react'
 import { useAuth } from '@/providers/Auth'
-import { cn } from '@/utilities/cn'
-import { Input } from '@/components/ui/input'
+import { UserDropdown } from './UserDropdown'
 
 export const TopBar: React.FC = () => {
   const { user } = useAuth()
@@ -30,19 +29,7 @@ export const TopBar: React.FC = () => {
           <span className="absolute top-2 right-2 w-2 h-2 bg-gallery-red rounded-full border-2 border-white" />
         </button>
 
-        <div className="flex items-center gap-3 pl-4 border-l border-black/[0.03]">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-primary leading-none mb-1">
-              {user?.name || 'Creative User'}
-            </p>
-            <p className="font-rubik text-[9px] tracking-wider text-on-surface/40 uppercase">
-              {user?.roles?.[0] || 'VIEWER'}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-[14px] bg-gallery-surface flex items-center justify-center text-primary/30 border border-black/[0.03] overflow-hidden">
-            <UserIcon size={20} />
-          </div>
-        </div>
+        <UserDropdown />
       </div>
     </header>
   )
