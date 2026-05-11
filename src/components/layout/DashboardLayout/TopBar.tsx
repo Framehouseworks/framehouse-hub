@@ -6,8 +6,6 @@ import { useAuth } from '@/providers/Auth'
 import { UserDropdown } from './UserDropdown'
 
 export const TopBar: React.FC = () => {
-  const { user } = useAuth()
-
   return (
     <header className="sticky top-0 z-30 flex h-20 w-full items-center justify-between bg-background/70 px-8 backdrop-blur-[20px] transition-all duration-300 border-b border-black/[0.03] dark:border-white/[0.03]">
       {/* Search Bar - Center */}

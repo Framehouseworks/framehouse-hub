@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import React from 'react'
-import { AdminBar } from '@/components/AdminBar'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'

@@ -1,6 +1,5 @@
 import { CollectionExplorer } from '@/components/CollectionExplorer'
 import { Gallery } from '@/components/Gallery'
-import { Badge } from '@/components/ui/badge'
 import { Suspense } from 'react'
 
 export default async function DashboardPage() {
