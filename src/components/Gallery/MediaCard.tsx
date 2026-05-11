@@ -10,7 +10,8 @@ interface Props {
 
 export const MediaCard: React.FC<Props> = ({ media }) => {
   const title = media.alt || media.filename || 'Untitled'
-  const src = `${process.env.NEXT_PUBLIC_SERVER_URL}${media.url}`
+  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const src = media.url?.startsWith('http') ? media.url : `${serverUrl}${media.url}`
 
   return (
     <div className="relative overflow-hidden">
@@ -28,7 +29,8 @@ export const MediaCard: React.FC<Props> = ({ media }) => {
       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
       {media.caption && (
         <div className="absolute bottom-0 left-0 right-0 p-2 text-sm text-white">
-          <RichText data={media.caption as unknown as SerializedEditorState} />        </div>
+          <RichText data={media.caption as unknown as SerializedEditorState} />{' '}
+        </div>
       )}
     </div>
   )
