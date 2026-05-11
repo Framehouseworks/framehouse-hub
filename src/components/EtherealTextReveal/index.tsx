@@ -156,7 +156,6 @@ export const EtherealTextReveal = ({
               progress={smoothProgress}
               range={[start, end]}
               glowColor={glowColor || defaultGlow}
-              revealColor={revealColor}
               glowIntensity={glowIntensity}
               baseOpacity={baseOpacity}
             >

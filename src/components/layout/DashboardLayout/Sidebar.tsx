@@ -11,7 +11,6 @@ import {
   Settings,
   PlusCircle,
   CloudUpload,
-  Library,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
