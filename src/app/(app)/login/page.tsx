@@ -16,7 +16,7 @@ export default async function Login() {
   const { user } = await payload.auth({ headers })
 
   if (user) {
-    redirect(`/account?warning=${encodeURIComponent('You are already logged in.')}`)
+    redirect(`/dashboard?warning=${encodeURIComponent('You are already logged in.')}`)
   }
 
   return (
