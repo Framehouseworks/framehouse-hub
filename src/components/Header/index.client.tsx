@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { Header } from 'src/payload-types'
+import type { Header, User } from 'src/payload-types'
 import { MobileMenu } from './MobileMenu'
 
 import FramehouseLogo from '@/assets/framehouse_logo_expanded_color.svg'
@@ -23,9 +23,10 @@ import {
 
 type Props = {
   header: Header
+  user?: User | null
 }
 
-export function HeaderClient({ header }: Props) {
+export function HeaderClient({ header, user }: Props) {
   const pathname = usePathname()
   const { isVisible, isScrolled, isOpaque } = useHeader()
 
@@ -164,7 +165,7 @@ export function HeaderClient({ header }: Props) {
           <div className="flex items-center gap-3 lg:gap-4 shrink-0">
             <div className="hidden sm:flex items-center gap-3 lg:gap-4 xl:gap-6">
               <Link
-                href="/login"
+                href={user ? '/dashboard' : '/login'}
                 className={cn(
                   'text-sm font-medium transition-all duration-300',
                   'px-4 py-2 rounded-lg',
@@ -172,7 +173,7 @@ export function HeaderClient({ header }: Props) {
                   'hover:bg-primary/5 hover:text-primary',
                 )}
               >
-                Login
+                {user ? 'Dashboard' : 'Login'}
               </Link>
               <Link
                 href="/demo"

@@ -57,26 +57,31 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Initialize Database Schema (Local)
-        run: npm run payload migrate
+        run: pnpm run payload migrate
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
 
       - name: Lint Check
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Production Build Check
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
@@ -91,17 +96,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Install Neon CLI
-        run: npm install -g neonctl
+        run: pnpm install -g neonctl
 
       - name: Determine Parent Branch
         id: parent
@@ -143,7 +153,7 @@ jobs:
           fi
 
           echo "Verifying migrations against ephemeral clone of ${{ steps.parent.outputs.branch }}..."
-          npm run payload migrate
+          pnpm run payload migrate
         env:
           NODE_ENV: production
           RAW_URI: ${{ steps.neon.outputs.db_uri }}
@@ -158,7 +168,7 @@ jobs:
           fi
 
           echo "Verifying 'Day Zero' seeding against ephemeral clone..."
-          npm run seed
+          pnpm run seed
         env:
           NODE_ENV: production
           RAW_URI: ${{ steps.neon.outputs.db_uri }}
