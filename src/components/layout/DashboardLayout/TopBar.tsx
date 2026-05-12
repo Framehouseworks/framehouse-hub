@@ -2,7 +2,6 @@
 
 import React from 'react'
 import { Search, Bell } from 'lucide-react'
-import { useAuth } from '@/providers/Auth'
 import { UserDropdown } from './UserDropdown'
 
 export const TopBar: React.FC = () => {
