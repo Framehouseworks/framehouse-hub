@@ -76,12 +76,15 @@ export const Sidebar: React.FC = () => {
                     <Link
                       href={item.href}
                       className={cn(
-                        'flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 group',
+                        'relative flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all duration-300 group',
                         isActive
-                          ? 'bg-white text-primary shadow-[0px_4px_12px_rgba(0,0,0,0.03)]'
-                          : 'text-on-surface/60 hover:text-primary hover:bg-white/50',
+                          ? 'bg-white/80 dark:bg-white/5 text-primary font-bold'
+                          : 'text-on-surface/60 hover:text-primary hover:bg-white/50 font-medium',
                       )}
                     >
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-gallery-gold rounded-r-full shadow-[2px_0_8px_rgba(127,87,0,0.4)]" />
+                      )}
                       <item.icon
                         size={18}
                         className={cn(
