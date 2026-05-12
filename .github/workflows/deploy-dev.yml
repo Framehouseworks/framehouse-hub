@@ -16,7 +16,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: curly-sound-15805517
+  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
 
 permissions:
   id-token: write
@@ -45,23 +45,28 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Initialize Database Schema (Local)
-        run: npm run payload migrate
+        run: pnpm run payload migrate
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
 
       - name: Production Build Check
-        run: npm run build
+        run: pnpm run build
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
@@ -96,14 +101,19 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js (Migration Runner)
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Initialize Remote Database Schema (Dev)
         if: github.event.inputs.dry_run != 'true'
@@ -115,7 +125,7 @@ jobs:
           fi
 
           echo "Applying migrations to persistent dev database..."
-          npm run payload migrate
+          pnpm run payload migrate
         env:
           NODE_ENV: production
           RAW_URI: ${{ secrets.DATABASE_URI_DEV }}
