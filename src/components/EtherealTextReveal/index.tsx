@@ -8,9 +8,7 @@ interface WordProps {
   children: string
   progress: MotionValue<number>
   range: [number, number]
-  ghostColor?: string
   glowColor?: string
-  revealColor?: string
   glowIntensity?: number
   baseOpacity?: number // New: Passthrough for consistency
 }
@@ -19,27 +17,20 @@ const Word = ({
   children,
   progress,
   range,
-  ghostColor = 'var(--ethereal-ghost)',
   glowColor = '#bb1800',
-  revealColor = 'var(--ethereal-reveal)',
   glowIntensity = 120,
   baseOpacity = 0.1,
 }: WordProps) => {
   const delta = (range[1] - range[0]) * 0.8
 
-  const opacity = useTransform(
+  // 1. Reveal Opacity: Animates the final revealed text
+  const revealOpacity = useTransform(
     progress,
     [range[0] - delta, range[0], range[1], range[1] + delta],
-    [baseOpacity, 1, 1, 1],
+    [0, 1, 1, 1],
   )
 
-  const color = useTransform(
-    progress,
-    [range[0] - delta, range[0], (range[0] + range[1]) / 2, range[1], range[1] + delta],
-    [ghostColor, glowColor, glowColor, revealColor, revealColor],
-  )
-
-  // Physical Backdrop Glow: A dedicated element behind the text
+  // 2. Glow Opacity: A pulse of color during the reveal
   const glowOpacity = useTransform(
     progress,
     [range[0] - delta, range[0], (range[0] + range[1]) / 2, range[1], range[1] + delta],
@@ -57,18 +48,18 @@ const Word = ({
     <span className="relative inline-block mr-[0.25em] last:mr-0 group">
       {/* 1. Ghost Layer (Stationary) */}
       <span
-        className="absolute inset-0 select-none text-foreground dark:text-white font-medium"
+        className="select-none text-foreground dark:text-white font-medium"
         style={{ opacity: baseOpacity }}
         aria-hidden="true"
       >
         {children}
       </span>
 
-      {/* 2. Physical Backdrop Glow (Absolute Behind Everything) */}
+      {/* 2. Physical Backdrop Glow */}
       <motion.span
         style={{
           opacity: glowOpacity,
-          scale: 1, // Even wider bloom
+          scale: 1,
           filter: `blur(${glowIntensity * 1.2}px)`,
           background: glowColor,
         }}
@@ -76,16 +67,29 @@ const Word = ({
         aria-hidden="true"
       />
 
-      {/* 3. Active Layer with Leading Trail */}
+      {/* 3. Revealed Layer */}
       <motion.span
         style={{
-          opacity,
-          color,
+          opacity: revealOpacity,
           y,
           scale,
         }}
         transition={{ ease: [0.23, 1, 0.32, 1] }}
-        className="relative inline-block text-foreground dark:text-white font-medium will-change-[opacity,color,transform]"
+        className="absolute inset-0 inline-block text-foreground dark:text-white font-medium will-change-opacity"
+      >
+        {children}
+      </motion.span>
+
+      {/* 4. Glow Text Layer (Adds a bit of color pulse to the text itself) */}
+      <motion.span
+        style={{
+          opacity: glowOpacity,
+          color: glowColor,
+          y,
+          scale,
+        }}
+        className="absolute inset-0 inline-block font-medium filter blur-[2px] pointer-events-none"
+        aria-hidden="true"
       >
         {children}
       </motion.span>
@@ -152,7 +156,6 @@ export const EtherealTextReveal = ({
               progress={smoothProgress}
               range={[start, end]}
               glowColor={glowColor || defaultGlow}
-              revealColor={revealColor}
               glowIntensity={glowIntensity}
               baseOpacity={baseOpacity}
             >
