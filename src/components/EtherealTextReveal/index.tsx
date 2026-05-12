@@ -115,7 +115,6 @@ export const EtherealTextReveal = ({
   align = 'center',
   baseOpacity = 0.1,
   glowColor,
-  revealColor,
   glowIntensity = 16,
 }: EtherealTextRevealProps) => {
   const targetRef = useRef<HTMLDivElement>(null)
