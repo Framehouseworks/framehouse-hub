@@ -12,7 +12,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: curly-sound-15805517
+  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
 
 permissions:
   id-token: write
@@ -70,6 +70,18 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Schema Integrity
+        run: |
+          pnpm run generate:importmap
+          pnpm run generate:types
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "### 🛑 Schema Out of Sync" >> $GITHUB_STEP_SUMMARY
+            echo "Changes detected after running 'generate:importmap' or 'generate:types'." >> $GITHUB_STEP_SUMMARY
+            echo "Please run these commands locally and commit the changes." >> $GITHUB_STEP_SUMMARY
+            git status --porcelain
+            exit 1
+          fi
 
       - name: Initialize Database Schema (Local)
         run: pnpm run payload migrate

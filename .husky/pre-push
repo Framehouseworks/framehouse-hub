@@ -2,11 +2,11 @@ echo "--- Running Pre-Push Safety Gates ---"
 
 # 1. Global Linting Check
 echo "Running global lint check..."
-npm run lint
+pnpm run lint
 
 # 2. Production Build Check
 echo "Running production build check..."
-npm run build
+pnpm run build
 
 # 3. Local-CI Parity (The 'Smart Seed' Check)
 echo "Running local verification (Blank-Slate Seed)..."

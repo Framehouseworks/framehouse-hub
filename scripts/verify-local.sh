@@ -73,11 +73,11 @@ TEST_DATABASE_URI="postgres://postgres:$POSTGRES_PASSWORD@localhost:$PORT/$POSTG
 
 # 4. Run Migrations
 echo "2. Running remote-migration mirror..."
-DATABASE_URI=$TEST_DATABASE_URI npm run payload migrate
+DATABASE_URI=$TEST_DATABASE_URI pnpm run payload migrate
 
 # 5. Run Seed
 echo "3. Running 'Day Zero' seeding test..."
-DATABASE_URI=$TEST_DATABASE_URI npm run seed
+DATABASE_URI=$TEST_DATABASE_URI pnpm run seed
 
 # 6. Final Instructions if Persisting
 if [ "$KEEP_OPEN" = true ]; then
@@ -86,7 +86,7 @@ if [ "$KEEP_OPEN" = true ]; then
     echo "The database is kept running on port $PORT."
     echo ""
     echo "To test the frontend against this blank-slate data, run:"
-    echo "DATABASE_URI=$TEST_DATABASE_URI npm run dev"
+    echo "DATABASE_URI=$TEST_DATABASE_URI pnpm run dev"
     echo ""
     echo "When finished, run './scripts/cleanup-local.sh' to dismantle."
     echo "----------------------------------------------"
