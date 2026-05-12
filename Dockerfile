@@ -2,7 +2,7 @@
 FROM node:22-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 # Stage 2: Install dependencies
 FROM base AS deps
@@ -13,7 +13,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies using frozen-lockfile for production consistency
-RUN pnpm install --frozen-lockfile
+# HUSKY=0 prevents errors when .git is not present
+RUN HUSKY=0 pnpm install --frozen-lockfile
 
 # Stage 3: Build the application
 FROM base AS builder

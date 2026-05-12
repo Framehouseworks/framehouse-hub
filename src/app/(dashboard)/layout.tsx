@@ -63,6 +63,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'),
   description: 'Framehouse Hub - Creative Dashboard.',
+  robots: 'noindex, nofollow',
   openGraph: mergeOpenGraph(),
   twitter: {
     card: 'summary_large_image',

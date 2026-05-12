@@ -16,7 +16,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: curly-sound-15805517
+  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
 
 permissions:
   id-token: write

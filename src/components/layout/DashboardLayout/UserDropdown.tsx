@@ -24,10 +24,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/utilities/cn'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export const UserDropdown: React.FC = () => {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    toast.promise(logout(), {
+      loading: 'Signing out of your archive...',
+      success: () => {
+        router.push('/login')
+        return 'Successfully signed out.'
+      },
+      error: 'Failed to sign out. Please try again.',
+      finally: () => setIsLoggingOut(false),
+    })
+  }
 
   const isAdmin = user?.roles?.includes('admin')
 
@@ -143,11 +160,15 @@ export const UserDropdown: React.FC = () => {
 
         <div className="p-1">
           <DropdownMenuItem
-            onClick={() => logout()}
-            className="rounded-xl px-3 py-2.5 text-gallery-red focus:bg-gallery-red/5 focus:text-gallery-red cursor-pointer transition-colors group"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={cn(
+              'rounded-xl px-3 py-2.5 text-gallery-red focus:bg-gallery-red/5 focus:text-gallery-red cursor-pointer transition-colors group',
+              isLoggingOut && 'opacity-50 cursor-not-allowed',
+            )}
           >
-            <LogOut className="mr-3 h-4 w-4" />
-            <span className="font-medium">Sign Out</span>
+            <LogOut className={cn('mr-3 h-4 w-4', isLoggingOut && 'animate-pulse')} />
+            <span className="font-medium">{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>
