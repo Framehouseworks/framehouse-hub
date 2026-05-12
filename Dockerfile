@@ -10,10 +10,10 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy lockfiles and package definitions
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies using --legacy-peer-deps for compatibility
-RUN npm ci --legacy-peer-deps
+# Install dependencies using frozen-lockfile for production consistency
+RUN pnpm install --frozen-lockfile
 
 # Stage 3: Build the application
 FROM base AS builder
@@ -47,8 +47,8 @@ RUN mkdir -p public
 
 # Generate the importMap and Build the application
 # We use localized secret stubs to prevent exposure in the image metadata
-RUN PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db npx payload generate:importmap && \
-    PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db npm run build
+RUN PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db pnpm exec payload generate:importmap && \
+    PAYLOAD_SECRET=build_time_only_secret DATABASE_URI=postgres://localhost/mock_build_db pnpm run build
 
 # Stage 4: Production runner
 # We use a clean base to ensure 'Standalone Purity'
@@ -66,6 +66,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy ONLY the required standalone build and static assets
+# Note: Next.js standalone build includes a minimal node_modules, 
+# so we don't need to copy the full node_modules here.
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -73,7 +75,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Enterprise Hardening: Explicitly prune non-runtime files that may be 
 # over-collected by the standalone tracer (e.g. src, package.json).
 # This ensures a 'Zero-Source' production image.
-RUN rm -rf src package.json package-lock.json
+RUN rm -rf src package.json pnpm-lock.yaml
 
 # Switch to the non-root user
 USER nextjs
