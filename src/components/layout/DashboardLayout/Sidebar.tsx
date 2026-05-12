@@ -50,13 +50,10 @@ export const Sidebar: React.FC = () => {
 
       {/* Primary Action */}
       <div className="px-6 mb-8">
-        <Button
-          asChild
-          className="w-full bg-gradient-to-br from-primary to-gallery-gold hover:opacity-90 text-white rounded-[24px] h-12 gap-2 shadow-[0px_10px_20px_rgba(127,87,0,0.15)]"
-        >
+        <Button asChild variant="gallery" className="w-full h-12 gap-2">
           <Link href="/dashboard/upload">
             <PlusCircle size={18} />
-            <span className="font-medium">Archive New Work</span>
+            <span className="font-medium">Upload Media</span>
           </Link>
         </Button>
       </div>
