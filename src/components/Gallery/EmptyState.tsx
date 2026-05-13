@@ -1,11 +1,10 @@
 'use client'
 
-import React from 'react'
-import { CloudUpload, ShieldCheck, Zap, Search, LayoutGrid, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
-import { motion, AnimatePresence } from 'framer-motion'
-import { UploadModal } from './UploadModal'
+import { AnimatePresence, motion } from 'framer-motion'
+import { CloudUpload, FilePlus, LayoutGrid, Search, ShieldCheck, Zap } from 'lucide-react'
+import React from 'react'
 
 const intelligenceItems = [
   {
