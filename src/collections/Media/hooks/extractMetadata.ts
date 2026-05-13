@@ -52,20 +52,20 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
             focalLength: exifData.FocalLength
               ? Number(exifData.FocalLength)
               : data.technical?.focalLength,
-            lensModel: exifData.LensModel || data.technical?.lensModel,
+            lensModel: (exifData.LensModel as string) || data.technical?.lensModel,
           }
 
           // Capture Date Master Sort Key
           const rawDate = exifData.DateTimeOriginal || image?.DateTime
           if (rawDate && !data.captureDate) {
-            data.captureDate = new Date(rawDate).toISOString()
+            data.captureDate = new Date(rawDate as string).toISOString()
           }
         }
 
         // GPS Location
         if (gps) {
-          const lat = gps.GPSLatitude
-          const lng = gps.GPSLongitude
+          const lat = gps.GPSLatitude as number
+          const lng = gps.GPSLongitude as number
 
           if (lat && lng) {
             data.location = {
