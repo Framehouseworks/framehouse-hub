@@ -28,7 +28,7 @@ export const MobileNav: React.FC = () => {
               <Link
                 key={item.label}
                 href={item.href}
-                className="w-14 h-14 bg-gradient-to-br from-primary to-gallery-gold rounded-full flex items-center justify-center text-white shadow-[0px_8px_16px_rgba(127,87,0,0.3)] transition-all active:scale-95 hover:brightness-110"
+                className="w-14 h-14 bg-primary rounded-full flex items-center justify-center text-white shadow-[0px_8px_16px_rgba(0,0,0,0.1)] transition-all active:scale-95"
               >
                 <item.icon size={28} />
               </Link>
