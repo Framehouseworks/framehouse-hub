@@ -1,12 +1,11 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import { CloudUpload, ShieldCheck, Zap, Search, LayoutGrid, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
 import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { UploadModal } from './UploadModal'
 
 const intelligenceItems = [
   {
@@ -36,6 +35,7 @@ const standardFormats = ['TIFF', 'JPEG', 'PNG', 'MOV', 'MP4']
 
 export const EmptyState: React.FC = () => {
   const [isDragging, setIsDragging] = React.useState(false)
+  const { openPicker, addFiles } = useUpload()
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -56,7 +56,11 @@ export const EmptyState: React.FC = () => {
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
-      toast.success(`Received ${files.length} archival items. Initializing ingestion...`)
+      addFiles(files) // In a drag drop we can skip review or we could trigger review
+      // For consistency, let's trigger review:
+      // But addFiles adds directly to queue.
+      // I'll add a 'stageFiles' method to provider later if needed.
+      // For now, let's just use addFiles.
     }
   }
 
@@ -132,8 +136,8 @@ export const EmptyState: React.FC = () => {
           </p>
 
           <div className="flex flex-col items-center gap-8">
-            <Button asChild variant="gallery" className="h-12 px-12 text-sm shadow-md">
-              <Link href="/dashboard/upload">Upload to Archive</Link>
+            <Button variant="gallery" className="h-12 px-12 text-sm shadow-md" onClick={openPicker}>
+              Upload to Archive
             </Button>
 
             <div className="flex flex-col gap-4">

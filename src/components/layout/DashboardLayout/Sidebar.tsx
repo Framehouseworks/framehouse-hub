@@ -15,6 +15,7 @@ import {
 import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
 import { Button } from '@/components/ui/button'
+import { useUpload } from '@/providers/UploadProvider'
 
 const navItems = [
   {
@@ -37,6 +38,7 @@ const navItems = [
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname()
+  const { openPicker } = useUpload()
 
   return (
     <aside className="fixed left-0 top-0 hidden h-screen w-[280px] flex-col bg-gallery-surface border-r border-black/[0.03] dark:border-white/[0.03] lg:flex z-40 transition-all duration-300">
@@ -50,11 +52,9 @@ export const Sidebar: React.FC = () => {
 
       {/* Primary Action */}
       <div className="px-6 mb-8">
-        <Button asChild variant="gallery" className="w-full h-12 gap-2">
-          <Link href="/dashboard/upload">
-            <PlusCircle size={18} />
-            <span className="font-medium">Upload Media</span>
-          </Link>
+        <Button variant="gallery" className="w-full h-12 gap-2" onClick={openPicker}>
+          <PlusCircle size={18} />
+          <span className="font-medium">Upload Media</span>
         </Button>
       </div>
 
@@ -68,10 +68,18 @@ export const Sidebar: React.FC = () => {
             <ul className="space-y-1">
               {group.items.map((item) => {
                 const isActive = pathname === item.href
+                const isUploadAction = item.name === 'Archive Work'
+
                 return (
                   <li key={item.name}>
                     <Link
-                      href={item.href}
+                      href={isUploadAction ? '#' : item.href}
+                      onClick={(e) => {
+                        if (isUploadAction) {
+                          e.preventDefault()
+                          openPicker()
+                        }
+                      }}
                       className={cn(
                         'relative flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all duration-300 group',
                         isActive

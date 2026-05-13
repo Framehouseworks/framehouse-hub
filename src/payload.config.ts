@@ -18,7 +18,7 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
-import { Media } from '@/collections/Media'
+import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'

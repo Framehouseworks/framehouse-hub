@@ -4,6 +4,8 @@ import { getPayload } from 'payload'
 import { MediaCard } from './MediaCard'
 import { EmptyState } from './EmptyState'
 
+import { GalleryHeader } from './GalleryHeader'
+
 export const Gallery = async () => {
   const user = await auth()
 
@@ -32,10 +34,13 @@ export const Gallery = async () => {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {media.map((item) => (
-        <MediaCard key={item.id} media={item} />
-      ))}
-    </div>
+    <>
+      <GalleryHeader />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {media.map((item) => (
+          <MediaCard key={item.id} media={item} />
+        ))}
+      </div>
+    </>
   )
 }
