@@ -5,6 +5,7 @@ import { cn } from '@/utilities/cn'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CloudUpload, FilePlus, LayoutGrid, Search, ShieldCheck, Zap } from 'lucide-react'
 import React from 'react'
+import { useUpload } from '@/providers/UploadProvider'
 
 const intelligenceItems = [
   {

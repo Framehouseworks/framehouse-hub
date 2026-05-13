@@ -6,7 +6,7 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({
   data,
   req,
   operation,
-  _originalDoc,
+  originalDoc,
 }) => {
   // Only run on create or if a new file is uploaded
   if (operation !== 'create' && !req.file) {
