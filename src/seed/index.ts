@@ -49,7 +49,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           alt: 'Placeholder',
           mediaType: 'image',
           owner: ownerId,
-          status: 'ready',
+          ingestionStatus: 'ready',
         },
         file: {
           data: Buffer.from(

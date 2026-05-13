@@ -26,13 +26,16 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
     // 2. EXIF Data
     if (metadata.exif) {
       try {
-        const exif = exifReader(metadata.exif) as any
+        const exif = exifReader(metadata.exif) as Record<string, unknown>
 
         // Extract Technical Metadata
         // Using common EXIF property paths with fallbacks
-        const image = exif.Image || exif.image
-        const exifData = exif.Exif || exif.exif
-        const gps = exif.GPS || exif.gps
+        // @ts-expect-error - exif-reader types are incomplete
+        const image = (exif.Image || exif.image) as Record<string, unknown> | undefined
+        // @ts-expect-error - exif-reader types are incomplete
+        const exifData = (exif.Exif || exif.exif) as Record<string, unknown> | undefined
+        // @ts-expect-error - exif-reader types are incomplete
+        const gps = (exif.GPS || exif.gps) as Record<string, unknown> | undefined
 
         if (image) {
           data.technical = {
