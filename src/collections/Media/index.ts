@@ -8,12 +8,16 @@ import {
 import path from 'path'
 import type { CollectionConfig } from 'payload'
 import { fileURLToPath } from 'url'
+import { extractMetadata } from './hooks/extractMetadata'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  hooks: {
+    beforeChange: [extractMetadata],
+  },
   admin: {
     group: 'Content',
     useAsTitle: 'filename',
@@ -90,12 +94,123 @@ export const Media: CollectionConfig = {
       type: 'select',
       options: [
         { label: 'Image', value: 'image' },
-        { label: 'Video', value: 'video' },
+        { label: 'Raw', value: 'raw' },
       ],
       required: true,
       admin: {
         position: 'sidebar',
       },
+    },
+    {
+      name: 'ingestionStatus',
+      type: 'select',
+      options: [
+        { label: 'Active', value: 'active' },
+        { label: 'Processing', value: 'processing' },
+        { label: 'Stale', value: 'stale' },
+        { label: 'Ready', value: 'ready' },
+        { label: 'Failed', value: 'failed' },
+      ],
+      defaultValue: 'active',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    // ---- Normalized Technical Metadata ---- //
+    {
+      name: 'captureDate',
+      type: 'date',
+      index: true,
+      admin: {
+        description: 'Primary sort key. Extracted from EXIF or file date.',
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'technical',
+      type: 'group',
+      label: 'Technical Metadata',
+      admin: {
+        position: 'sidebar',
+      },
+      fields: [
+        {
+          name: 'cameraModel',
+          type: 'text',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'lensModel',
+          type: 'text',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'iso',
+          type: 'number',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'aperture',
+          type: 'number',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'shutterSpeed',
+          type: 'text',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'focalLength',
+          type: 'number',
+          admin: { readOnly: true },
+        },
+      ],
+    },
+    {
+      name: 'location',
+      type: 'group',
+      fields: [
+        {
+          name: 'latitude',
+          type: 'number',
+        },
+        {
+          name: 'longitude',
+          type: 'number',
+        },
+        {
+          name: 'address',
+          type: 'text',
+        },
+      ],
+    },
+    // ---- Classification ---- //
+    {
+      name: 'manualTags',
+      type: 'array',
+      label: 'Archival Tags',
+      fields: [
+        {
+          name: 'tag',
+          type: 'text',
+        },
+      ],
+    },
+    {
+      name: 'heuristicTags',
+      type: 'array',
+      label: 'System Tags',
+      admin: {
+        readOnly: true,
+        description: 'Rule-based tags generated during ingestion (e.g. filename parsing).',
+      },
+      fields: [
+        {
+          name: 'tag',
+          type: 'text',
+        },
+      ],
     },
     {
       name: 'filesize',
@@ -127,22 +242,7 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
-        description: 'Computed as width / height (e.g. 16:9).'
-      },
-    },
-    {
-      name: 'status',
-      type: 'select',
-      options: [
-        { label: 'Uploaded', value: 'uploaded' },
-        { label: 'Processing', value: 'processing' },
-        { label: 'Ready', value: 'ready' },
-        { label: 'Error', value: 'error' },
-      ],
-      defaultValue: 'uploaded',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
+        description: 'Computed as width / height (e.g. 16:9).',
       },
     },
     {
@@ -159,49 +259,6 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
-      },
-    },
-    {
-      name: 'collections',
-      type: 'relationship',
-      relationTo: 'portfolios',
-      hasMany: true,
-    },
-    {
-      name: 'tags',
-      type: 'array',
-      labels: {
-        singular: 'Tag',
-        plural: 'Tags',
-      },
-      fields: [
-        {
-          name: 'tag',
-          type: 'text',
-        },
-      ],
-    },
-    {
-      name: 'labels',
-      type: 'select',
-      hasMany: true,
-      options: [
-        { label: 'Client Approved', value: 'client-approved' },
-        { label: 'Portfolio', value: 'portfolio' },
-        { label: 'Work In Progress', value: 'wip' },
-      ],
-    },
-    {
-      name: 'featured',
-      type: 'checkbox',
-      defaultValue: false,
-    },
-    {
-      name: 'favourite',
-      type: 'number',
-      defaultValue: 0,
-      admin: {
-        description: 'Small integer rating/stars. 0 = none.',
       },
     },
     {
@@ -224,7 +281,7 @@ export const Media: CollectionConfig = {
         position: 'sidebar',
       },
     },
-    // keep legacy upload reference fields (Payload itself may populate these)
+    // Legacy/System fields (Payload will populate these)
     {
       name: 'filename',
       type: 'text',
@@ -240,6 +297,6 @@ export const Media: CollectionConfig = {
         readOnly: true,
         position: 'sidebar',
       },
-    }
+    },
   ],
 }
