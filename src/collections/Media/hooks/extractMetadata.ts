@@ -30,11 +30,8 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
 
         // Extract Technical Metadata
         // Using common EXIF property paths with fallbacks
-        // @ts-expect-error - exif-reader types are incomplete
         const image = (exif.Image || exif.image) as Record<string, unknown> | undefined
-        // @ts-expect-error - exif-reader types are incomplete
         const exifData = (exif.Exif || exif.exif) as Record<string, unknown> | undefined
-        // @ts-expect-error - exif-reader types are incomplete
         const gps = (exif.GPS || exif.gps) as Record<string, unknown> | undefined
 
         if (image) {
