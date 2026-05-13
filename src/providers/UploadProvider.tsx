@@ -11,12 +11,15 @@ export interface UploadItem {
   progress: number
   status: UploadStatus
   errorMessage?: string
+  metadata?: {
+    tags?: string[]
+  }
 }
 
 interface UploadContextType {
   queue: UploadItem[]
   isUploading: boolean
-  addFiles: (files: File[]) => void
+  addFiles: (files: File[], metadata?: { tags?: string[] }) => void
   clearQueue: () => void
   cancelUpload: (id: string) => void
   openPicker: () => void
@@ -55,14 +58,28 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const addFiles = useCallback((files: File[]) => {
-    const newItems: UploadItem[] = files.map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      file,
-      progress: 0,
-      status: 'pending',
-    }))
-    setQueue((prev) => [...prev, ...newItems])
+  const addFiles = useCallback((files: File[], metadata?: { tags?: string[] }) => {
+    setQueue((prev) => {
+      const existingFiles = new Set(prev.map((item) => `${item.file.name}-${item.file.size}`))
+      const uniqueNewFiles = files.filter((file) => {
+        const key = `${file.name}-${file.size}`
+        if (existingFiles.has(key)) {
+          console.warn(`Duplicate file detected and skipped: ${file.name}`)
+          return false
+        }
+        return true
+      })
+
+      const newItems: UploadItem[] = uniqueNewFiles.map((file) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        file,
+        progress: 0,
+        status: 'pending',
+        metadata,
+      }))
+
+      return [...prev, ...newItems]
+    })
   }, [])
 
   const clearQueue = useCallback(() => {
@@ -93,11 +110,15 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const formData = new FormData()
 
+      // Pack manual tags if present
+      const manualTags = nextItem.metadata?.tags?.map((t) => ({ tag: t })) || []
+
       // Payload 3.0 Best Practice: Pack non-file data into a JSON string
       const payloadData = {
         alt: nextItem.file.name,
         mediaType: 'image',
         ingestionStatus: 'active',
+        manualTags,
       }
 
       formData.append('_payload', JSON.stringify(payloadData))
