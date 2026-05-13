@@ -2,12 +2,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 import sharp from 'sharp'
 import exifReader from 'exif-reader'
 
-export const extractMetadata: CollectionBeforeChangeHook = async ({
-  data,
-  req,
-  operation,
-  _originalDoc,
-}) => {
+export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, operation }) => {
   // Only run on create or if a new file is uploaded
   if (operation !== 'create' && !req.file) {
     return data
@@ -31,14 +26,12 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({
     // 2. EXIF Data
     if (metadata.exif) {
       try {
-        const exif = exifReader(metadata.exif)
+        const exif = exifReader(metadata.exif) as any
 
         // Extract Technical Metadata
-        // @ts-ignore
+        // Using common EXIF property paths with fallbacks
         const image = exif.Image || exif.image
-        // @ts-ignore
         const exifData = exif.Exif || exif.exif
-        // @ts-ignore
         const gps = exif.GPS || exif.gps
 
         if (image) {
@@ -93,11 +86,10 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({
     }
 
     // 4. Heuristic Tagging (Filename Parsing)
-    // Example: "iceland_2024_01.jpg" -> ["Iceland", "2024"]
     const filename = file.name || ''
     const parts = filename.split(/[._\-\s]+/)
     const systemTags = parts
-      .filter((p) => p.length > 3 && !/^\d+$/.test(p)) // Basic filter for meaningful words
+      .filter((p) => p.length > 3 && !/^\d+$/.test(p))
       .map((p) => ({ tag: p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() }))
 
     if (systemTags.length > 0) {
