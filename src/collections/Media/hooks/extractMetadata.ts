@@ -6,7 +6,7 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({
   data,
   req,
   operation,
-  originalDoc,
+  _originalDoc,
 }) => {
   // Only run on create or if a new file is uploaded
   if (operation !== 'create' && !req.file) {
@@ -34,38 +34,45 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({
         const exif = exifReader(metadata.exif)
 
         // Extract Technical Metadata
-        if (exif.image) {
+        // @ts-ignore
+        const image = exif.Image || exif.image
+        // @ts-ignore
+        const exifData = exif.Exif || exif.exif
+        // @ts-ignore
+        const gps = exif.GPS || exif.gps
+
+        if (image) {
           data.technical = {
             ...data.technical,
-            cameraModel: exif.image.Model || data.technical?.cameraModel,
+            cameraModel: image.Model || data.technical?.cameraModel,
           }
         }
 
-        if (exif.exif) {
+        if (exifData) {
           data.technical = {
             ...data.technical,
-            iso: exif.exif.ISO ? Number(exif.exif.ISO) : data.technical?.iso,
-            aperture: exif.exif.FNumber ? Number(exif.exif.FNumber) : data.technical?.aperture,
-            shutterSpeed: exif.exif.ExposureTime
-              ? String(exif.exif.ExposureTime)
+            iso: exifData.ISO ? Number(exifData.ISO) : data.technical?.iso,
+            aperture: exifData.FNumber ? Number(exifData.FNumber) : data.technical?.aperture,
+            shutterSpeed: exifData.ExposureTime
+              ? String(exifData.ExposureTime)
               : data.technical?.shutterSpeed,
-            focalLength: exif.exif.FocalLength
-              ? Number(exif.exif.FocalLength)
+            focalLength: exifData.FocalLength
+              ? Number(exifData.FocalLength)
               : data.technical?.focalLength,
-            lensModel: exif.exif.LensModel || data.technical?.lensModel,
+            lensModel: exifData.LensModel || data.technical?.lensModel,
           }
 
           // Capture Date Master Sort Key
-          const rawDate = exif.exif.DateTimeOriginal || exif.image?.DateTime
+          const rawDate = exifData.DateTimeOriginal || image?.DateTime
           if (rawDate && !data.captureDate) {
             data.captureDate = new Date(rawDate).toISOString()
           }
         }
 
         // GPS Location
-        if (exif.gps) {
-          const lat = exif.gps.GPSLatitude
-          const lng = exif.gps.GPSLongitude
+        if (gps) {
+          const lat = gps.GPSLatitude
+          const lng = gps.GPSLongitude
 
           if (lat && lng) {
             data.location = {
