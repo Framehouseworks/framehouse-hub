@@ -66,7 +66,7 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
       } else {
         toast.error(result.message || 'Failed to delete asset')
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An unexpected error occurred')
     } finally {
       setIsDeleting(false)
