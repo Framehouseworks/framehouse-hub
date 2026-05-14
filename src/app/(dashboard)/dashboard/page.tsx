@@ -2,6 +2,8 @@ import { CollectionExplorer } from '@/components/CollectionExplorer'
 import { Gallery } from '@/components/Gallery'
 import { Suspense } from 'react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   return (
     <div className="flex flex-col min-h-[calc(100vh-180px)]">

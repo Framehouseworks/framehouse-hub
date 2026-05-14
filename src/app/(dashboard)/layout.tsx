@@ -6,7 +6,7 @@ import { InitTheme } from '@/providers/Theme/InitTheme'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { GeistMono } from 'geist/font/mono'
 import { GeistSans } from 'geist/font/sans'
-import { Varela_Round, Rubik_Mono_One } from 'next/font/google'
+import { Varela_Round, Rubik_Mono_One, Inter, Space_Mono } from 'next/font/google'
 import { cn } from '@/utilities/cn'
 
 import '@/app/(app)/globals.css'
@@ -21,6 +21,17 @@ const rubik = Rubik_Mono_One({
   subsets: ['latin'],
   weight: '400',
   variable: '--font-rubik',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
+
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
 })
 
 import { headers as getHeaders } from 'next/headers'
@@ -41,7 +52,14 @@ export default async function DashboardRootLayout({ children }: { children: Reac
 
   return (
     <html
-      className={cn(GeistSans.variable, GeistMono.variable, varela.variable, rubik.variable)}
+      className={cn(
+        GeistSans.variable,
+        GeistMono.variable,
+        varela.variable,
+        rubik.variable,
+        inter.variable,
+        spaceMono.variable,
+      )}
       lang="en"
       suppressHydrationWarning
     >

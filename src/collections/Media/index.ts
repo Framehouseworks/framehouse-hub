@@ -10,6 +10,7 @@ import type { CollectionConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import { extractMetadata } from './hooks/extractMetadata'
 import { preventDuplicates } from './hooks/preventDuplicates'
+import { generateAccessionId } from './hooks/generateAccessionId'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -18,12 +19,12 @@ export const Media: CollectionConfig = {
   slug: 'media',
   hooks: {
     beforeValidate: [preventDuplicates],
-    beforeChange: [extractMetadata],
+    beforeChange: [generateAccessionId, extractMetadata],
   },
   admin: {
     group: 'Content',
-    useAsTitle: 'filename',
-    defaultColumns: ['filename', 'mediaType', 'owner', 'createdAt'],
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'filename', 'mediaType', 'owner', 'createdAt'],
   },
   access: {
     read: () => true, // Allow layout and gallery to see media metadata/files
@@ -52,6 +53,11 @@ export const Media: CollectionConfig = {
     adminThumbnail: 'thumbnail',
   },
   fields: [
+    {
+      name: 'title',
+      type: 'text',
+      required: true,
+    },
     {
       name: 'alt',
       type: 'text',
@@ -89,6 +95,17 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
+      },
+    },
+    {
+      name: 'accessionId',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Permanent archival catalog number (e.g. FRH-2024-0001).',
       },
     },
     {
@@ -140,32 +157,26 @@ export const Media: CollectionConfig = {
         {
           name: 'cameraModel',
           type: 'text',
-          admin: { readOnly: true },
         },
         {
           name: 'lensModel',
           type: 'text',
-          admin: { readOnly: true },
         },
         {
           name: 'iso',
           type: 'number',
-          admin: { readOnly: true },
         },
         {
           name: 'aperture',
           type: 'number',
-          admin: { readOnly: true },
         },
         {
           name: 'shutterSpeed',
           type: 'text',
-          admin: { readOnly: true },
         },
         {
           name: 'focalLength',
           type: 'number',
-          admin: { readOnly: true },
         },
       ],
     },

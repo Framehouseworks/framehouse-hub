@@ -181,3 +181,10 @@ export async function bulkUpdateTagsAction(
     return { success: false, message, errors: error }
   }
 }
+
+/**
+ * Explicitly revalidate the dashboard path
+ */
+export async function revalidateDashboardAction(): Promise<void> {
+  revalidatePath('/dashboard')
+}
