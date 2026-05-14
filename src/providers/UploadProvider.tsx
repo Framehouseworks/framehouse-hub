@@ -2,9 +2,11 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { IngestionWorkbench } from '@/components/Gallery/IngestionWorkbench'
+import { ArchivalProgressOverlay } from '@/components/Gallery/ArchivalProgressOverlay'
 import { useRouter } from 'next/navigation'
 import { revalidateDashboardAction } from '@/app/(dashboard)/actions/media'
 import { useAuth } from '@/providers/Auth'
+import { toast } from 'sonner'
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
 
@@ -18,6 +20,7 @@ export interface UploadItem {
     tags?: string[]
     title?: string
     location?: string
+    shootName?: string
   }
 }
 
@@ -26,8 +29,13 @@ interface UploadContextType {
   stagedFiles: File[]
   isUploading: boolean
   isWorkbenchOpen: boolean
-  addFiles: (files: File[], metadata?: { tags?: string[] }) => void
-  commitStagedFiles: (metadata?: { title?: string; location?: string; tags?: string[] }) => void
+  addFiles: (files: File[], metadata?: { tags?: string[]; shootName?: string }) => void
+  commitStagedFiles: (metadata?: {
+    title?: string
+    location?: string
+    tags?: string[]
+    shootName?: string
+  }) => void
   clearQueue: () => void
   closeWorkbench: () => void
   cancelUpload: (id: string) => void
@@ -60,8 +68,13 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const timer = setTimeout(async () => {
         await revalidateDashboardAction()
         router.refresh()
+        toast.success(
+          `Archival Batch Complete: ${queue.filter((i) => i.status === 'ready').length} assets ingested successfully.`,
+        )
       }, 800)
       return () => clearTimeout(timer)
+    } else if (isFinished && !hasNewSuccess) {
+      toast.error('Archival Ingest Failed: No assets were successfully committed.')
     }
   }, [queue, router])
 
@@ -90,7 +103,10 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   const addFiles = useCallback(
-    (files: File[], metadata?: { title?: string; location?: string; tags?: string[] }) => {
+    (
+      files: File[],
+      metadata?: { title?: string; location?: string; tags?: string[]; shootName?: string },
+    ) => {
       setQueue((prev) => {
         const existingFiles = new Set(prev.map((item) => `${item.file.name}-${item.file.size}`))
         const uniqueNewFiles = files.filter((file) => {
@@ -117,7 +133,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   )
 
   const commitStagedFiles = useCallback(
-    (metadata?: { title?: string; location?: string; tags?: string[] }) => {
+    (metadata?: { title?: string; location?: string; tags?: string[]; shootName?: string }) => {
       if (stagedFiles.length === 0) return
 
       addFiles(stagedFiles, metadata)
@@ -164,6 +180,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         alt: nextItem.metadata?.title || nextItem.file.name,
         mediaType: 'image',
         ingestionStatus: 'active',
+        shootName: nextItem.metadata?.shootName || '',
         manualTags,
         location: {
           address: nextItem.metadata?.location || '',
@@ -180,8 +197,13 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData?.errors?.[0]?.message || 'Upload failed')
+        const errorData = await response.json().catch(() => ({}))
+        const message =
+          errorData?.errors?.[0]?.message ||
+          (response.status === 403
+            ? 'Access Denied: You do not have permission to upload to this collection.'
+            : 'Upload failed')
+        throw new Error(message)
       }
 
       setQueue((prev) =>
@@ -190,13 +212,15 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ),
       )
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      toast.error(`Ingestion Failed [${nextItem.file.name}]: ${message}`)
       setQueue((prev) =>
         prev.map((item) =>
           item.id === nextItem.id
             ? {
                 ...item,
                 status: 'failed',
-                errorMessage: err instanceof Error ? err.message : 'Unknown error',
+                errorMessage: message,
               }
             : item,
         ),
@@ -249,6 +273,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         accept="image/*,.dng,.arw,.cr2,.nef"
       />
       <IngestionWorkbench />
+      <ArchivalProgressOverlay />
     </UploadContext.Provider>
   )
 }

@@ -18,7 +18,8 @@ const dirname = path.dirname(filename)
 export const Media: CollectionConfig = {
   slug: 'media',
   hooks: {
-    beforeValidate: [preventDuplicates],
+    beforeOperation: [preventDuplicates],
+    beforeValidate: [],
     beforeChange: [generateAccessionId, extractMetadata],
   },
   admin: {
@@ -105,7 +106,27 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
-        description: 'Permanent archival catalog number (e.g. FRH-2024-0001).',
+        description: 'Permanent archival catalog code (e.g. FRH-2024-0001).',
+      },
+    },
+    {
+      name: 'archivalSequence',
+      type: 'number',
+      unique: true,
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Atomic intake counter (1, 2, 3...) for scalable provenance.',
+      },
+    },
+    {
+      name: 'shootName',
+      type: 'text',
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description: 'Archival Shoot Identity (e.g. Wildlife Expedition 2024).',
       },
     },
     {

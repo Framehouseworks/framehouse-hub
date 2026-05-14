@@ -269,9 +269,17 @@ export interface Media {
   proxyUrl?: string | null;
   thumbnailUrl?: string | null;
   /**
-   * Permanent archival catalog number (e.g. FRH-2024-0001).
+   * Permanent archival catalog code (e.g. FRH-2024-0001).
    */
   accessionId?: string | null;
+  /**
+   * Atomic intake counter (1, 2, 3...) for scalable provenance.
+   */
+  archivalSequence?: number | null;
+  /**
+   * Archival Shoot Identity (e.g. Wildlife Expedition 2024).
+   */
+  shootName?: string | null;
   mediaType: 'image' | 'raw';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
   /**
@@ -1510,6 +1518,8 @@ export interface MediaSelect<T extends boolean = true> {
   proxyUrl?: T;
   thumbnailUrl?: T;
   accessionId?: T;
+  archivalSequence?: T;
+  shootName?: T;
   mediaType?: T;
   ingestionStatus?: T;
   captureDate?: T;

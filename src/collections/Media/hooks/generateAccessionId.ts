@@ -14,13 +14,9 @@ export const generateAccessionId: CollectionBeforeChangeHook = async ({ data, re
   }
 
   const currentYear = new Date().getFullYear()
-  const sequenceName = `accession_id_seq_${currentYear}`
   const prefix = `FRH-${currentYear}-`
 
   try {
-    // Execute raw SQL to get the next value from the sequence
-    let nextSequenceNumber: number
-
     // In Payload 3.0, the DB adapter is available on req.payload.db
     // For Postgres, it provides a drizzle instance.
     const dbAdapter = req.payload.db as {
@@ -32,22 +28,25 @@ export const generateAccessionId: CollectionBeforeChangeHook = async ({ data, re
 
     if (db) {
       try {
-        const result = await db.execute(`SELECT nextval('${sequenceName}')`)
-        // Drizzle result rows are usually an array of objects
-        const rows = result.rows as Array<{ nextval: string | number }>
-        nextSequenceNumber = Number(rows[0].nextval)
+        // 1. Get next atomic sequence number
+        const result = await db.execute(`SELECT nextval('global_archival_sequence')`)
+        const rows = result.rows
+        const nextSequenceNumber = Number(rows[0].nextval)
+
+        // 2. Populate the archivalSequence field (Simple Counter)
+        data.archivalSequence = nextSequenceNumber
+
+        // 3. Format the Accession ID (Museum-Grade Identity)
+        // We still use the year-based prefix for the public-facing ID
+        data.accessionId = `${prefix}${String(nextSequenceNumber).padStart(4, '0')}`
+
+        req.payload.logger.info(
+          `[Media] Archival Identity Assigned: ${data.accessionId} (Seq: ${nextSequenceNumber})`,
+        )
       } catch (seqErr: unknown) {
-        const error = seqErr as { code?: string; message?: string }
-        // If the sequence doesn't exist yet, try to create it and retry once
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          req.payload.logger.warn(`[Media] Sequence ${sequenceName} missing, creating...`)
-          await db.execute(`CREATE SEQUENCE IF NOT EXISTS ${sequenceName} START WITH 1;`)
-          const retryResult = await db.execute(`SELECT nextval('${sequenceName}')`)
-          const retryRows = retryResult.rows as Array<{ nextval: string | number }>
-          nextSequenceNumber = Number(retryRows[0].nextval)
-        } else {
-          throw seqErr
-        }
+        req.payload.logger.error(`[Media] Sequence Generation Failed: ${seqErr}`)
+        // Fallback to timestamp if sequence fails to ensure upload persists
+        data.accessionId = `${prefix}ERR-${Date.now()}`
       }
     } else {
       req.payload.logger.error(
@@ -61,20 +60,16 @@ export const generateAccessionId: CollectionBeforeChangeHook = async ({ data, re
         overrideAccess: true,
         pagination: false,
       })
-      nextSequenceNumber = 1
+      let nextSequenceNumber = 1
       if (lastDocs?.[0]?.accessionId) {
         const lastNum = parseInt(lastDocs[0].accessionId.split('-').pop() || '0', 10)
         nextSequenceNumber = lastNum + 1
       }
+      data.archivalSequence = nextSequenceNumber
+      data.accessionId = `${prefix}${String(nextSequenceNumber).padStart(4, '0')}`
     }
-
-    // Format with leading zeros (4 digits)
-    data.accessionId = `${prefix}${String(nextSequenceNumber).padStart(4, '0')}`
-
-    req.payload.logger.info(`[Media] Atomic Archival ID Assigned: ${data.accessionId}`)
   } catch (err) {
     req.payload.logger.error(`[Media] Accession ID Generation Failed: ${err}`)
-    // Final emergency fallback to timestamp to ensure the upload doesn't fail
     data.accessionId = `${prefix}ERR-${Date.now()}`
   }
 

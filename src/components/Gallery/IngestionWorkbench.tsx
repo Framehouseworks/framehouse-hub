@@ -79,6 +79,7 @@ export const IngestionWorkbench: React.FC = () => {
     commitStagedFiles({
       location: data.locationAddress,
       tags: heuristicTags,
+      shootName: data.shootName,
       // We don't overwrite title here to keep individual filenames as baseline
     })
   }
