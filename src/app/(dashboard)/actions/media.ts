@@ -6,11 +6,11 @@ import { headers as getHeaders } from 'next/headers'
 import type { Media } from '@/payload-types'
 import { revalidatePath } from 'next/cache'
 
-export type ActionResult<T = any> = {
+export type ActionResult<T = unknown> = {
   success: boolean
   message: string
   data?: T
-  errors?: any
+  errors?: unknown
 }
 
 /**
@@ -27,7 +27,7 @@ async function getAuth() {
  * Single asset metadata update
  */
 export async function updateMediaAction(
-  id: string,
+  id: string | number,
   data: Partial<Media>,
 ): Promise<ActionResult<Media>> {
   try {
@@ -43,16 +43,17 @@ export async function updateMediaAction(
 
     revalidatePath('/dashboard')
     return { success: true, message: 'Asset updated successfully', data: updated }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to update asset'
     console.error('[updateMediaAction] Error:', error)
-    return { success: false, message: error.message || 'Failed to update asset', errors: error }
+    return { success: false, message, errors: error }
   }
 }
 
 /**
  * Single asset deletion
  */
-export async function deleteMediaAction(id: string): Promise<ActionResult> {
+export async function deleteMediaAction(id: string | number): Promise<ActionResult> {
   try {
     const { payload, user } = await getAuth()
     if (!user) return { success: false, message: 'Unauthorized' }
@@ -65,16 +66,17 @@ export async function deleteMediaAction(id: string): Promise<ActionResult> {
 
     revalidatePath('/dashboard')
     return { success: true, message: 'Asset deleted successfully' }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to delete asset'
     console.error('[deleteMediaAction] Error:', error)
-    return { success: false, message: error.message || 'Failed to delete asset', errors: error }
+    return { success: false, message, errors: error }
   }
 }
 
 /**
  * Bulk asset deletion
  */
-export async function bulkDeleteMediaAction(ids: string[]): Promise<ActionResult> {
+export async function bulkDeleteMediaAction(ids: (string | number)[]): Promise<ActionResult> {
   if (!ids.length) return { success: false, message: 'No assets selected' }
 
   try {
@@ -93,9 +95,10 @@ export async function bulkDeleteMediaAction(ids: string[]): Promise<ActionResult
 
     revalidatePath('/dashboard')
     return { success: true, message: `Successfully deleted ${ids.length} assets` }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to delete assets'
     console.error('[bulkDeleteMediaAction] Error:', error)
-    return { success: false, message: error.message || 'Failed to delete assets', errors: error }
+    return { success: false, message, errors: error }
   }
 }
 
@@ -103,7 +106,7 @@ export async function bulkDeleteMediaAction(ids: string[]): Promise<ActionResult
  * Batch update tags for multiple assets
  */
 export async function bulkUpdateTagsAction(
-  ids: string[],
+  ids: (string | number)[],
   tags: string[],
   mode: 'append' | 'replace' = 'append',
 ): Promise<ActionResult> {
@@ -145,7 +148,11 @@ export async function bulkUpdateTagsAction(
       await Promise.all(
         currentDocs.map((doc) => {
           const existingTags = doc.manualTags || []
-          const existingTagStrings = new Set(existingTags.map((t) => t.tag.toLowerCase()))
+          const existingTagStrings = new Set(
+            existingTags
+              .map((t) => t.tag?.toLowerCase())
+              .filter((tag): tag is string => typeof tag === 'string'),
+          )
 
           // Only add tags that don't already exist (case-insensitive check)
           const newTagsToAppend = formattedTags.filter(
@@ -168,8 +175,9 @@ export async function bulkUpdateTagsAction(
 
     revalidatePath('/dashboard')
     return { success: true, message: `Successfully updated tags for ${ids.length} assets` }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to update tags'
     console.error('[bulkUpdateTagsAction] Error:', error)
-    return { success: false, message: error.message || 'Failed to update tags', errors: error }
+    return { success: false, message, errors: error }
   }
 }

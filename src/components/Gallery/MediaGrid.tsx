@@ -38,7 +38,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
 
     setIsDeleting(true)
     try {
-      const idsToDelete = Array.from(selectedIds).map((id) => id.toString())
+      const idsToDelete = Array.from(selectedIds)
       const result = await bulkDeleteMediaAction(idsToDelete)
 
       if (result.success) {
@@ -48,7 +48,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
       } else {
         toast.error(result.message || 'Failed to delete assets')
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An unexpected error occurred')
     } finally {
       setIsDeleting(false)
