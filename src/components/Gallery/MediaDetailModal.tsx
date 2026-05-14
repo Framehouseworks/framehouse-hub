@@ -14,9 +14,13 @@ import {
   Maximize2,
   Tag as TagIcon,
   Zap,
+  Trash2,
 } from 'lucide-react'
 import Image from 'next/image'
 import React, { useEffect, useState } from 'react'
+import { deleteMediaAction } from '@/app/(dashboard)/actions/media'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface MediaDetailModalProps {
   media: Media | null
@@ -26,6 +30,8 @@ interface MediaDetailModalProps {
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpen, onClose }) => {
   const [lastMedia, setLastMedia] = useState<Media | null>(media)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
 
   // Keep a local copy of the media to prevent the modal from 'vanishing'
   // during its exit animation when the parent clears the selection.
@@ -41,6 +47,31 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
   // Use the current media or the last active one for the closing animation
   const activeMedia = media || lastMedia
   if (!activeMedia) return null
+
+  const handleDelete = async () => {
+    if (!activeMedia) return
+
+    const confirmDelete = window.confirm(
+      'Are you sure you want to permanently delete this archival asset? This action cannot be undone.',
+    )
+    if (!confirmDelete) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteMediaAction(activeMedia.id)
+      if (result.success) {
+        toast.success('Asset deleted successfully')
+        onClose()
+        router.refresh()
+      } else {
+        toast.error(result.message || 'Failed to delete asset')
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
   const src = activeMedia.url?.startsWith('http')
@@ -223,7 +254,16 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
           </div>
 
           {/* Footer Actions */}
-          <div className="p-10 bg-gallery-surface/30 dark:bg-black/20 border-t border-black/[0.05] dark:border-white/[0.05]">
+          <div className="p-10 bg-gallery-surface/30 dark:bg-black/20 border-t border-black/[0.05] dark:border-white/[0.05] flex flex-col gap-3">
+            <Button
+              variant="destructive"
+              className="w-full h-14 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-rubik text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isDeleting ? 'Deleting Archive...' : 'Dispose of Asset'}
+            </Button>
             <Button className="w-full h-14 rounded-2xl bg-gallery-gold text-white hover:bg-gallery-gold/90 shadow-lg shadow-gallery-gold/20 font-rubik text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98]">
               Export Master Asset
             </Button>
