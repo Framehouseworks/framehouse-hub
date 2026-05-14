@@ -248,6 +248,7 @@ export interface Page {
  */
 export interface Media {
   id: number;
+  title: string;
   alt: string;
   caption?: {
     root: {
@@ -267,6 +268,10 @@ export interface Media {
   originalUrl?: string | null;
   proxyUrl?: string | null;
   thumbnailUrl?: string | null;
+  /**
+   * Permanent archival catalog number (e.g. FRH-2024-0001).
+   */
+  accessionId?: string | null;
   mediaType: 'image' | 'raw';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
   /**
@@ -1498,11 +1503,13 @@ export interface CategoriesSelect<T extends boolean = true> {
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
+  title?: T;
   alt?: T;
   caption?: T;
   originalUrl?: T;
   proxyUrl?: T;
   thumbnailUrl?: T;
+  accessionId?: T;
   mediaType?: T;
   ingestionStatus?: T;
   captureDate?: T;

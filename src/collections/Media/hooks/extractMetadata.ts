@@ -14,6 +14,11 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
   }
 
   try {
+    // 0. Identity
+    if (!data.title && file.name) {
+      data.title = file.name.split('.').slice(0, -1).join('.') || file.name
+    }
+
     const metadata = await sharp(file.data).metadata()
 
     // 1. Basic Dimensions
@@ -78,11 +83,6 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
       } catch (exifErr) {
         req.payload.logger.error(`EXIF Parsing Error: ${exifErr}`)
       }
-    }
-
-    // 3. Fallbacks
-    if (!data.captureDate) {
-      data.captureDate = new Date().toISOString()
     }
 
     // 4. Heuristic Tagging (Filename Parsing)

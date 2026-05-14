@@ -10,6 +10,8 @@ import { Plus, LayoutGrid, List, CheckSquare, Trash2, Edit3, X as CloseIcon } fr
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
+import { BulkEditTagsModal } from './BulkEditTagsModal'
+import { SafetyLockDeleteModal } from './SafetyLockDeleteModal'
 import { bulkDeleteMediaAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
 
@@ -28,14 +30,16 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
 
-  const handleBulkDelete = async () => {
+  // Modal States
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
+  const [isSafetyLockOpen, setIsSafetyLockOpen] = useState(false)
+
+  const handleBulkDeleteTrigger = () => {
     if (selectedIds.size === 0) return
+    setIsSafetyLockOpen(true)
+  }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to permanently delete ${selectedIds.size} assets? This action cannot be undone.`,
-    )
-    if (!confirmDelete) return
-
+  const handleConfirmBulkDelete = async () => {
     setIsDeleting(true)
     try {
       const idsToDelete = Array.from(selectedIds)
@@ -44,12 +48,13 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
       if (result.success) {
         toast.success(result.message)
         clearSelection()
+        setIsSafetyLockOpen(false)
         router.refresh()
       } else {
         toast.error(result.message || 'Failed to delete assets')
       }
     } catch (_error) {
-      toast.error('An unexpected error occurred')
+      toast.error('An unexpected error occurred during bulk deletion')
     } finally {
       setIsDeleting(false)
     }
@@ -65,6 +70,15 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
       }
       return next
     })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === localMedia.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(localMedia.map((m) => m.id)))
+    }
+    setIsSelectionMode(true)
   }
 
   const handleCardClick = (item: Media) => {
@@ -162,7 +176,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
                   exit={{ opacity: 0 }}
                   onClick={() => toggleSelection(item.id)}
                   className={cn(
-                    'absolute inset-0 z-30 rounded-[24px] border-2 transition-all cursor-pointer pointer-events-none',
+                    'absolute inset-0 z-30 rounded-[24px] border-2 transition-all cursor-pointer',
                     selectedIds.has(item.id)
                       ? 'border-gallery-gold bg-gallery-gold/5'
                       : 'border-white/20 hover:border-white/40',
@@ -172,7 +186,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
                     className={cn(
                       'absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
                       selectedIds.has(item.id)
-                        ? 'bg-gallery-gold border-gallery-gold text-white'
+                        ? 'bg-gallery-gold border-gallery-gold text-white shadow-lg'
                         : 'bg-black/20 border-white/40',
                     )}
                   >
@@ -192,58 +206,86 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110]"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[110]"
           >
-            <div className="bg-white/90 dark:bg-[#0a0c10]/90 backdrop-blur-2xl border border-black/[0.05] dark:border-white/[0.1] rounded-3xl p-3 px-6 shadow-2xl flex items-center gap-6">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold tracking-widest text-gallery-gold uppercase font-rubik">
+            <div className="bg-white/90 dark:bg-[#0a0c10]/90 backdrop-blur-2xl border border-black/[0.05] dark:border-white/[0.1] rounded-[32px] p-4 px-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] flex items-center gap-8 min-w-[500px]">
+              <div className="flex flex-col min-w-[120px]">
+                <span className="text-[10px] font-bold tracking-widest text-gallery-gold uppercase font-rubik leading-none mb-1">
                   Selection
                 </span>
-                <span className="text-xs font-semibold text-primary">
-                  {selectedIds.size} Assets Selected
+                <span className="text-sm font-semibold text-primary">
+                  {selectedIds.size === localMedia.length
+                    ? 'All Assets'
+                    : `${selectedIds.size} Selected`}
                 </span>
               </div>
 
-              <div className="h-8 w-px bg-black/[0.05] dark:bg-white/[0.05]" />
+              <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
-                  className="h-10 rounded-2xl gap-2 text-on-surface/60 hover:text-primary"
+                  onClick={handleSelectAll}
+                  className="h-11 rounded-2xl gap-2 text-on-surface/60 hover:text-primary px-4"
+                >
+                  <CheckSquare size={16} />
+                  <span>
+                    {selectedIds.size === localMedia.length ? 'Deselect All' : 'Select All'}
+                  </span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsBulkEditOpen(true)}
+                  className="h-11 rounded-2xl gap-2 text-on-surface/60 hover:text-gallery-gold px-4"
                 >
                   <Edit3 size={16} />
                   <span>Batch Edit</span>
                 </Button>
                 <Button
                   variant="ghost"
-                  onClick={handleBulkDelete}
-                  disabled={isDeleting}
-                  className="h-10 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10"
+                  onClick={handleBulkDeleteTrigger}
+                  className="h-11 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10 px-4"
                 >
                   <Trash2 size={16} />
-                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                  <span>Delete</span>
                 </Button>
               </div>
 
-              <div className="h-8 w-px bg-black/[0.05] dark:bg-white/[0.05]" />
+              <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
 
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={clearSelection}
-                className="h-10 w-10 rounded-2xl text-on-surface/30 hover:text-primary"
+                className="h-11 w-11 rounded-2xl text-on-surface/30 hover:text-primary transition-colors"
               >
-                <CloseIcon size={18} />
+                <CloseIcon size={20} />
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Modals */}
       <MediaDetailModal
         isOpen={!!selectedMedia}
         media={selectedMedia}
         onClose={() => setSelectedMedia(null)}
+      />
+
+      <BulkEditTagsModal
+        isOpen={isBulkEditOpen}
+        onClose={() => setIsBulkEditOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={clearSelection}
+      />
+
+      <SafetyLockDeleteModal
+        isOpen={isSafetyLockOpen}
+        onClose={() => setIsSafetyLockOpen(false)}
+        count={selectedIds.size}
+        onConfirm={handleConfirmBulkDelete}
+        isDeleting={isDeleting}
       />
     </>
   )
