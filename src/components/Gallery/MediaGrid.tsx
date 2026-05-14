@@ -9,6 +9,9 @@ import { useRouter } from 'next/navigation'
 import { Plus, LayoutGrid, List, CheckSquare, Trash2, Edit3, X as CloseIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/utilities/cn'
+import { bulkDeleteMediaAction } from '@/app/(dashboard)/actions/media'
+import { toast } from 'sonner'
 
 interface MediaGridProps {
   initialMedia: Media[]
@@ -19,10 +22,38 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
   const router = useRouter()
   const [localMedia, setLocalMedia] = useState<Media[]>(initialMedia)
   const [selectedMedia, setSelectedMedia] = useState<Media | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to permanently delete ${selectedIds.size} assets? This action cannot be undone.`,
+    )
+    if (!confirmDelete) return
+
+    setIsDeleting(true)
+    try {
+      const idsToDelete = Array.from(selectedIds).map((id) => id.toString())
+      const result = await bulkDeleteMediaAction(idsToDelete)
+
+      if (result.success) {
+        toast.success(result.message)
+        clearSelection()
+        router.refresh()
+      } else {
+        toast.error(result.message || 'Failed to delete assets')
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const toggleSelection = (id: string | number) => {
     setSelectedIds((prev) => {
@@ -185,10 +216,12 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
                 </Button>
                 <Button
                   variant="ghost"
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
                   className="h-10 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10"
                 >
                   <Trash2 size={16} />
-                  <span>Delete</span>
+                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
                 </Button>
               </div>
 
@@ -215,6 +248,3 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
     </>
   )
 }
-
-// Utility to ensure cn is available here or imported
-import { cn } from '@/utilities/cn'
