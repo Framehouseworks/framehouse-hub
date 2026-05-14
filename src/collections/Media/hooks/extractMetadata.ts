@@ -40,30 +40,50 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
         const gps = (exif.GPS || exif.gps) as Record<string, unknown> | undefined
 
         if (image) {
-          data.technical = {
-            ...data.technical,
-            cameraModel: image.Model || data.technical?.cameraModel,
+          const camera = (image.Model || image.model) as string | undefined
+          if (camera) {
+            data.technical = {
+              ...data.technical,
+              cameraModel: camera,
+            }
           }
         }
 
         if (exifData) {
           data.technical = {
             ...data.technical,
-            iso: exifData.ISO ? Number(exifData.ISO) : data.technical?.iso,
-            aperture: exifData.FNumber ? Number(exifData.FNumber) : data.technical?.aperture,
-            shutterSpeed: exifData.ExposureTime
-              ? String(exifData.ExposureTime)
-              : data.technical?.shutterSpeed,
-            focalLength: exifData.FocalLength
-              ? Number(exifData.FocalLength)
-              : data.technical?.focalLength,
-            lensModel: (exifData.LensModel as string) || data.technical?.lensModel,
+            iso:
+              exifData.ISO || exifData.iso
+                ? Number(exifData.ISO || exifData.iso)
+                : data.technical?.iso,
+            aperture:
+              exifData.FNumber || exifData.fNumber
+                ? Number(exifData.FNumber || exifData.fNumber)
+                : data.technical?.aperture,
+            shutterSpeed:
+              exifData.ExposureTime || exifData.exposureTime
+                ? String(exifData.ExposureTime || exifData.exposureTime)
+                : data.technical?.shutterSpeed,
+            focalLength:
+              exifData.FocalLength || exifData.focalLength
+                ? Number(exifData.FocalLength || exifData.focalLength)
+                : data.technical?.focalLength,
+            lensModel:
+              ((exifData.LensModel || exifData.lensModel) as string) || data.technical?.lensModel,
           }
 
           // Capture Date Master Sort Key
-          const rawDate = exifData.DateTimeOriginal || image?.DateTime
+          const rawDate =
+            exifData.DateTimeOriginal ||
+            exifData.dateTimeOriginal ||
+            image?.DateTime ||
+            image?.dateTime
           if (rawDate && !data.captureDate) {
-            data.captureDate = new Date(rawDate as string).toISOString()
+            try {
+              data.captureDate = new Date(rawDate as string).toISOString()
+            } catch (_dateErr) {
+              req.payload.logger.warn(`Invalid EXIF Date: ${rawDate}`)
+            }
           }
         }
 
