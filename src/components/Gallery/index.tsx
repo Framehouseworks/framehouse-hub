@@ -2,7 +2,6 @@ import { auth } from '@/utilities/auth'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { EmptyState } from './EmptyState'
-import { GalleryHeader } from './GalleryHeader'
 import { MediaGrid } from './MediaGrid'
 
 export const Gallery = async () => {
@@ -34,7 +33,6 @@ export const Gallery = async () => {
 
   return (
     <>
-      <GalleryHeader />
       <MediaGrid initialMedia={media} />
     </>
   )

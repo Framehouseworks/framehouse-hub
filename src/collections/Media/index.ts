@@ -9,6 +9,7 @@ import path from 'path'
 import type { CollectionConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import { extractMetadata } from './hooks/extractMetadata'
+import { preventDuplicates } from './hooks/preventDuplicates'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -16,6 +17,7 @@ const dirname = path.dirname(filename)
 export const Media: CollectionConfig = {
   slug: 'media',
   hooks: {
+    beforeValidate: [preventDuplicates],
     beforeChange: [extractMetadata],
   },
   admin: {
