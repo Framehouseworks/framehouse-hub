@@ -9,9 +9,10 @@ import React from 'react'
 
 interface Props {
   media: Media
+  onClick?: () => void
 }
 
-export const MediaCard: React.FC<Props> = ({ media }) => {
+export const MediaCard: React.FC<Props> = ({ media, onClick }) => {
   const [isHovered, setIsHovered] = React.useState(false)
 
   const title = media.alt || media.filename || 'Untitled Archive'
@@ -28,7 +29,8 @@ export const MediaCard: React.FC<Props> = ({ media }) => {
       animate={{ opacity: 1, y: 0 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group relative aspect-[4/5] rounded-[24px] bg-gallery-surface dark:bg-[#0a0c10] overflow-hidden border border-black/[0.03] dark:border-white/[0.03] shadow-sm hover:shadow-xl transition-all duration-500"
+      onClick={onClick}
+      className="group relative aspect-[4/5] rounded-[24px] bg-gallery-surface dark:bg-[#0a0c10] overflow-hidden border border-black/[0.03] dark:border-white/[0.03] shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer"
     >
       {/* 1. Primary Asset */}
       {media.url && (
