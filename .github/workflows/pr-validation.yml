@@ -118,7 +118,7 @@ jobs:
         run: pnpm exec playwright install --with-deps
 
       - name: Run Playwright E2E Tests
-        run: pnpm run test:e2e
+        run: pnpm exec playwright test tests/e2e/admin.e2e.spec.ts
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret

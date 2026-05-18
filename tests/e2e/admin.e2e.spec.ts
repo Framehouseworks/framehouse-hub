@@ -37,9 +37,9 @@ test.describe('Admin Dashboard Smoke Gate', () => {
     // 4. Bypasses credentials and reaches administrative dashboard
     await page.waitForURL(/\/admin/)
 
-    // 5. Assert the admin dashboard has resolved and we see standard navigational elements
-    const dashboardNav = page.locator('nav.nav')
-    await expect(dashboardNav).toBeVisible()
+    // 5. Assert the admin dashboard has resolved using robust, CSS-Modules-immune selectors
+    await expect(page.locator('nav[class*="nav"]').first()).toBeVisible()
+    await expect(page.getByText('Collections')).toBeVisible()
 
     // 6. Ensure no query crashes occurred
     expect(
@@ -59,14 +59,15 @@ test.describe('Admin Dashboard Smoke Gate', () => {
     await page.setViewportSize({ width: 375, height: 667 })
 
     // 3. Assert navigation sidebar collapses into a hamburger trigger button
-    const menuToggler = page.locator('button.nav-toggler')
+    // Using accessible getByRole to satisfy Playwright's strict mode and avoid CSS Module clashes
+    const menuToggler = page.getByRole('button', { name: 'Open Menu' }).first()
     await expect(menuToggler).toBeVisible()
 
-    // 4. Verify touch target accessibility standards on toggle triggers (min 48px height/width)
+    // 4. Verify touch target accessibility standards on toggle triggers (min 40px height/width)
     const boundingBox = await menuToggler.boundingBox()
     expect(boundingBox).not.toBeNull()
     if (boundingBox) {
-      expect(boundingBox.width).toBeGreaterThanOrEqual(40) // Target sizes are usually 40-48px min
+      expect(boundingBox.width).toBeGreaterThanOrEqual(40)
       expect(boundingBox.height).toBeGreaterThanOrEqual(40)
     }
   })
