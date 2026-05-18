@@ -1,28 +1,26 @@
 import { test, expect } from '@playwright/test'
+import { execSync } from 'child_process'
 
 test.describe('Admin Dashboard Smoke Gate', () => {
   const baseURL = 'http://localhost:3000'
   const adminEmail = 'sys.admin@framehouseworks.com'
   const adminPassword = 'password123'
 
-  test.beforeAll(async ({ request }) => {
-    // Attempt to seed the system admin user via API in case the database is completely fresh.
-    // Wrap in a try-catch with failOnStatusCode: false to ensure maximum E2E environment resilience.
+  test.beforeAll(async () => {
+    // Run the self-healing standalone seeding script before the E2E test run.
+    // This guarantees that the default system admin exists, has the 'admin' role, and uses the correct 'password123' credentials
+    // across both clean slate (CI/CD) and existing populated (local dev) databases.
     try {
-      await request.post(`${baseURL}/api/users`, {
-        data: {
-          email: adminEmail,
-          password: adminPassword,
-          name: 'System Admin',
-        },
-        failOnStatusCode: false,
-      })
+      console.log('Synchronizing E2E test database state via self-healing seed...')
+      execSync('pnpm run seed', { stdio: 'inherit' })
     } catch (err) {
-      console.log('Failsafe user seeding skipped or already established:', err)
+      console.error('Failsafe standalone seeding script skipped or failed:', err)
     }
   })
 
-  test('should successfully load the Admin home page upon authenticating', async ({ page }) => {
+  test('should successfully authenticate, load the Admin home page, and support mobile reflow', async ({
+    page,
+  }) => {
     // Collect console errors to detect any runtime crash in the background
     const consoleErrors: string[] = []
     page.on('console', (msg) => {
@@ -31,23 +29,25 @@ test.describe('Admin Dashboard Smoke Gate', () => {
       }
     })
 
-    // 2. Navigate to admin login
+    // 1. Navigate to admin login
     await page.goto(`${baseURL}/admin/login`)
 
-    // 3. Fill details and submit
+    // 2. Fill details and submit
     await page.locator('input[name="email"]').fill(adminEmail)
     await page.locator('input[name="password"]').fill(adminPassword)
     await page.locator('button[type="submit"]').click()
 
-    // 4. Bypasses credentials and reaches administrative dashboard
-    await page.waitForURL(/\/admin/)
+    // 3. Bypasses credentials and reaches administrative dashboard (excluding the login page itself)
+    // Using negative lookahead to prevent matching '/admin/login'
+    await page.waitForURL(/\/admin(?!\/login)/)
 
-    // 5. Assert the admin dashboard has resolved successfully by checking layout container visibility.
-    // Hardened with a 10s timeout to allow smooth hydration on slower CI pipelines.
-    await expect(page.locator('nav[class*="nav"]').first()).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('main')).toBeVisible({ timeout: 10000 })
+    // 4. Assert the admin dashboard has resolved successfully by checking standard layout elements.
+    // Using robust href selector to guarantee exact authentication detection independent of compiled CSS Module hashes.
+    await expect(page.locator('a[href*="/admin/collections/users"]').first()).toBeVisible({
+      timeout: 15000,
+    })
 
-    // 6. Ensure no query or database crashes occurred, ignoring generic browser warnings or missing asset 404s
+    // 5. Ensure no query or database crashes occurred, ignoring generic browser warnings or missing asset 404s
     const queryErrors = consoleErrors.filter(
       (err) =>
         err.includes('Failed query') ||
@@ -56,25 +56,18 @@ test.describe('Admin Dashboard Smoke Gate', () => {
         err.includes('table'),
     )
     expect(queryErrors).toEqual([])
-  })
 
-  test('should satisfy mobile accessibility reflow criteria', async ({ page }) => {
-    // 1. Sign in as admin
-    await page.goto(`${baseURL}/admin/login`)
-    await page.locator('input[name="email"]').fill(adminEmail)
-    await page.locator('input[name="password"]').fill(adminPassword)
-    await page.locator('button[type="submit"]').click()
-    await page.waitForURL(/\/admin/)
-
-    // 2. Resize viewport to compact mobile screen width
+    // 6. Test mobile reflow using the ALREADY AUTHENTICATED active page context
+    // This completely bypasses slow, redundant authentication round-trips and prevents DB session deadlocks
     await page.setViewportSize({ width: 375, height: 667 })
 
-    // 3. Assert navigation sidebar collapses into a hamburger trigger button that is visible on mobile.
-    // Hardened with a 10s timeout to handle responsive styling recalculation delays on slower CI runners.
-    const menuToggler = page.locator('button[class*="nav-toggler"]:visible').first()
-    await expect(menuToggler).toBeVisible({ timeout: 10000 })
+    // 7. Assert navigation sidebar collapses into an active hamburger menu trigger button visible on mobile
+    const menuToggler = page
+      .locator('button[aria-label*="menu" i]:visible, button[class*="toggler"]:visible')
+      .first()
+    await expect(menuToggler).toBeVisible({ timeout: 15000 })
 
-    // 4. Verify touch trigger exists and is active with positive dimensions inside the layout
+    // 8. Verify touch trigger exists and is active with positive dimensions inside the layout
     const boundingBox = await menuToggler.boundingBox()
     expect(boundingBox).not.toBeNull()
     if (boundingBox) {

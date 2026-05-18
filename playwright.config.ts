@@ -33,9 +33,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], channel: 'chromium' },
     },
   ],
-  webServer: {
-    command: 'pnpm dev',
-    reuseExistingServer: true,
-    url: 'http://localhost:3000',
-  },
+  /* Automatically spawn the dev server background subprocess only in CI environments.
+   * Locally, developers manage their own dev server directly to prevent port collisions and ensure instant Playwright UI boottimes.
+   */
+  webServer: process.env.CI
+    ? {
+        command: 'pnpm dev',
+        reuseExistingServer: true,
+        url: 'http://localhost:3000',
+      }
+    : undefined,
 })
