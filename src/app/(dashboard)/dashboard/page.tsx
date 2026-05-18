@@ -2,7 +2,14 @@ import { CollectionExplorer } from '@/components/CollectionExplorer'
 import { Gallery } from '@/components/Gallery'
 import { Suspense } from 'react'
 
-export default async function DashboardPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams
   return (
     <div className="flex flex-col min-h-[calc(100vh-180px)]">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 flex-shrink-0">
@@ -40,7 +47,7 @@ export default async function DashboardPage() {
             }
           >
             <div className="flex-1 flex flex-col">
-              <Gallery />
+              <Gallery searchParams={params} />
             </div>
           </Suspense>
         </section>
@@ -50,7 +57,7 @@ export default async function DashboardPage() {
             <div className="mt-16 h-32 bg-gallery-surface/50 animate-pulse rounded-[16px]" />
           }
         >
-          <CollectionExplorer />
+          <CollectionExplorer searchParams={params} />
         </Suspense>
       </div>
     </div>
