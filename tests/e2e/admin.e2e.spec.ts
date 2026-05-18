@@ -2,17 +2,17 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Admin Dashboard Smoke Gate', () => {
   const baseURL = 'http://localhost:3000'
-  const adminEmail = 'admin-smoke@test.com'
-  const adminPassword = 'adminpassword123'
+  const adminEmail = 'sys.admin@framehouseworks.com'
+  const adminPassword = 'password123'
 
   test.beforeAll(async ({ request }) => {
-    // 1. Create a clean system administrator user via API
+    // Attempt to seed the system admin user via API in case the database is completely fresh.
+    // If it already exists (seeded by the migration/seeding script), this call will safely return 400/422, which we ignore.
     await request.post(`${baseURL}/api/users`, {
       data: {
         email: adminEmail,
         password: adminPassword,
-        name: 'Smoke Test Admin',
-        roles: ['admin'],
+        name: 'System Admin',
       },
     })
   })
