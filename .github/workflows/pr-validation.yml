@@ -89,6 +89,21 @@ jobs:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
 
+      - name: Verify Schema Drift
+        run: |
+          pnpm run payload migrate:create --name check_drift
+          DRIFT_FILES=$(git status --porcelain src/migrations/)
+          if [ -n "$DRIFT_FILES" ]; then
+            echo "### 🛑 Database Schema Drift Detected" >> $GITHUB_STEP_SUMMARY
+            echo "Your Payload configuration has changed but no corresponding migration file was generated or committed." >> $GITHUB_STEP_SUMMARY
+            echo "Please run 'pnpm payload migrate:create' locally and commit the resulting migration files." >> $GITHUB_STEP_SUMMARY
+            git status --porcelain src/migrations/
+            exit 1
+          fi
+        env:
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
+          PAYLOAD_SECRET: ci_secret
+
       - name: Lint Check
         run: pnpm run lint
 
@@ -98,6 +113,17 @@ jobs:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run Playwright E2E Tests
+        run: pnpm run test:e2e
+        env:
+          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
+          PAYLOAD_SECRET: ci_secret
+          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+          SEED_SECRET: local_dev_only
 
   # High-Fidelity Validation: Test migrations against a clone of real data
   validate-remote-migrations:

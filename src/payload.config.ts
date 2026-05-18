@@ -77,6 +77,9 @@ export default buildConfig({
     push: false,
     pool: {
       connectionString: process.env.DATABASE_URI || '',
+      max: process.env.DATABASE_URI?.includes('neon.tech') ? 4 : 10,
+      idleTimeoutMillis: 30000, // extend to 30s to allow reuse
+      connectionTimeoutMillis: 10000, // extend to 10s to prevent local starvation
     },
   }),
   editor: lexicalEditor({
