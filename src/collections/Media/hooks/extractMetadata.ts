@@ -105,15 +105,50 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
       }
     }
 
-    // 4. Heuristic Tagging (Filename Parsing)
+    // 4. Intelligent Heuristics & Sentiment
+    const intelligentTags: { tag: string }[] = []
+
+    // Temporal Sentiment (Seasons & Years)
+    if (data.captureDate) {
+      const date = new Date(data.captureDate as string)
+      const year = date.getFullYear()
+      const month = date.getMonth() // 0-11
+
+      let season = ''
+      if (month >= 2 && month <= 4) season = 'Spring'
+      else if (month >= 5 && month <= 7) season = 'Summer'
+      else if (month >= 8 && month <= 10) season = 'Autumn'
+      else season = 'Winter'
+
+      intelligentTags.push({ tag: `${season} ${year}` })
+
+      // Golden Hour Heuristic (Approximation: 4-7 PM)
+      const hour = date.getHours()
+      if (hour >= 16 && hour <= 19) {
+        intelligentTags.push({ tag: 'Golden Hour' })
+      }
+    }
+
+    // Filename Heuristics (Existing)
     const filename = file.name || ''
     const parts = filename.split(/[._\-\s]+/)
-    const systemTags = parts
+    const filenameTags = parts
       .filter((p) => p.length > 3 && !/^\d+$/.test(p))
       .map((p) => ({ tag: p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() }))
 
-    if (systemTags.length > 0) {
-      data.heuristicTags = systemTags
+    // 5. AI Vision Placeholder (Enterprise Ready)
+    /* 
+    if (process.env.GCP_VISION_API_KEY) {
+      // Future: Integrate GCP Vision for 'Landscapes', 'Architecture', 'Portrait' extraction
+      // data.aiTags = await extractAITags(file.data)
+    } 
+    */
+
+    const finalHeuristicTags = [...intelligentTags, ...filenameTags]
+    if (finalHeuristicTags.length > 0) {
+      // Dedup tags
+      const uniqueTags = Array.from(new Set(finalHeuristicTags.map((t) => t.tag)))
+      data.heuristicTags = uniqueTags.map((t) => ({ tag: t }))
     }
 
     // 5. Ingestion Lifecycle

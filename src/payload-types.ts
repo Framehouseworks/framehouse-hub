@@ -72,6 +72,7 @@ export interface Config {
     categories: Category;
     media: Media;
     portfolios: Portfolio;
+    'smart-collections': SmartCollection;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -91,6 +92,7 @@ export interface Config {
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
+    'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -1062,6 +1064,31 @@ export interface FolderInterface {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "smart-collections".
+ */
+export interface SmartCollection {
+  id: number;
+  name: string;
+  owner: number | User;
+  /**
+   * The Payload query object that defines this smart view.
+   */
+  filterQuery:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  icon?: ('folder' | 'tag' | 'sparkles' | 'camera' | 'map') | null;
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1120,6 +1147,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'portfolios';
         value: number | Portfolio;
+      } | null)
+    | ({
+        relationTo: 'smart-collections';
+        value: number | SmartCollection;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1660,6 +1691,19 @@ export interface PortfoliosSelect<T extends boolean = true> {
             };
       };
   folder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "smart-collections_select".
+ */
+export interface SmartCollectionsSelect<T extends boolean = true> {
+  name?: T;
+  owner?: T;
+  filterQuery?: T;
+  icon?: T;
+  description?: T;
   updatedAt?: T;
   createdAt?: T;
 }

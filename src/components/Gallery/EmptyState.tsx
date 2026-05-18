@@ -33,7 +33,10 @@ const intelligenceItems = [
 const masterFormats = ['RAW', '4K', 'PRORES']
 const standardFormats = ['TIFF', 'JPEG', 'PNG', 'MOV', 'MP4']
 
-export const EmptyState: React.FC = () => {
+export const EmptyState: React.FC<{
+  mode?: 'ingest' | 'no-results'
+  onClearFilters?: () => void
+}> = ({ mode = 'ingest', onClearFilters }) => {
   const [isDragging, setIsDragging] = React.useState(false)
   const { openPicker, addFiles } = useUpload()
 
@@ -56,12 +59,32 @@ export const EmptyState: React.FC = () => {
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
-      addFiles(files) // In a drag drop we can skip review or we could trigger review
-      // For consistency, let's trigger review:
-      // But addFiles adds directly to queue.
-      // I'll add a 'stageFiles' method to provider later if needed.
-      // For now, let's just use addFiles.
+      addFiles(files)
     }
+  }
+
+  if (mode === 'no-results') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+        <div className="w-20 h-20 rounded-[32px] bg-gallery-gold/5 flex items-center justify-center text-gallery-gold/30 mb-8">
+          <Search size={32} strokeWidth={1} />
+        </div>
+        <h3 className="text-2xl font-semibold tracking-tight text-primary mb-3">
+          No Forensic Matches
+        </h3>
+        <p className="text-sm text-on-surface/40 max-w-sm mx-auto mb-10 font-varela">
+          The archive could not find any assets matching your current discovery parameters. Try
+          broadening your criteria.
+        </p>
+        <Button
+          variant="outline"
+          onClick={onClearFilters}
+          className="h-12 px-8 rounded-2xl border-black/[0.05] dark:border-white/[0.05] hover:bg-gallery-gold/5 hover:text-gallery-gold font-rubik text-[10px] font-bold uppercase tracking-widest transition-all"
+        >
+          Clear All Filters
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -79,26 +102,15 @@ export const EmptyState: React.FC = () => {
             ? 'var(--gallery-gold-10, hsla(41, 100%, 25%, 0.1))'
             : 'var(--stage-bg, hsla(210, 20%, 98%, 0.4))',
         }}
-        style={
-          {
-            '--stage-bg': 'var(--theme-stage-bg, hsla(210, 20%, 98%, 0.4))',
-          } as React.CSSProperties
-        }
         className={cn(
           'w-full max-w-5xl rounded-[32px] p-8 md:p-10 relative overflow-hidden group transition-all duration-500 flex flex-col items-center text-center',
-          'bg-[var(--stage-bg)] backdrop-blur-[20px] border border-black/[0.03] dark:border-white/[0.03]',
+          'bg-gallery-surface/40 backdrop-blur-[20px] border border-black/[0.03] dark:border-white/[0.03]',
           'dark:bg-[#0a0c10] dark:shadow-[inset_0_0_80px_rgba(127,87,0,0.03)]',
           isDragging
             ? 'shadow-[0px_40px_80px_rgba(127,87,0,0.1)] ring-1 ring-gallery-gold/30'
             : 'shadow-sm',
         )}
       >
-        <style jsx>{`
-          .dark :global(.dark) {
-            --theme-stage-bg: hsla(215, 25%, 8%, 0.8);
-          }
-        `}</style>
-
         <AnimatePresence>
           {isDragging && (
             <motion.div
