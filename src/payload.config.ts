@@ -22,6 +22,7 @@ import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'
+import { SmartCollections } from '@/collections/SmartCollections'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -71,7 +72,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media, Portfolios],
+  collections: [Users, Pages, Categories, Media, Portfolios, SmartCollections],
   db: postgresAdapter({
     push: false,
     pool: {

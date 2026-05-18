@@ -183,6 +183,37 @@ export async function bulkUpdateTagsAction(
 }
 
 /**
+ * Create a new Smart Collection (Saved View)
+ */
+export async function createSmartCollectionAction(data: {
+  name: string
+  filterQuery: Record<string, unknown>
+  icon?: 'folder' | 'tag' | 'sparkles' | 'camera' | 'map'
+  description?: string
+}): Promise<ActionResult> {
+  try {
+    const { payload, user } = await getAuth()
+    if (!user) return { success: false, message: 'Unauthorized' }
+
+    await payload.create({
+      collection: 'smart-collections',
+      data: {
+        ...data,
+        owner: user.id,
+      },
+      user,
+    })
+
+    revalidatePath('/dashboard')
+    return { success: true, message: 'Smart Collection created successfully' }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create Smart Collection'
+    console.error('[createSmartCollectionAction] Error:', error)
+    return { success: false, message, errors: error }
+  }
+}
+
+/**
  * Explicitly revalidate the dashboard path
  */
 export async function revalidateDashboardAction(): Promise<void> {

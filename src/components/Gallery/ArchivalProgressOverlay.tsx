@@ -3,11 +3,11 @@
 import React, { useMemo } from 'react'
 import { useUpload } from '@/providers/UploadProvider'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CloudUpload, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react'
+import { CloudUpload, CheckCircle2, AlertCircle, Loader2, X, RefreshCcw } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
 export const ArchivalProgressOverlay: React.FC = () => {
-  const { queue, cancelUpload, clearQueue } = useUpload()
+  const { queue, cancelUpload, clearQueue, retryFailed, retryItem } = useUpload()
 
   const activeItems = useMemo(
     () => queue.filter((item) => item.status === 'uploading' || item.status === 'pending'),
@@ -126,7 +126,13 @@ export const ArchivalProgressOverlay: React.FC = () => {
                     )}
 
                     {item.status === 'failed' && (
-                      <span className="text-[9px] text-red-500 font-medium">Failed</span>
+                      <button
+                        onClick={() => retryItem(item.id)}
+                        className="text-[9px] text-red-500 font-medium hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCcw size={10} />
+                        Retry
+                      </button>
                     )}
                   </div>
                 ))}
@@ -134,11 +140,20 @@ export const ArchivalProgressOverlay: React.FC = () => {
 
             {failedCount > 0 && (
               <div className="pt-2">
-                <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-3 rounded-xl flex items-center gap-2">
-                  <AlertCircle className="text-red-500" size={14} />
-                  <p className="font-inter text-[10px] text-red-600 dark:text-red-400 font-medium">
-                    {failedCount} assets failed forensic extraction.
-                  </p>
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-3 rounded-xl flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="text-red-500" size={14} />
+                    <p className="font-inter text-[10px] text-red-600 dark:text-red-400 font-medium">
+                      {failedCount} assets failed forensic extraction.
+                    </p>
+                  </div>
+                  <button
+                    onClick={retryFailed}
+                    className="h-7 px-3 rounded-lg bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-red-600 transition-all flex items-center gap-2"
+                  >
+                    <RefreshCcw size={12} />
+                    Retry All
+                  </button>
                 </div>
               </div>
             )}

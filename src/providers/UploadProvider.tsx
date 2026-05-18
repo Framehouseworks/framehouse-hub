@@ -40,6 +40,8 @@ interface UploadContextType {
   closeWorkbench: () => void
   cancelUpload: (id: string) => void
   openPicker: () => void
+  retryFailed: () => void
+  retryItem: (id: string) => void
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined)
@@ -148,6 +150,20 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const cancelUpload = useCallback((id: string) => {
     setQueue((prev) => prev.filter((item) => item.id !== id))
+  }, [])
+
+  const retryFailed = useCallback(() => {
+    setQueue((prev) =>
+      prev.map((item) =>
+        item.status === 'failed' ? { ...item, status: 'pending', progress: 0 } : item,
+      ),
+    )
+  }, [])
+
+  const retryItem = useCallback((id: string) => {
+    setQueue((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: 'pending', progress: 0 } : item)),
+    )
   }, [])
 
   // Sequential Upload Logic
@@ -261,6 +277,8 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         closeWorkbench,
         cancelUpload,
         openPicker,
+        retryFailed,
+        retryItem,
       }}
     >
       {children}

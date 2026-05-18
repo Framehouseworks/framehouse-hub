@@ -1,25 +1,35 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { MediaCard } from './MediaCard'
-import { MediaDetailModal } from './MediaDetailModal'
+import { ForensicDrawer } from './ForensicDrawer'
 import type { Media } from '@/payload-types'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
-import { Plus, LayoutGrid, List, CheckSquare, Trash2, Edit3, X as CloseIcon } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
 import { BulkEditTagsModal } from './BulkEditTagsModal'
 import { SafetyLockDeleteModal } from './SafetyLockDeleteModal'
-import { bulkDeleteMediaAction } from '@/app/(dashboard)/actions/media'
+import { SaveViewModal } from './SaveViewModal'
+import { EmptyState } from './EmptyState'
+import { bulkDeleteMediaAction, createSmartCollectionAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
+import { VirtuosoGrid } from 'react-virtuoso'
+import { Search, Save } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 
 interface MediaGridProps {
   initialMedia: Media[]
+  initialFilters?: {
+    search?: string
+    status?: string
+  }
 }
 
-export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
+export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters }) => {
   const { queue, openPicker } = useUpload()
   const router = useRouter()
   const [localMedia, setLocalMedia] = useState<Media[]>(initialMedia)
@@ -30,9 +40,21 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
 
+  // Discovery & Filtering State
+  const [searchQuery, setSearchQuery] = useState(initialFilters?.search || '')
+  const [statusFilter, setStatusFilter] = useState<string | null>(initialFilters?.status || null)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
+  // Synchronize state when server initialFilters change (e.g., clicking active views)
+  useEffect(() => {
+    setSearchQuery(initialFilters?.search || '')
+    setStatusFilter(initialFilters?.status || null)
+  }, [initialFilters?.search, initialFilters?.status])
+
   // Modal States
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
   const [isSafetyLockOpen, setIsSafetyLockOpen] = useState(false)
+  const [isSaveViewOpen, setIsSaveViewOpen] = useState(false)
 
   const handleBulkDeleteTrigger = () => {
     if (selectedIds.size === 0) return
@@ -81,17 +103,49 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
     setIsSelectionMode(true)
   }
 
-  const handleCardClick = (item: Media) => {
-    if (isSelectionMode) {
-      toggleSelection(item.id)
-    } else {
-      setSelectedMedia(item)
-    }
-  }
-
   const clearSelection = () => {
     setSelectedIds(new Set())
     setIsSelectionMode(false)
+  }
+
+  const filteredMedia = useMemo(() => {
+    return localMedia.filter((item) => {
+      const matchesSearch =
+        !debouncedSearchQuery ||
+        item.title?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        item.filename?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        item.shootName?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+
+      const matchesStatus = !statusFilter || item.ingestionStatus === statusFilter
+
+      return matchesSearch && matchesStatus
+    })
+  }, [localMedia, debouncedSearchQuery, statusFilter])
+
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setStatusFilter('all')
+  }
+
+  const handleSaveViewAction = async (data: { name: string; icon: string }) => {
+    try {
+      const result = await createSmartCollectionAction({
+        name: data.name,
+        filterQuery: {
+          search: searchQuery,
+          status: statusFilter,
+        },
+        icon: data.icon as 'folder' | 'tag' | 'sparkles' | 'camera' | 'map',
+      })
+
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    } catch (_error) {
+      toast.error('Failed to save view')
+    }
   }
 
   // Listen for queue completion to refresh the data
@@ -112,7 +166,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
   return (
     <>
       {/* 1. Integrated Gallery Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-primary">Creative Archive</h1>
           <p className="text-sm text-on-surface/40 font-varela mt-1">
@@ -138,19 +192,6 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
             <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
           </Button>
 
-          <div className="flex bg-black/[0.03] dark:bg-white/[0.03] p-1 rounded-xl mr-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg bg-white dark:bg-white/10 shadow-sm text-gallery-gold"
-            >
-              <LayoutGrid size={16} />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-on-surface/40">
-              <List size={16} />
-            </Button>
-          </div>
-
           <Button
             variant="gallery"
             className="h-10 px-6 rounded-full gap-2 shadow-sm"
@@ -162,41 +203,131 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
         </div>
       </div>
 
-      {/* 2. Media Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {localMedia.map((item) => (
-          <div key={item.id} className="relative group">
-            <MediaCard media={item} onClick={() => handleCardClick(item)} />
-            {/* Selection Overlay */}
-            <AnimatePresence>
-              {(isSelectionMode || selectedIds.has(item.id)) && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => toggleSelection(item.id)}
-                  className={cn(
-                    'absolute inset-0 z-30 rounded-[24px] border-2 transition-all cursor-pointer',
-                    selectedIds.has(item.id)
-                      ? 'border-gallery-gold bg-gallery-gold/5'
-                      : 'border-white/20 hover:border-white/40',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
-                      selectedIds.has(item.id)
-                        ? 'bg-gallery-gold border-gallery-gold text-white shadow-lg'
-                        : 'bg-black/20 border-white/40',
-                    )}
-                  >
-                    {selectedIds.has(item.id) && <CheckSquare size={12} />}
-                  </div>
-                </motion.div>
+      {/* 2. Discovery Bar */}
+      <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+        <div className="relative flex-1 group">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/30 group-focus-within:text-gallery-gold transition-colors"
+            size={18}
+          />
+          <Input
+            placeholder="Discover by title, filename, or shoot batch..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={cn(
+              'h-12 pl-12 bg-gallery-surface/50 dark:bg-white/[0.03] border-black/[0.05] dark:border-white/[0.05] rounded-2xl focus:ring-gallery-gold/20 focus:border-gallery-gold/30 transition-all text-sm font-varela',
+              searchQuery !== debouncedSearchQuery ? 'pr-10' : 'pr-4',
+            )}
+          />
+          <AnimatePresence>
+            {searchQuery !== debouncedSearchQuery && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gallery-gold/65 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-gallery-gold"></span>
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+          {['ready', 'processing', 'failed'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+              className={cn(
+                'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                statusFilter === status
+                  ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
+                  : 'text-on-surface/30 hover:text-on-surface/60',
               )}
-            </AnimatePresence>
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+
+        {(searchQuery || statusFilter) && (
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveViewOpen(true)}
+              className="h-12 px-6 rounded-2xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 flex items-center gap-2 font-semibold"
+              title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${searchQuery && statusFilter ? ' + ' : ''}${searchQuery ? `Search='${searchQuery}'` : ''}`}
+            >
+              <Save size={16} />
+              <span>Save View</span>
+            </Button>
+            <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface/30 font-varela pr-2">
+              {statusFilter ? `Status:${statusFilter}` : ''}
+              {searchQuery && statusFilter ? ' + ' : ''}
+              {searchQuery ? `Query:${searchQuery}` : ''}
+            </span>
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* 2. Media Grid (Virtualized for 1000+ assets) */}
+      <div className="flex-1 min-h-[600px]">
+        {filteredMedia.length > 0 ? (
+          <VirtuosoGrid
+            data={filteredMedia}
+            totalCount={filteredMedia.length}
+            useWindowScroll
+            listClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-1"
+            components={{
+              Item: VirtuosoItem,
+            }}
+            itemContent={(index, item) => (
+              <>
+                <MediaCard
+                  key={item.id}
+                  media={item}
+                  isSelected={selectedIds.has(item.id)}
+                  onSelect={(id) => toggleSelection(id)}
+                  onView={() => setSelectedMedia(item)}
+                  isSelectionMode={isSelectionMode || selectedIds.size > 0}
+                />
+                {/* Selection Overlay for high-visibility */}
+                <AnimatePresence>
+                  {(isSelectionMode || selectedIds.has(item.id)) && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => toggleSelection(item.id)}
+                      className={cn(
+                        'absolute inset-0 z-30 rounded-[24px] border-2 transition-all cursor-pointer',
+                        selectedIds.has(item.id)
+                          ? 'border-gallery-gold bg-gallery-gold/5'
+                          : 'border-white/20 hover:border-white/40',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
+                          selectedIds.has(item.id)
+                            ? 'bg-gallery-gold border-gallery-gold text-white shadow-lg'
+                            : 'bg-black/20 border-white/40',
+                        )}
+                      >
+                        {selectedIds.has(item.id) && <CheckSquare size={12} />}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
+          />
+        ) : (
+          <EmptyState mode="no-results" onClearFilters={handleClearFilters} />
+        )}
       </div>
 
       {/* 3. Selection Toolbar */}
@@ -266,8 +397,8 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
         )}
       </AnimatePresence>
 
-      {/* Modals */}
-      <MediaDetailModal
+      {/* Modals & Drawers */}
+      <ForensicDrawer
         isOpen={!!selectedMedia}
         media={selectedMedia}
         onClose={() => setSelectedMedia(null)}
@@ -287,6 +418,21 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia }) => {
         onConfirm={handleConfirmBulkDelete}
         isDeleting={isDeleting}
       />
+
+      <SaveViewModal
+        isOpen={isSaveViewOpen}
+        onClose={() => setIsSaveViewOpen(false)}
+        onSave={handleSaveViewAction}
+      />
     </>
   )
 }
+
+const VirtuosoItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ children, ...props }, ref) => (
+    <div ref={ref} {...props} className="relative group min-h-[400px]">
+      {children}
+    </div>
+  ),
+)
+VirtuosoItem.displayName = 'VirtuosoItem'
