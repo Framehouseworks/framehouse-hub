@@ -280,7 +280,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
             data={filteredMedia}
             totalCount={filteredMedia.length}
             useWindowScroll
-            listClassName="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-1"
+            listClassName="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 p-1"
             components={{
               Item: VirtuosoItem,
             }}
