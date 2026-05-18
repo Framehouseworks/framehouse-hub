@@ -3,9 +3,9 @@
 import type { Media } from '@/payload-types'
 import { cn } from '@/utilities/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Camera, Zap, Tag as TagIcon, X as CloseIcon, Plus, Edit3 } from 'lucide-react'
+import { Camera, Zap, Tag as TagIcon, X as CloseIcon, Edit3 } from 'lucide-react'
 import Image from 'next/image'
-import React, { useState } from 'react'
+import React from 'react'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -26,32 +26,7 @@ export const MediaCard: React.FC<Props> = ({
   isSelectionMode,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false)
-  const [tagInput, setTagInput] = useState('')
   const router = useRouter()
-
-  const handleAddTag = async () => {
-    if (!tagInput.trim()) return
-    const newTag = tagInput.trim().toLowerCase()
-    const currentTags = media.manualTags?.map((t) => (typeof t === 'string' ? t : t.tag)) || []
-
-    if (currentTags.includes(newTag)) {
-      setTagInput('')
-      return
-    }
-
-    try {
-      const result = await updateMediaAction(media.id, {
-        manualTags: [...(media.manualTags || []), { tag: newTag }],
-      })
-      if (result.success) {
-        toast.success(`Tag "${newTag}" transactionally applied`)
-        setTagInput('')
-        router.refresh()
-      }
-    } catch {
-      toast.error('Failed to apply archival tag')
-    }
-  }
 
   const handleRemoveTag = async (tagToRemove: string) => {
     const nextTags = (media.manualTags || []).filter(
@@ -119,16 +94,16 @@ export const MediaCard: React.FC<Props> = ({
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
         <div className="flex flex-wrap gap-2">
           {isProcessing ? (
-            <div className="px-3 py-1 rounded-full bg-gallery-gold/10 backdrop-blur-md border border-gallery-gold/20 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-gallery-gold animate-pulse" />
-              <span className="font-rubik text-[9px] tracking-wider text-gallery-gold uppercase">
+            <div className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-gallery-gold/30 flex items-center gap-2 shadow-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="font-rubik text-[9px] tracking-wider text-amber-400 uppercase font-semibold">
                 Processing
               </span>
             </div>
           ) : (
             media.manualTags?.[0] && (
-              <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
-                <span className="font-rubik text-[9px] tracking-wider text-white uppercase opacity-80">
+              <div className="px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-sm">
+                <span className="font-rubik text-[9px] tracking-wider text-white uppercase font-bold">
                   {media.manualTags[0].tag}
                 </span>
               </div>
@@ -137,7 +112,7 @@ export const MediaCard: React.FC<Props> = ({
         </div>
 
         {hasTechnical && (
-          <div className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/60">
+          <div className="p-2 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-amber-400 shadow-sm">
             <Zap size={14} />
           </div>
         )}
@@ -150,7 +125,7 @@ export const MediaCard: React.FC<Props> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-20 flex flex-col justify-end p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent text-white"
+            className="absolute inset-0 z-20 flex flex-col justify-end p-6 bg-black/80 backdrop-blur-[3px] text-white"
           >
             <motion.div
               initial={{ y: 10, opacity: 0 }}
@@ -159,70 +134,62 @@ export const MediaCard: React.FC<Props> = ({
               className="space-y-4"
             >
               {/* 1. Quick Tagging Hub */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-gallery-gold">
-                  <TagIcon size={14} />
-                  <span className="text-[10px] font-bold tracking-widest uppercase font-rubik">
-                    Quick Tags
-                  </span>
-                </div>
+              {((media.manualTags || []) as { tag?: string }[]).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400">
+                    <TagIcon size={14} />
+                    <span className="text-[10px] font-bold tracking-widest uppercase font-rubik">
+                      Quick Tags
+                    </span>
+                  </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {((media.manualTags || []) as { tag?: string }[]).map((tagData, idx: number) => {
-                    const tag = typeof tagData === 'string' ? tagData : tagData.tag
-                    if (!tag) return null
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      const tags = (media.manualTags || []) as { tag?: string }[]
+                      const maxTags = 3
+                      const visibleTags = tags.slice(0, maxTags)
+                      const remainingCount = tags.length - maxTags
 
-                    return (
-                      <div
-                        key={idx}
-                        className="px-2 py-0.5 rounded bg-white/20 backdrop-blur-md text-[9px] font-medium flex items-center gap-1 group/tag"
-                      >
-                        {tag}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRemoveTag(tag)
-                          }}
-                          className="opacity-0 group-hover/tag:opacity-100 hover:text-red-400 transition-all"
-                        >
-                          <CloseIcon size={10} />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
+                      return (
+                        <>
+                          {visibleTags.map((tagData, idx: number) => {
+                            const tag = typeof tagData === 'string' ? tagData : tagData.tag
+                            if (!tag) return null
 
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="text"
-                    placeholder="Add tag..."
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleAddTag()
-                      }
-                    }}
-                    className="w-full h-8 bg-white/10 border border-white/20 rounded-lg px-3 text-[10px] focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all placeholder:text-white/30"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleAddTag()
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1"
-                  >
-                    <Plus size={14} />
-                  </button>
+                            return (
+                              <div
+                                key={idx}
+                                className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 border border-white/10 text-[9px] font-medium flex items-center gap-1 group/tag"
+                              >
+                                {tag}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleRemoveTag(tag)
+                                  }}
+                                  className="opacity-0 group-hover/tag:opacity-100 hover:text-red-400 transition-all"
+                                >
+                                  <CloseIcon size={10} />
+                                </button>
+                              </div>
+                            )
+                          })}
+                          {remainingCount > 0 && (
+                            <div className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-bold text-amber-400">
+                              +{remainingCount}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 2. Technical Group (Existing) */}
               {hasTechnical && (
                 <div className="space-y-2 pt-2 border-t border-white/10">
-                  <div className="flex items-center gap-2 text-gallery-gold/60">
+                  <div className="flex items-center gap-2 text-amber-400/80">
                     <Camera size={14} />
                     <span className="text-[10px] font-bold tracking-widest uppercase font-rubik">
                       Archival Data
@@ -232,7 +199,7 @@ export const MediaCard: React.FC<Props> = ({
                   <div className="grid grid-cols-2 gap-y-2 gap-x-4">
                     {media.technical?.cameraModel && (
                       <div className="flex flex-col">
-                        <span className="text-[8px] text-white/40 uppercase font-rubik">Body</span>
+                        <span className="text-[8px] text-white/50 uppercase font-rubik">Body</span>
                         <span className="text-[11px] font-medium truncate">
                           {media.technical.cameraModel}
                         </span>
@@ -240,7 +207,7 @@ export const MediaCard: React.FC<Props> = ({
                     )}
                     {media.technical?.iso && (
                       <div className="flex flex-col">
-                        <span className="text-[8px] text-white/40 uppercase font-rubik">ISO</span>
+                        <span className="text-[8px] text-white/50 uppercase font-rubik">ISO</span>
                         <span className="text-[11px] font-medium">{media.technical.iso}</span>
                       </div>
                     )}
@@ -252,7 +219,7 @@ export const MediaCard: React.FC<Props> = ({
               <div className="pt-2 border-t border-white/10 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold truncate mb-0.5">{title}</h3>
-                  <p className="text-[10px] text-white/40 font-varela uppercase tracking-wider">
+                  <p className="text-[10px] text-white/60 font-varela uppercase tracking-wider">
                     {media.accessionId || 'ARCHIVE'}
                   </p>
                 </div>
