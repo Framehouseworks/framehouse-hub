@@ -11,7 +11,45 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
   }
 
   try {
-    // 0. Ensure we have at least one media item for fallbacks
+    // 0. Ensure the default system admin user is always created and available
+    const defaultAdminEmail = 'sys.admin@framehouseworks.com'
+    const existingAdmins = await payload.find({
+      collection: 'users',
+      where: {
+        email: { equals: defaultAdminEmail },
+      },
+      limit: 1,
+    })
+
+    let ownerId = existingAdmins.docs[0]?.id
+
+    if (!ownerId) {
+      payload.logger.info(`Seeding default system admin (${defaultAdminEmail})...`)
+      const newUser = await payload.create({
+        collection: 'users',
+        data: {
+          email: defaultAdminEmail,
+          password: 'password123',
+          name: 'System Admin',
+          roles: ['admin'],
+        },
+        context: { disableRevalidate: true },
+      })
+      ownerId = newUser.id
+    } else {
+      payload.logger.info(`Aligning default system admin credentials (${defaultAdminEmail})...`)
+      await payload.update({
+        collection: 'users',
+        id: ownerId,
+        data: {
+          password: 'password123',
+          roles: ['admin'],
+        },
+        context: { disableRevalidate: true },
+      })
+    }
+
+    // 1. Ensure we have at least one media item for fallbacks
     let mediaDocs = await payload.find({
       collection: 'media',
       limit: 3,
@@ -19,29 +57,6 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
     if (mediaDocs.docs.length === 0) {
       payload.logger.info('No media found, creating fallback placeholder...')
-
-      // Get or create a system user for owning the media (DAM requirement)
-      const users = await payload.find({
-        collection: 'users',
-        limit: 1,
-      })
-
-      let ownerId = users.docs[0]?.id
-
-      if (!ownerId) {
-        payload.logger.info('No users found, creating default admin for media ownership...')
-        const newUser = await payload.create({
-          collection: 'users',
-          data: {
-            email: 'sys.admin@framehouseworks.com',
-            password: 'password123',
-            name: 'System Admin',
-            roles: ['admin'],
-          },
-          context: { disableRevalidate: true },
-        })
-        ownerId = newUser.id
-      }
 
       const newMedia = await payload.create({
         collection: 'media',
