@@ -36,6 +36,17 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         context: { disableRevalidate: true },
       })
       ownerId = newUser.id
+    } else {
+      payload.logger.info(`Aligning default system admin credentials (${defaultAdminEmail})...`)
+      await payload.update({
+        collection: 'users',
+        id: ownerId,
+        data: {
+          password: 'password123',
+          roles: ['admin'],
+        },
+        context: { disableRevalidate: true },
+      })
     }
 
     // 1. Ensure we have at least one media item for fallbacks
