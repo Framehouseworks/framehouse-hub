@@ -284,9 +284,6 @@ export interface Media {
   shootName?: string | null;
   mediaType: 'image' | 'raw';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
-  processingStep?:
-    | ('upload_complete' | 'exif_parsing' | 'generating_webp' | 'registering_assets' | 'ready' | 'failed')
-    | null;
   /**
    * Primary sort key. Extracted from EXIF or file date.
    */
@@ -1556,7 +1553,6 @@ export interface MediaSelect<T extends boolean = true> {
   shootName?: T;
   mediaType?: T;
   ingestionStatus?: T;
-  processingStep?: T;
   captureDate?: T;
   technical?:
     | T
