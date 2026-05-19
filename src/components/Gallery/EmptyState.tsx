@@ -1,12 +1,11 @@
 'use client'
 
-import React from 'react'
-import Link from 'next/link'
-import { CloudUpload, ShieldCheck, Zap, Search, LayoutGrid, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
-import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'framer-motion'
+import { CloudUpload, FilePlus, LayoutGrid, Search, ShieldCheck, Zap } from 'lucide-react'
+import React from 'react'
+import { useUpload } from '@/providers/UploadProvider'
 
 const intelligenceItems = [
   {
@@ -34,8 +33,12 @@ const intelligenceItems = [
 const masterFormats = ['RAW', '4K', 'PRORES']
 const standardFormats = ['TIFF', 'JPEG', 'PNG', 'MOV', 'MP4']
 
-export const EmptyState: React.FC = () => {
+export const EmptyState: React.FC<{
+  mode?: 'ingest' | 'no-results'
+  onClearFilters?: () => void
+}> = ({ mode = 'ingest', onClearFilters }) => {
   const [isDragging, setIsDragging] = React.useState(false)
+  const { openPicker, addFiles } = useUpload()
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -56,8 +59,32 @@ export const EmptyState: React.FC = () => {
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
-      toast.success(`Received ${files.length} archival items. Initializing ingestion...`)
+      addFiles(files)
     }
+  }
+
+  if (mode === 'no-results') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
+        <div className="w-20 h-20 rounded-[32px] bg-gallery-gold/5 flex items-center justify-center text-gallery-gold/30 mb-8">
+          <Search size={32} strokeWidth={1} />
+        </div>
+        <h3 className="text-2xl font-semibold tracking-tight text-primary mb-3">
+          No Forensic Matches
+        </h3>
+        <p className="text-sm text-on-surface/40 max-w-sm mx-auto mb-10 font-varela">
+          The archive could not find any assets matching your current discovery parameters. Try
+          broadening your criteria.
+        </p>
+        <Button
+          variant="outline"
+          onClick={onClearFilters}
+          className="h-12 px-8 rounded-2xl border-black/[0.05] dark:border-white/[0.05] hover:bg-gallery-gold/5 hover:text-gallery-gold font-rubik text-[10px] font-bold uppercase tracking-widest transition-all"
+        >
+          Clear All Filters
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -75,26 +102,15 @@ export const EmptyState: React.FC = () => {
             ? 'var(--gallery-gold-10, hsla(41, 100%, 25%, 0.1))'
             : 'var(--stage-bg, hsla(210, 20%, 98%, 0.4))',
         }}
-        style={
-          {
-            '--stage-bg': 'var(--theme-stage-bg, hsla(210, 20%, 98%, 0.4))',
-          } as React.CSSProperties
-        }
         className={cn(
           'w-full max-w-5xl rounded-[32px] p-8 md:p-10 relative overflow-hidden group transition-all duration-500 flex flex-col items-center text-center',
-          'bg-[var(--stage-bg)] backdrop-blur-[20px] border border-black/[0.03] dark:border-white/[0.03]',
+          'bg-gallery-surface/40 backdrop-blur-[20px] border border-black/[0.03] dark:border-white/[0.03]',
           'dark:bg-[#0a0c10] dark:shadow-[inset_0_0_80px_rgba(127,87,0,0.03)]',
           isDragging
             ? 'shadow-[0px_40px_80px_rgba(127,87,0,0.1)] ring-1 ring-gallery-gold/30'
             : 'shadow-sm',
         )}
       >
-        <style jsx>{`
-          .dark :global(.dark) {
-            --theme-stage-bg: hsla(215, 25%, 8%, 0.8);
-          }
-        `}</style>
-
         <AnimatePresence>
           {isDragging && (
             <motion.div
@@ -132,8 +148,8 @@ export const EmptyState: React.FC = () => {
           </p>
 
           <div className="flex flex-col items-center gap-8">
-            <Button asChild variant="gallery" className="h-12 px-12 text-sm shadow-md">
-              <Link href="/dashboard/upload">Upload to Archive</Link>
+            <Button variant="gallery" className="h-12 px-12 text-sm shadow-md" onClick={openPicker}>
+              Upload to Archive
             </Button>
 
             <div className="flex flex-col gap-4">

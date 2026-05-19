@@ -18,10 +18,11 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
-import { Media } from '@/collections/Media'
+import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'
+import { SmartCollections } from '@/collections/SmartCollections'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -71,11 +72,14 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media, Portfolios],
+  collections: [Users, Pages, Categories, Media, Portfolios, SmartCollections],
   db: postgresAdapter({
     push: false,
     pool: {
       connectionString: process.env.DATABASE_URI || '',
+      max: process.env.DATABASE_URI?.includes('neon.tech') ? 4 : 10,
+      idleTimeoutMillis: 30000, // extend to 30s to allow reuse
+      connectionTimeoutMillis: 10000, // extend to 10s to prevent local starvation
     },
   }),
   editor: lexicalEditor({

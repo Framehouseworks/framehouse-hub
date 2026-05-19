@@ -2,6 +2,7 @@ import React from 'react'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { MobileNav } from './MobileNav'
+import { UploadQueueWidget } from '@/components/Gallery/UploadQueueWidget'
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -15,9 +16,12 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
         <TopBar />
 
         {/* Content Container */}
-        <main className="flex-1 px-4 py-8 sm:px-8 sm:py-12 pb-32 lg:pb-12">
+        <main className="flex-1 px-4 py-8 sm:px-8 sm:py-12 pb-32 lg:pb-12 text-foreground">
           <div className="max-w-[1600px] mx-auto">{children}</div>
         </main>
+
+        {/* Global Upload Widget */}
+        <UploadQueueWidget />
       </div>
 
       {/* Mobile Navigation - Fixed Bottom */}

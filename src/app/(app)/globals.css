@@ -100,6 +100,7 @@
   --gallery-gold: hsl(41 100% 25%);
   --gallery-red: hsl(8 100% 37%);
   --gallery-surface: hsl(240 5% 96%);
+  --on-surface: hsl(222.2 84% 4.9%);
 }
 
 [data-theme='dark'] {
@@ -139,6 +140,7 @@
   --gallery-gold: hsl(41 100% 40%);
   --gallery-red: hsl(8 100% 50%);
   --gallery-surface: hsl(0 0% 8.5%);
+  --on-surface: hsl(210 40% 98%);
 }
 
 @theme inline {
@@ -170,6 +172,7 @@
   --color-gallery-gold: var(--gallery-gold);
   --color-gallery-red: var(--gallery-red);
   --color-gallery-surface: var(--gallery-surface);
+  --color-on-surface: var(--on-surface);
 }
 
 @layer base {

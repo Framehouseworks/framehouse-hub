@@ -72,6 +72,7 @@ export interface Config {
     categories: Category;
     media: Media;
     portfolios: Portfolio;
+    'smart-collections': SmartCollection;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -91,6 +92,7 @@ export interface Config {
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
+    'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -248,6 +250,7 @@ export interface Page {
  */
 export interface Media {
   id: number;
+  title: string;
   alt: string;
   caption?: {
     root: {
@@ -267,27 +270,58 @@ export interface Media {
   originalUrl?: string | null;
   proxyUrl?: string | null;
   thumbnailUrl?: string | null;
-  mediaType: 'image' | 'video';
   /**
-   * Computed as width / height (e.g. 16:9).
+   * Permanent archival catalog code (e.g. FRH-2024-0001).
    */
-  aspectRatio?: string | null;
-  status?: ('uploaded' | 'processing' | 'ready' | 'error') | null;
-  errorMessage?: string | null;
-  processedAt?: string | null;
-  collections?: (number | Portfolio)[] | null;
-  tags?:
+  accessionId?: string | null;
+  /**
+   * Atomic intake counter (1, 2, 3...) for scalable provenance.
+   */
+  archivalSequence?: number | null;
+  /**
+   * Archival Shoot Identity (e.g. Wildlife Expedition 2024).
+   */
+  shootName?: string | null;
+  mediaType: 'image' | 'raw';
+  ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
+  /**
+   * Primary sort key. Extracted from EXIF or file date.
+   */
+  captureDate?: string | null;
+  technical?: {
+    cameraModel?: string | null;
+    lensModel?: string | null;
+    iso?: number | null;
+    aperture?: number | null;
+    shutterSpeed?: string | null;
+    focalLength?: number | null;
+  };
+  location?: {
+    latitude?: number | null;
+    longitude?: number | null;
+    address?: string | null;
+  };
+  manualTags?:
     | {
         tag?: string | null;
         id?: string | null;
       }[]
     | null;
-  labels?: ('client-approved' | 'portfolio' | 'wip')[] | null;
-  featured?: boolean | null;
   /**
-   * Small integer rating/stars. 0 = none.
+   * Rule-based tags generated during ingestion (e.g. filename parsing).
    */
-  favourite?: number | null;
+  heuristicTags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Computed as width / height (e.g. 16:9).
+   */
+  aspectRatio?: string | null;
+  errorMessage?: string | null;
+  processedAt?: string | null;
   owner: number | User;
   updatedAt: string;
   createdAt: string;
@@ -318,177 +352,6 @@ export interface Media {
       filename?: string | null;
     };
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "portfolios".
- */
-export interface Portfolio {
-  id: number;
-  name: string;
-  /**
-   * Portfolio Title (Rich Text supported for custom emphasis)
-   */
-  title: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  };
-  /**
-   * Portfolio Subheading (Rich Text supported)
-   */
-  subheading?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  /**
-   * Automatically generated based on username and title.
-   */
-  slug?: string | null;
-  owner: number | User;
-  visibility?: ('private' | 'public' | 'shared') | null;
-  password?: string | null;
-  theme?: {
-    fontPairing?: ('modern-sans' | 'classic-serif' | 'tech-mono') | null;
-    /**
-     * Hex color for the portfolio background
-     */
-    backgroundColor?: string | null;
-    /**
-     * Hex color for the text
-     */
-    textColor?: string | null;
-    /**
-     * Hex color for accents and dividers
-     */
-    accentColor?: string | null;
-  };
-  layoutBlocks: (
-    | {
-        /**
-         * Add and reorder images for the grid.
-         */
-        items: {
-          media: number | Media;
-          size?: ('small' | 'medium' | 'large' | 'full') | null;
-          /**
-           * Override alt text for this specific gallery item
-           */
-          alt?: string | null;
-          /**
-           * Caption shown in the visual layout
-           */
-          caption?: string | null;
-          link?: string | null;
-          instanceId?: string | null;
-          id?: string | null;
-        }[];
-        spacing?: ('small' | 'medium' | 'large' | 'none') | null;
-        itemsOrder?: string | null;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'grid';
-      }
-    | {
-        content: {
-          root: {
-            type: string;
-            children: {
-              type: any;
-              version: number;
-              [k: string]: unknown;
-            }[];
-            direction: ('ltr' | 'rtl') | null;
-            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-            indent: number;
-            version: number;
-          };
-          [k: string]: unknown;
-        };
-        alignment?: ('left' | 'center' | 'right') | null;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'text';
-      }
-    | {
-        media: number | Media;
-        caption?: {
-          root: {
-            type: string;
-            children: {
-              type: any;
-              version: number;
-              [k: string]: unknown;
-            }[];
-            direction: ('ltr' | 'rtl') | null;
-            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-            indent: number;
-            version: number;
-          };
-          [k: string]: unknown;
-        } | null;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'featured';
-      }
-    | {
-        size?: ('small' | 'medium' | 'large') | null;
-        showDivider?: boolean | null;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'spacer';
-      }
-  )[];
-  folder?: (number | null) | FolderInterface;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-folders".
- */
-export interface FolderInterface {
-  id: number;
-  name: string;
-  folder?: (number | null) | FolderInterface;
-  documentsAndFolders?: {
-    docs?: (
-      | {
-          relationTo?: 'payload-folders';
-          value: number | FolderInterface;
-        }
-      | {
-          relationTo?: 'portfolios';
-          value: number | Portfolio;
-        }
-    )[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  folderType?: 'portfolios'[] | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1030,6 +893,202 @@ export interface About3Block {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolios".
+ */
+export interface Portfolio {
+  id: number;
+  name: string;
+  /**
+   * Portfolio Title (Rich Text supported for custom emphasis)
+   */
+  title: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * Portfolio Subheading (Rich Text supported)
+   */
+  subheading?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Automatically generated based on username and title.
+   */
+  slug?: string | null;
+  owner: number | User;
+  visibility?: ('private' | 'public' | 'shared') | null;
+  password?: string | null;
+  theme?: {
+    fontPairing?: ('modern-sans' | 'classic-serif' | 'tech-mono') | null;
+    /**
+     * Hex color for the portfolio background
+     */
+    backgroundColor?: string | null;
+    /**
+     * Hex color for the text
+     */
+    textColor?: string | null;
+    /**
+     * Hex color for accents and dividers
+     */
+    accentColor?: string | null;
+  };
+  layoutBlocks: (
+    | {
+        /**
+         * Add and reorder images for the grid.
+         */
+        items: {
+          media: number | Media;
+          size?: ('small' | 'medium' | 'large' | 'full') | null;
+          /**
+           * Override alt text for this specific gallery item
+           */
+          alt?: string | null;
+          /**
+           * Caption shown in the visual layout
+           */
+          caption?: string | null;
+          link?: string | null;
+          instanceId?: string | null;
+          id?: string | null;
+        }[];
+        spacing?: ('small' | 'medium' | 'large' | 'none') | null;
+        itemsOrder?: string | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'grid';
+      }
+    | {
+        content: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        alignment?: ('left' | 'center' | 'right') | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'text';
+      }
+    | {
+        media: number | Media;
+        caption?: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'featured';
+      }
+    | {
+        size?: ('small' | 'medium' | 'large') | null;
+        showDivider?: boolean | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'spacer';
+      }
+  )[];
+  folder?: (number | null) | FolderInterface;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-folders".
+ */
+export interface FolderInterface {
+  id: number;
+  name: string;
+  folder?: (number | null) | FolderInterface;
+  documentsAndFolders?: {
+    docs?: (
+      | {
+          relationTo?: 'payload-folders';
+          value: number | FolderInterface;
+        }
+      | {
+          relationTo?: 'portfolios';
+          value: number | Portfolio;
+        }
+    )[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  folderType?: 'portfolios'[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "smart-collections".
+ */
+export interface SmartCollection {
+  id: number;
+  name: string;
+  owner: number | User;
+  /**
+   * The Payload query object that defines this smart view.
+   */
+  filterQuery:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  icon?: ('folder' | 'tag' | 'sparkles' | 'camera' | 'map') | null;
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1088,6 +1147,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'portfolios';
         value: number | Portfolio;
+      } | null)
+    | ({
+        relationTo: 'smart-collections';
+        value: number | SmartCollection;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1479,26 +1542,50 @@ export interface CategoriesSelect<T extends boolean = true> {
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
+  title?: T;
   alt?: T;
   caption?: T;
   originalUrl?: T;
   proxyUrl?: T;
   thumbnailUrl?: T;
+  accessionId?: T;
+  archivalSequence?: T;
+  shootName?: T;
   mediaType?: T;
-  aspectRatio?: T;
-  status?: T;
-  errorMessage?: T;
-  processedAt?: T;
-  collections?: T;
-  tags?:
+  ingestionStatus?: T;
+  captureDate?: T;
+  technical?:
+    | T
+    | {
+        cameraModel?: T;
+        lensModel?: T;
+        iso?: T;
+        aperture?: T;
+        shutterSpeed?: T;
+        focalLength?: T;
+      };
+  location?:
+    | T
+    | {
+        latitude?: T;
+        longitude?: T;
+        address?: T;
+      };
+  manualTags?:
     | T
     | {
         tag?: T;
         id?: T;
       };
-  labels?: T;
-  featured?: T;
-  favourite?: T;
+  heuristicTags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  aspectRatio?: T;
+  errorMessage?: T;
+  processedAt?: T;
   owner?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1604,6 +1691,19 @@ export interface PortfoliosSelect<T extends boolean = true> {
             };
       };
   folder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "smart-collections_select".
+ */
+export interface SmartCollectionsSelect<T extends boolean = true> {
+  name?: T;
+  owner?: T;
+  filterQuery?: T;
+  icon?: T;
+  description?: T;
   updatedAt?: T;
   createdAt?: T;
 }
