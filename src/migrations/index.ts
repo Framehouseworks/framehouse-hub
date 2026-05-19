@@ -13,6 +13,7 @@ import * as migration_20260514_210800_add_archival_sequence from './20260514_210
 import * as migration_20260514_221500_add_media_shoot_name from './20260514_221500_add_media_shoot_name'
 import * as migration_20260514_230000_intelligence_and_scale from './20260514_230000_intelligence_and_scale'
 import * as migration_20260518_143700_add_smart_collections_lock_relation from './20260518_143700_add_smart_collections_lock_relation'
+import * as migration_20260519_161500_add_media_search_gin_index from './20260519_161500_add_media_search_gin_index'
 
 export const migrations = [
   {
@@ -89,5 +90,10 @@ export const migrations = [
     up: migration_20260518_143700_add_smart_collections_lock_relation.up,
     down: migration_20260518_143700_add_smart_collections_lock_relation.down,
     name: '20260518_143700_add_smart_collections_lock_relation',
+  },
+  {
+    up: migration_20260519_161500_add_media_search_gin_index.up,
+    down: migration_20260519_161500_add_media_search_gin_index.down,
+    name: '20260519_161500_add_media_search_gin_index',
   },
 ]

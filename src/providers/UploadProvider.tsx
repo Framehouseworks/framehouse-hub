@@ -184,42 +184,129 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     )
 
     try {
-      const formData = new FormData()
-
-      // Pack manual tags if present
-      const manualTags = nextItem.metadata?.tags?.map((t) => ({ tag: t })) || []
-
-      // Payload 3.0 Best Practice: Pack non-file data into a JSON string
-      const payloadData = {
-        owner: user?.id,
-        title: nextItem.metadata?.title || '',
-        alt: nextItem.metadata?.title || nextItem.file.name,
-        mediaType: 'image',
-        ingestionStatus: 'active',
-        shootName: nextItem.metadata?.shootName || '',
-        manualTags,
-        location: {
-          address: nextItem.metadata?.location || '',
-        },
-      }
-
-      formData.append('_payload', JSON.stringify(payloadData))
-      formData.append('file', nextItem.file)
-
-      const response = await fetch('/api/media', {
+      // 1. Fetch Signed Upload Session URL from gateway
+      const signedUrlResponse = await fetch('/api/media/signed-url', {
         method: 'POST',
-        credentials: 'include',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: nextItem.file.name,
+          mimeType: nextItem.file.type,
+        }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        const message =
-          errorData?.errors?.[0]?.message ||
-          (response.status === 403
-            ? 'Access Denied: You do not have permission to upload to this collection.'
-            : 'Upload failed')
-        throw new Error(message)
+      if (!signedUrlResponse.ok) {
+        throw new Error('Failed to establish secure upload session signature')
+      }
+
+      const uploadSession = await signedUrlResponse.json()
+
+      if (uploadSession.localMode) {
+        // --- A. LOCAL FALLBACK INGESTION MODE ---
+        const formData = new FormData()
+        const manualTags = nextItem.metadata?.tags?.map((t) => ({ tag: t })) || []
+
+        const payloadData = {
+          owner: user?.id,
+          title: nextItem.metadata?.title || '',
+          alt: nextItem.metadata?.title || nextItem.file.name,
+          mediaType: 'image',
+          ingestionStatus: 'active',
+          shootName: nextItem.metadata?.shootName || '',
+          manualTags,
+          location: {
+            address: nextItem.metadata?.location || '',
+          },
+        }
+
+        formData.append('_payload', JSON.stringify(payloadData))
+        formData.append('file', nextItem.file)
+
+        // Perform standard local multipart POST upload with XHR for upload tracking
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', '/api/media')
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100)
+              setQueue((prev) =>
+                prev.map((item) =>
+                  item.id === nextItem.id ? { ...item, progress: percent } : item,
+                ),
+              )
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve()
+            } else {
+              reject(new Error(`Local upload failed with status ${xhr.status}`))
+            }
+          }
+
+          xhr.onerror = () => reject(new Error('Local network upload error'))
+          xhr.send(formData)
+        })
+      } else {
+        // --- B. CLOUD DIRECT GCS INGESTION MODE ---
+        const { url, storagePath } = uploadSession
+
+        // Perform direct HTTP PUT binary stream to GCS using raw XHR for real-time progress
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('PUT', url)
+          xhr.setRequestHeader('Content-Type', nextItem.file.type)
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100)
+              setQueue((prev) =>
+                prev.map((item) =>
+                  item.id === nextItem.id ? { ...item, progress: percent } : item,
+                ),
+              )
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              resolve()
+            } else {
+              reject(new Error(`GCS upload failed with status ${xhr.status}`))
+            }
+          }
+
+          xhr.onerror = () => reject(new Error('Cloud Network Direct Upload failed'))
+          xhr.send(nextItem.file)
+        })
+
+        // Step 2: Register successfully GCS-ingested asset in database
+        const registerResponse = await fetch('/api/media/register-gcs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filename: nextItem.file.name,
+            mimeType: nextItem.file.type,
+            filesize: nextItem.file.size,
+            storagePath,
+            title: nextItem.metadata?.title || '',
+            shootName: nextItem.metadata?.shootName || '',
+            manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
+            location: {
+              address: nextItem.metadata?.location || '',
+            },
+          }),
+        })
+
+        if (!registerResponse.ok) {
+          const errorData = await registerResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Database registration failed')
+        }
       }
 
       setQueue((prev) =>

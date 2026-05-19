@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url'
 import { extractMetadata } from './hooks/extractMetadata'
 import { preventDuplicates } from './hooks/preventDuplicates'
 import { generateAccessionId } from './hooks/generateAccessionId'
+import { triggerLocalWorker } from './hooks/triggerLocalWorker'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -21,6 +22,7 @@ export const Media: CollectionConfig = {
     beforeOperation: [preventDuplicates],
     beforeValidate: [],
     beforeChange: [generateAccessionId, extractMetadata],
+    afterChange: [triggerLocalWorker],
   },
   admin: {
     group: 'Content',
