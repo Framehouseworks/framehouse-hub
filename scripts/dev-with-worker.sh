@@ -10,6 +10,15 @@ WORKER_DIR="$ROOT_DIR/scripts/worker"
 WORKER_BIN="$WORKER_DIR/worker"
 WORKER_PORT="${LOCAL_WORKER_PORT:-8080}"
 
+# CI and other constrained environments can disable the worker entirely.
+# When DISABLE_WORKER=1 the Next dev server starts solo; integration tests
+# fire process-callback directly to simulate the worker's "ready" state.
+if [ "${DISABLE_WORKER:-}" = "1" ]; then
+  echo "[dev] DISABLE_WORKER=1 — skipping Go worker startup."
+  echo "[dev] Starting Next dev server..."
+  exec env NODE_OPTIONS=--no-deprecation pnpm exec next dev
+fi
+
 if ! command -v go >/dev/null 2>&1; then
   echo "[dev] go toolchain not found on PATH; skipping worker startup." >&2
   echo "[dev] Install Go or run the worker separately to enable async processing." >&2

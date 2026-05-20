@@ -128,19 +128,15 @@ jobs:
           # ephemeral container.
           PAYLOAD_SECRET: ci_secret
 
-      # libwebp-tools provides the `cwebp` binary the Go worker shells
-      # out to during derivative generation. Required for the
-      # media-lifecycle e2e to produce a real thumbnail URL.
-      - name: Install Worker Native Deps
-        run: sudo apt-get update && sudo apt-get install -y webp
-
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps
 
-      # `pnpm dev` (auto-spawned by playwright.config.ts in CI) invokes
-      # scripts/dev-with-worker.sh which builds + launches the Go worker
-      # on :8080. media-lifecycle.e2e relies on it to complete the
-      # ingestion pipeline and stamp thumbnailUrl onto the doc.
+      # In CI we skip the Go worker entirely. media-lifecycle.e2e
+      # synthesises the worker callback itself (POSTs process-callback +
+      # stages derivative bytes), which keeps the test deterministic,
+      # fast, and free of native deps (no Go build, no cwebp install).
+      # The worker is exercised by Phase 5 vitest specs and by local
+      # development via scripts/dev-with-worker.sh.
       - name: Run Playwright E2E Tests
         run: pnpm exec playwright test tests/e2e/admin.e2e.spec.ts tests/e2e/media-lifecycle.e2e.spec.ts
         env:
@@ -149,6 +145,7 @@ jobs:
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
           SEED_SECRET: local_dev_only
           PROCESSOR_CALLBACK_SECRET: fallback-dev-secret-key-9988
+          DISABLE_WORKER: '1'
 
   # High-Fidelity Validation: Test migrations against a clone of real data
   validate-remote-migrations:
