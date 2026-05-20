@@ -5,8 +5,12 @@ echo "Running global lint check..."
 pnpm run lint
 
 # 2. Production Build Check
+# IS_BUILD_PHASE=true tells getPayloadClient (src/utilities/getPayloadClient.ts)
+# to skip the DB connection during compile so generateStaticParams gracefully
+# returns an empty list. Without it, the build would need a live DB before
+# verify-local.sh has brought one up.
 echo "Running production build check..."
-pnpm run build
+IS_BUILD_PHASE=true pnpm run build
 
 # 3. Local-CI Parity (The 'Smart Seed' Check)
 echo "Running local verification (Blank-Slate Seed)..."

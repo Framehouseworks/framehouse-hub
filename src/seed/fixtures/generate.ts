@@ -1,11 +1,15 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * Generates lightweight JPEG test fixtures for the seed pipeline.
  * Run: npx tsx src/seed/fixtures/generate.ts
  *
  * Creates 6 images (~20-40KB each) with varied dimensions and embedded EXIF
  * so the Go worker gets a real end-to-end test (EXIF parsing, WebP generation).
+ *
+ * One-shot dev utility; not part of the build path. Bypasses TS checks to
+ * keep loose sharp metadata typings out of the way.
  */
+// @ts-nocheck
 import sharp from 'sharp'
 import fs from 'fs'
 import path from 'path'

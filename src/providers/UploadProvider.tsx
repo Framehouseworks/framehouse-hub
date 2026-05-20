@@ -13,7 +13,6 @@ import { IngestionWorkbench } from '@/components/Gallery/IngestionWorkbench'
 import { ArchivalProgressOverlay } from '@/components/Gallery/ArchivalProgressOverlay'
 import { useRouter } from 'next/navigation'
 import { revalidateDashboardAction } from '@/app/(dashboard)/actions/media'
-import { useAuth } from '@/providers/Auth'
 import { toast } from 'sonner'
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
@@ -92,7 +91,6 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [queue, setQueue] = useState<UploadItem[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
 
   // 1. Authoritative Completion Observer
   const prevProcessingCountRef = useRef(0)
@@ -455,7 +453,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setIsUploading(false)
     }
-  }, [queue, isUploading, user?.id])
+  }, [queue, isUploading])
 
   useEffect(() => {
     if (queue.some((item) => item.status === 'pending') && !isUploading) {
