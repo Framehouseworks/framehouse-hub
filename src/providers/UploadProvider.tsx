@@ -362,7 +362,11 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         })
       } else {
         // --- B. CLOUD DIRECT GCS INGESTION MODE ---
-        const { url, storagePath, domainCategory } = uploadSession
+        // domainCategory is no longer sent to /api/media/register-gcs —
+        // the route re-derives it server-side from mimeType+filename and
+        // validates the path matches. signed-url remains the single
+        // server-side authority on the storagePath value.
+        const { url, storagePath } = uploadSession
 
         // Perform direct HTTP PUT binary stream to GCS using raw XHR for real-time progress
         await new Promise<void>((resolve, reject) => {
@@ -404,7 +408,6 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             mimeType: uploadFile.type,
             filesize: uploadFile.size,
             storagePath,
-            domainCategory,
             title: nextItem.metadata?.title || '',
             shootName: nextItem.metadata?.shootName || '',
             manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],

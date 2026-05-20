@@ -14,6 +14,7 @@ import { generateAccessionId } from './hooks/generateAccessionId'
 import { triggerLocalWorker } from './hooks/triggerLocalWorker'
 import { cleanupEnclave } from './hooks/cleanupEnclave'
 import { writeOriginalToEnclave } from './hooks/writeOriginalToEnclave'
+import { aliasUrl } from './hooks/aliasUrl'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -24,6 +25,7 @@ export const Media: CollectionConfig = {
     beforeOperation: [preventDuplicates],
     beforeValidate: [],
     beforeChange: [writeOriginalToEnclave, generateAccessionId, extractMetadata],
+    afterRead: [aliasUrl],
     afterChange: [triggerLocalWorker],
     afterDelete: [cleanupEnclave],
   },
