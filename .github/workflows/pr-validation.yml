@@ -110,20 +110,45 @@ jobs:
       - name: Production Build Check
         run: pnpm run build
         env:
+          IS_BUILD_PHASE: 'true'
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
+      # Vitest integration suite. globalSetup spins its own ephemeral
+      # docker postgres so it doesn't contend with the CI service container
+      # the e2e + build use. Tests cover writeOriginalToEnclave,
+      # cleanupEnclave, disableLocalStorage, FK cascade migrations, and
+      # the worker dispatch contract.
+      - name: Run Integration Tests
+        run: pnpm run test:int
+        env:
+          # PAYLOAD_SECRET is read by payload.config.ts on init. Same value
+          # is fine here — globalSetup overrides DATABASE_URI to the
+          # ephemeral container.
+          PAYLOAD_SECRET: ci_secret
+
+      # libwebp-tools provides the `cwebp` binary the Go worker shells
+      # out to during derivative generation. Required for the
+      # media-lifecycle e2e to produce a real thumbnail URL.
+      - name: Install Worker Native Deps
+        run: sudo apt-get update && sudo apt-get install -y webp
+
       - name: Install Playwright Browsers
         run: pnpm exec playwright install --with-deps
 
+      # `pnpm dev` (auto-spawned by playwright.config.ts in CI) invokes
+      # scripts/dev-with-worker.sh which builds + launches the Go worker
+      # on :8080. media-lifecycle.e2e relies on it to complete the
+      # ingestion pipeline and stamp thumbnailUrl onto the doc.
       - name: Run Playwright E2E Tests
-        run: pnpm exec playwright test tests/e2e/admin.e2e.spec.ts
+        run: pnpm exec playwright test tests/e2e/admin.e2e.spec.ts tests/e2e/media-lifecycle.e2e.spec.ts
         env:
           DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
           SEED_SECRET: local_dev_only
+          PROCESSOR_CALLBACK_SECRET: fallback-dev-secret-key-9988
 
   # High-Fidelity Validation: Test migrations against a clone of real data
   validate-remote-migrations:
