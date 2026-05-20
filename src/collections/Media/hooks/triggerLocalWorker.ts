@@ -1,50 +1,37 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
+// Local-mode dispatcher for the Go ingestion worker. Files are already laid
+// down in the tenant enclave by `writeOriginalToEnclave` (beforeChange), so
+// this hook is now purely a notification: post the storagePath at the worker
+// and let it run EXIF + thumbnail generation asynchronously. In cloud mode
+// the worker is invoked directly by GCS Eventarc, so we no-op.
 export const triggerLocalWorker: CollectionAfterChangeHook = async ({ doc, req, operation }) => {
-  // Only trigger on new creations
   if (operation !== 'create') return
 
-  // Only trigger if we are in local async mode
   const isCloudMode = !!process.env.GCS_BUCKET
-  const useAsync = isCloudMode || process.env.LOCAL_ASYNC_PROCESSING !== 'false'
+  const asyncDisabled = process.env.LOCAL_ASYNC_PROCESSING === 'false'
+  if (isCloudMode || asyncDisabled) return
 
-  // GCS writes are handled automatically by Eventarc in production.
-  // We ONLY dispatch manually in local development to mirror cloud production.
-  if (isCloudMode || !useAsync) return
-
-  try {
-    const ownerId = typeof doc.owner === 'object' ? doc.owner?.id : doc.owner
-    const year = new Date(doc.createdAt).getFullYear()
-    const assetId = doc.id
-    const filename = doc.filename
-
-    if (!filename) return
-
-    // Construct local-matching Eventarc payload
-    // name MUST match: USER_ID/YEAR/ASSET_ID/filename
-    const payload = {
-      bucket: 'local',
-      name: `${ownerId}/${year}/${assetId}/${filename}`,
-    }
-
-    const workerUrl = process.env.LOCAL_WORKER_URL || 'http://localhost:8080'
-    req.payload.logger.info(
-      `[Local Worker Trigger] Dispatching async process to ${workerUrl} for asset ${doc.id}`,
+  const storagePath = (doc as { storagePath?: string }).storagePath
+  if (!storagePath) {
+    req.payload.logger.warn(
+      `[Local Worker Trigger] Doc ${doc.id} has no storagePath; skipping worker dispatch`,
     )
-
-    // Detached fetch call (do not await to ensure upload success response is immediate)
-    fetch(workerUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    }).catch((err) => {
-      req.payload.logger.error(
-        `[Local Worker Trigger] Failed to contact Go worker at ${workerUrl}: ${err}`,
-      )
-    })
-  } catch (err) {
-    req.payload.logger.error(`[Local Worker Trigger] Error during local worker dispatch: ${err}`)
+    return
   }
+
+  const workerUrl = process.env.LOCAL_WORKER_URL || 'http://localhost:8080'
+  req.payload.logger.info(`[Local Worker Trigger] Dispatching ${storagePath} → ${workerUrl}`)
+
+  fetch(workerUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bucket: 'local', name: storagePath }),
+  }).catch((err) => {
+    req.payload.logger.error(
+      `[Local Worker Trigger] Worker dispatch failed (${workerUrl}): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
+  })
 }

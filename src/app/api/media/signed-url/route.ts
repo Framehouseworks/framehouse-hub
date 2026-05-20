@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
+import { buildStoragePath, classifyDomainCategory } from '@/lib/storage-paths'
 
 export async function POST(req: Request) {
   try {
-    // 1. Authenticate user via Payload session
     const headers = await getHeaders()
     const payload = await getPayload({ config: configPromise })
     const { user } = await payload.auth({ headers })
@@ -21,23 +21,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required filename or mimeType' }, { status: 400 })
     }
 
-    // 2. Check if Cloud Storage is configured
     const bucketName = process.env.GCS_BUCKET
     if (!bucketName) {
-      // Local development fallback: proceed with synchronous multipart POST
       return NextResponse.json({ localMode: true })
     }
 
-    // 3. Generate cryptographic UUID and GCS storage path matching specification
     const crypto = await import('crypto')
     const assetId = crypto.randomUUID()
-    const year = new Date().getFullYear().toString()
-    const extension = filename.split('.').pop() || ''
+    const now = new Date()
+    const year = now.getFullYear().toString()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const domainCategory = classifyDomainCategory(mimeType, filename)
 
-    // Prefix structure: /[USER_UUID]/[YEAR]/[ASSET_UUID]/original.[EXT]
-    const storagePath = `${user.id}/${year}/${assetId}/original.${extension}`
+    const storagePath = buildStoragePath({
+      userId: String(user.id),
+      domainCategory,
+      year,
+      month,
+      assetId,
+      filename,
+    })
 
-    // 4. Initialize GCS Client using service account keys or ADC
     const { Storage } = await import('@google-cloud/storage')
     let storageInstance
 
@@ -63,8 +67,6 @@ export async function POST(req: Request) {
     const bucket = storageInstance.bucket(bucketName)
     const file = bucket.file(storagePath)
 
-    // 5. Generate secure, cryptographically bound Signed PUT URL (15 minutes expiry)
-    // Binding content-type prevents malicious MIME spoofing attacks
     const [signedUrl] = await file.getSignedUrl({
       version: 'v4',
       action: 'write',
@@ -77,6 +79,7 @@ export async function POST(req: Request) {
       url: signedUrl,
       assetId,
       storagePath,
+      domainCategory,
     })
   } catch (error: unknown) {
     console.error('[signed-url API Error]:', error)

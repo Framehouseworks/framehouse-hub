@@ -267,6 +267,10 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Canonical storage path (tenants/{userId}/{domain}/{year}/{month}/{assetId}/...).
+   */
+  storagePath?: string | null;
   originalUrl?: string | null;
   proxyUrl?: string | null;
   thumbnailUrl?: string | null;
@@ -282,8 +286,11 @@ export interface Media {
    * Archival Shoot Identity (e.g. Wildlife Expedition 2024).
    */
   shootName?: string | null;
-  mediaType: 'image' | 'raw';
+  mediaType: 'image' | 'raw' | 'video' | 'audio' | 'document' | 'unclassified';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
+  processingStep?:
+    | ('upload_complete' | 'exif_parsing' | 'generating_webp' | 'registering_assets' | 'ready' | 'failed')
+    | null;
   /**
    * Primary sort key. Extracted from EXIF or file date.
    */
@@ -334,24 +341,6 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {
-    thumbnail?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    optimized?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1545,6 +1534,7 @@ export interface MediaSelect<T extends boolean = true> {
   title?: T;
   alt?: T;
   caption?: T;
+  storagePath?: T;
   originalUrl?: T;
   proxyUrl?: T;
   thumbnailUrl?: T;
@@ -1553,6 +1543,7 @@ export interface MediaSelect<T extends boolean = true> {
   shootName?: T;
   mediaType?: T;
   ingestionStatus?: T;
+  processingStep?: T;
   captureDate?: T;
   technical?:
     | T
@@ -1598,30 +1589,6 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?:
-    | T
-    | {
-        thumbnail?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-        optimized?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

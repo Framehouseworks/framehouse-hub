@@ -14,6 +14,9 @@ import * as migration_20260514_221500_add_media_shoot_name from './20260514_2215
 import * as migration_20260514_230000_intelligence_and_scale from './20260514_230000_intelligence_and_scale'
 import * as migration_20260518_143700_add_smart_collections_lock_relation from './20260518_143700_add_smart_collections_lock_relation'
 import * as migration_20260519_161500_add_media_search_gin_index from './20260519_161500_add_media_search_gin_index'
+import * as migration_20260520_120000_add_storage_path_processing_step from './20260520_120000_add_storage_path_processing_step'
+import * as migration_20260520_180000_fix_portfolio_media_cascade from './20260520_180000_fix_portfolio_media_cascade'
+import * as migration_20260520_190000_fix_pricing_logo_cascade from './20260520_190000_fix_pricing_logo_cascade'
 
 export const migrations = [
   {
@@ -95,5 +98,20 @@ export const migrations = [
     up: migration_20260519_161500_add_media_search_gin_index.up,
     down: migration_20260519_161500_add_media_search_gin_index.down,
     name: '20260519_161500_add_media_search_gin_index',
+  },
+  {
+    up: migration_20260520_120000_add_storage_path_processing_step.up,
+    down: migration_20260520_120000_add_storage_path_processing_step.down,
+    name: '20260520_120000_add_storage_path_processing_step',
+  },
+  {
+    up: migration_20260520_180000_fix_portfolio_media_cascade.up,
+    down: migration_20260520_180000_fix_portfolio_media_cascade.down,
+    name: '20260520_180000_fix_portfolio_media_cascade',
+  },
+  {
+    up: migration_20260520_190000_fix_pricing_logo_cascade.up,
+    down: migration_20260520_190000_fix_pricing_logo_cascade.down,
+    name: '20260520_190000_fix_pricing_logo_cascade',
   },
 ]

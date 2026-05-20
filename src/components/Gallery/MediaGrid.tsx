@@ -30,7 +30,7 @@ interface MediaGridProps {
 }
 
 export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters }) => {
-  const { queue, openPicker } = useUpload()
+  const { queue, openPicker, hydrateServerProcessing } = useUpload()
   const router = useRouter()
   const [localMedia, setLocalMedia] = useState<Media[]>(initialMedia)
   const [selectedMedia, setSelectedMedia] = useState<Media | null>(null)
@@ -151,7 +151,8 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   // Listen for queue completion to refresh the data
   useEffect(() => {
     const hasActiveUploads = queue.some(
-      (item) => item.status === 'uploading' || item.status === 'pending',
+      (item) =>
+        item.status === 'uploading' || item.status === 'pending' || item.status === 'processing',
     )
 
     if (!hasActiveUploads && queue.length > 0) {
@@ -161,7 +162,20 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
   useEffect(() => {
     setLocalMedia(initialMedia)
-  }, [initialMedia])
+
+    const processingMedia = initialMedia.filter(
+      (m) => m.ingestionStatus === 'processing' || m.ingestionStatus === 'active',
+    )
+    if (processingMedia.length > 0) {
+      hydrateServerProcessing(
+        processingMedia.map((m) => ({
+          mediaId: m.id,
+          filename: m.filename || m.title || 'Unknown',
+          processingStep: (m.processingStep as string) || 'upload_complete',
+        })),
+      )
+    }
+  }, [initialMedia, hydrateServerProcessing])
 
   return (
     <>

@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
+import { domainCategoryToMediaType, type DomainCategory } from '@/lib/storage-paths'
 
 export async function POST(req: Request) {
   try {
-    // 1. Authenticate user
     const headers = await getHeaders()
     const payload = await getPayload({ config: configPromise })
     const { user } = await payload.auth({ headers })
@@ -15,8 +15,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const { filename, mimeType, filesize, storagePath, title, shootName, manualTags, location } =
-      body
+    const {
+      filename,
+      mimeType,
+      filesize,
+      storagePath,
+      domainCategory,
+      title,
+      shootName,
+      manualTags,
+      location,
+    } = body
 
     if (!filename || !mimeType || !storagePath) {
       return NextResponse.json(
@@ -33,16 +42,12 @@ export async function POST(req: Request) {
       )
     }
 
-    // 2. Determine MediaType: Image or Raw based on common file extensions
-    const ext = filename.split('.').pop()?.toLowerCase() || ''
-    const isRaw = ['dng', 'arw', 'cr2', 'nef', 'orf', 'rw2', 'pef', 'raf'].includes(ext)
-    const mediaType = isRaw ? 'raw' : 'image'
+    const mediaType = domainCategory
+      ? domainCategoryToMediaType(domainCategory as DomainCategory)
+      : 'image'
 
-    // GCS Public / Authenticated URL builder
     const originalUrl = `https://storage.googleapis.com/${bucketName}/${storagePath}`
 
-    // 3. Create database record using Payload Local API
-    // This bypasses file upload handlers and writes directly to PostgreSQL
     const mediaRecord = await payload.create({
       collection: 'media',
       data: {
@@ -52,16 +57,18 @@ export async function POST(req: Request) {
         mimeType,
         filesize: Number(filesize) || 0,
         mediaType,
-        ingestionStatus: 'processing', // Marked as processing for the Cloud Run worker
+        ingestionStatus: 'processing',
+        processingStep: 'upload_complete',
         owner: user.id,
         originalUrl,
+        storagePath,
         shootName: shootName || '',
         manualTags: manualTags || [],
         location: {
           address: location?.address || '',
         },
       },
-      req, // Pass request context to maintain operation traceability
+      req,
     })
 
     return NextResponse.json({

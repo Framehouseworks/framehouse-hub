@@ -7,15 +7,39 @@ import { useRouter } from 'next/navigation'
 import { revalidateDashboardAction } from '@/app/(dashboard)/actions/media'
 import { useAuth } from '@/providers/Auth'
 import { toast } from 'sonner'
+import { mediaTypeFromMimeAndExtension } from '@/lib/storage-paths'
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
 
+const STAGE_PROGRESS: Record<string, number> = {
+  upload_complete: 65,
+  exif_parsing: 75,
+  generating_webp: 85,
+  registering_assets: 95,
+  ready: 100,
+  failed: 100,
+}
+
+export function computeEffectiveProgress(item: UploadItem): number {
+  if (item.status === 'ready') return 100
+  if (item.status === 'failed') return 100
+  if (item.status === 'uploading') return Math.round(item.progress * 0.6)
+  if (item.status === 'processing')
+    return STAGE_PROGRESS[item.processingStep || 'upload_complete'] || 65
+  return 0
+}
+
 export interface UploadItem {
   id: string
-  file: File
+  file?: File
+  filename?: string
   progress: number
   status: UploadStatus
   errorMessage?: string
+  mediaId?: string | number
+  processingStartedAt?: number
+  processingStep?: string
+  source?: 'upload' | 'server'
   metadata?: {
     tags?: string[]
     title?: string
@@ -42,6 +66,9 @@ interface UploadContextType {
   openPicker: () => void
   retryFailed: () => void
   retryItem: (id: string) => void
+  hydrateServerProcessing: (
+    items: { mediaId: string | number; filename: string; processingStep?: string }[],
+  ) => void
 }
 
 const UploadContext = createContext<UploadContextType | undefined>(undefined)
@@ -60,11 +87,20 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const router = useRouter()
   const { user } = useAuth()
 
-  // 1. Authoritative Completion Observer: Monitors the entire batch for archival success
+  // 1. Authoritative Completion Observer
+  const prevProcessingCountRef = useRef(0)
+
   useEffect(() => {
+    const processingCount = queue.filter((item) => item.status === 'processing').length
     const isFinished =
       queue.length > 0 && queue.every((item) => item.status === 'ready' || item.status === 'failed')
     const hasNewSuccess = queue.some((item) => item.status === 'ready')
+
+    // Refresh grid when new items enter processing (so card appears with badge)
+    if (processingCount > prevProcessingCountRef.current) {
+      revalidateDashboardAction().then(() => router.refresh())
+    }
+    prevProcessingCountRef.current = processingCount
 
     if (isFinished && hasNewSuccess) {
       const timer = setTimeout(async () => {
@@ -110,7 +146,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       metadata?: { title?: string; location?: string; tags?: string[]; shootName?: string },
     ) => {
       setQueue((prev) => {
-        const existingFiles = new Set(prev.map((item) => `${item.file.name}-${item.file.size}`))
+        const existingFiles = new Set(
+          prev.filter((item) => item.file).map((item) => `${item.file!.name}-${item.file!.size}`),
+        )
         const uniqueNewFiles = files.filter((file) => {
           const key = `${file.name}-${file.size}`
           if (existingFiles.has(key)) {
@@ -154,28 +192,84 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const retryFailed = useCallback(() => {
     setQueue((prev) =>
-      prev.map((item) =>
-        item.status === 'failed' ? { ...item, status: 'pending', progress: 0 } : item,
-      ),
+      prev.map((item) => {
+        if (item.status !== 'failed') return item
+        if (item.mediaId) {
+          // Failed during processing — re-trigger worker, not re-upload
+          fetch('/api/media/reprocess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mediaId: item.mediaId }),
+          }).catch(() => {})
+          return {
+            ...item,
+            status: 'processing' as const,
+            progress: 100,
+            processingStep: 'upload_complete',
+            errorMessage: undefined,
+          }
+        }
+        return { ...item, status: 'pending' as const, progress: 0 }
+      }),
     )
   }, [])
 
   const retryItem = useCallback((id: string) => {
     setQueue((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: 'pending', progress: 0 } : item)),
+      prev.map((item) => {
+        if (item.id !== id) return item
+        if (item.mediaId) {
+          fetch('/api/media/reprocess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mediaId: item.mediaId }),
+          }).catch(() => {})
+          return {
+            ...item,
+            status: 'processing' as const,
+            progress: 100,
+            processingStep: 'upload_complete',
+            errorMessage: undefined,
+          }
+        }
+        return { ...item, status: 'pending' as const, progress: 0 }
+      }),
     )
   }, [])
+
+  const hydrateServerProcessing = useCallback(
+    (items: { mediaId: string | number; filename: string; processingStep?: string }[]) => {
+      setQueue((prev) => {
+        const existingMediaIds = new Set(prev.map((q) => String(q.mediaId)).filter(Boolean))
+        const newItems: UploadItem[] = items
+          .filter((item) => !existingMediaIds.has(String(item.mediaId)))
+          .map((item) => ({
+            id: `server-${item.mediaId}`,
+            filename: item.filename,
+            progress: 100,
+            status: 'processing' as const,
+            mediaId: item.mediaId,
+            processingStep: item.processingStep || 'upload_complete',
+            source: 'server' as const,
+          }))
+        if (newItems.length === 0) return prev
+        return [...prev, ...newItems]
+      })
+    },
+    [],
+  )
 
   // Sequential Upload Logic
   const processQueue = useCallback(async () => {
     if (isUploading) return
 
     const nextItem = queue.find((item) => item.status === 'pending')
-    if (!nextItem) {
+    if (!nextItem || !nextItem.file) {
       setIsUploading(false)
       return
     }
 
+    const uploadFile = nextItem.file!
     setIsUploading(true)
 
     // Update status to uploading
@@ -191,8 +285,8 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          filename: nextItem.file.name,
-          mimeType: nextItem.file.type,
+          filename: uploadFile.name,
+          mimeType: uploadFile.type,
         }),
       })
 
@@ -210,8 +304,8 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const payloadData = {
           owner: user?.id,
           title: nextItem.metadata?.title || '',
-          alt: nextItem.metadata?.title || nextItem.file.name,
-          mediaType: 'image',
+          alt: nextItem.metadata?.title || uploadFile.name,
+          mediaType: mediaTypeFromMimeAndExtension(uploadFile.type, uploadFile.name),
           ingestionStatus: 'active',
           shootName: nextItem.metadata?.shootName || '',
           manualTags,
@@ -221,7 +315,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         formData.append('_payload', JSON.stringify(payloadData))
-        formData.append('file', nextItem.file)
+        formData.append('file', uploadFile)
 
         // Perform standard local multipart POST upload with XHR for upload tracking
         await new Promise<void>((resolve, reject) => {
@@ -241,6 +335,18 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const res = JSON.parse(xhr.responseText)
+                if (res?.doc?.id) {
+                  setQueue((prev) =>
+                    prev.map((item) =>
+                      item.id === nextItem.id ? { ...item, mediaId: res.doc.id } : item,
+                    ),
+                  )
+                }
+              } catch {
+                // Response parsing is best-effort
+              }
               resolve()
             } else {
               reject(new Error(`Local upload failed with status ${xhr.status}`))
@@ -252,13 +358,13 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         })
       } else {
         // --- B. CLOUD DIRECT GCS INGESTION MODE ---
-        const { url, storagePath } = uploadSession
+        const { url, storagePath, domainCategory } = uploadSession
 
         // Perform direct HTTP PUT binary stream to GCS using raw XHR for real-time progress
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open('PUT', url)
-          xhr.setRequestHeader('Content-Type', nextItem.file.type)
+          xhr.setRequestHeader('Content-Type', uploadFile.type)
 
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -280,7 +386,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
 
           xhr.onerror = () => reject(new Error('Cloud Network Direct Upload failed'))
-          xhr.send(nextItem.file)
+          xhr.send(uploadFile)
         })
 
         // Step 2: Register successfully GCS-ingested asset in database
@@ -290,10 +396,11 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            filename: nextItem.file.name,
-            mimeType: nextItem.file.type,
-            filesize: nextItem.file.size,
+            filename: uploadFile.name,
+            mimeType: uploadFile.type,
+            filesize: uploadFile.size,
             storagePath,
+            domainCategory,
             title: nextItem.metadata?.title || '',
             shootName: nextItem.metadata?.shootName || '',
             manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
@@ -303,20 +410,31 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }),
         })
 
+        const registerData = await registerResponse.json().catch(() => ({}))
+
         if (!registerResponse.ok) {
-          const errorData = await registerResponse.json().catch(() => ({}))
-          throw new Error(errorData.error || 'Database registration failed')
+          throw new Error(registerData.error || 'Database registration failed')
+        }
+
+        if (registerData?.media?.id) {
+          setQueue((prev) =>
+            prev.map((item) =>
+              item.id === nextItem.id ? { ...item, mediaId: registerData.media.id } : item,
+            ),
+          )
         }
       }
 
       setQueue((prev) =>
         prev.map((item) =>
-          item.id === nextItem.id ? { ...item, status: 'ready', progress: 100 } : item,
+          item.id === nextItem.id
+            ? { ...item, status: 'processing', progress: 100, processingStartedAt: Date.now() }
+            : item,
         ),
       )
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      toast.error(`Ingestion Failed [${nextItem.file.name}]: ${message}`)
+      toast.error(`Ingestion Failed [${uploadFile.name}]: ${message}`)
       setQueue((prev) =>
         prev.map((item) =>
           item.id === nextItem.id
@@ -338,6 +456,112 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       processQueue()
     }
   }, [queue, isUploading, processQueue])
+
+  // Processing Tracker: single unfiltered SSE connection, filter client-side.
+  // Open when any items are processing, close when none remain.
+  const sseRef = useRef<EventSource | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const hasProcessingRef = useRef(false)
+
+  const handleProcessingEvent = useCallback(
+    (data: {
+      mediaId: string
+      ingestionStatus: string
+      processingStep?: string
+      errorMessage?: string
+    }) => {
+      setQueue((prev) => {
+        let changed = false
+        const next = prev.map((q) => {
+          if (String(q.mediaId) !== String(data.mediaId)) return q
+          changed = true
+          if (data.ingestionStatus === 'ready')
+            return { ...q, status: 'ready' as const, processingStep: 'ready' }
+          if (data.ingestionStatus === 'failed')
+            return {
+              ...q,
+              status: 'failed' as const,
+              processingStep: 'failed',
+              errorMessage: data.errorMessage || 'Processing failed',
+            }
+          return { ...q, processingStep: data.processingStep }
+        })
+        return changed ? next : prev
+      })
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const hasProcessing = queue.some((item) => item.status === 'processing' && item.mediaId)
+
+    if (!hasProcessing) {
+      if (sseRef.current) {
+        sseRef.current.close()
+        sseRef.current = null
+      }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      hasProcessingRef.current = false
+      return
+    }
+
+    // Already connected — nothing to do
+    if (hasProcessingRef.current && sseRef.current) return
+    hasProcessingRef.current = true
+
+    // Open a single unfiltered SSE stream — client filters by mediaId
+    const eventSource = new EventSource('/api/media/status-stream?mediaIds=')
+    sseRef.current = eventSource
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.mediaId) handleProcessingEvent(data)
+      } catch {
+        /* malformed */
+      }
+    }
+
+    eventSource.onerror = () => {
+      eventSource.close()
+      sseRef.current = null
+
+      // Degrade to polling
+      pollingRef.current = setInterval(async () => {
+        const ids = queue
+          .filter((q) => q.status === 'processing' && q.mediaId)
+          .map((q) => String(q.mediaId))
+        for (const id of ids) {
+          try {
+            const res = await fetch(`/api/media/${id}`, { cache: 'no-store' })
+            if (!res.ok) continue
+            const doc = await res.json()
+            handleProcessingEvent({
+              mediaId: id,
+              ingestionStatus: doc?.ingestionStatus,
+              processingStep: doc?.processingStep,
+              errorMessage: doc?.errorMessage,
+            })
+          } catch {
+            /* transient */
+          }
+        }
+      }, 3000)
+    }
+
+    return () => {
+      eventSource.close()
+      sseRef.current = null
+      hasProcessingRef.current = false
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [queue, handleProcessingEvent])
 
   // Warning on page leave
   useEffect(() => {
@@ -366,6 +590,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         openPicker,
         retryFailed,
         retryItem,
+        hydrateServerProcessing,
       }}
     >
       {children}
@@ -375,7 +600,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept="image/*,.dng,.arw,.cr2,.nef"
+        accept="image/*,video/*,audio/*,.dng,.arw,.cr2,.nef,.pdf,.json,.csv,.md"
       />
       <IngestionWorkbench />
       <ArchivalProgressOverlay />

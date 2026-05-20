@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { processingEvents } from '@/lib/processing-events'
 
 export async function POST(req: Request) {
   try {
-    // 1. Verify Callback Secret Signature (Prevent rogue updates)
     const secretHeader = req.headers.get('x-processor-secret')
     const expectedSecret = process.env.PROCESSOR_CALLBACK_SECRET || 'fallback-dev-secret-key-9988'
 
@@ -15,8 +15,9 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const {
       assetId,
-      status, // 'ready' or 'failed'
+      status,
       errorMessage,
+      processingStep,
       dimensions,
       technical,
       location,
@@ -29,10 +30,9 @@ export async function POST(req: Request) {
 
     const payload = await getPayload({ config: configPromise })
 
-    // 2. Locate the corresponding asset record using a dual-mode lookup strategy
+    // Locate the corresponding asset record
     let mediaDoc = null
 
-    // Try primary key ID lookup first (used in local async mode where assetId is the record ID)
     try {
       mediaDoc = await payload.findByID({
         collection: 'media',
@@ -62,10 +62,29 @@ export async function POST(req: Request) {
       )
     }
 
-    // 3. Update the media record in the database
+    // Handle intermediate stage updates (non-terminal)
+    if (status === 'stage_update' && processingStep) {
+      await payload.update({
+        collection: 'media',
+        id: mediaDoc.id,
+        data: { processingStep },
+      })
+
+      processingEvents.emitStatusChange({
+        mediaId: String(mediaDoc.id),
+        ingestionStatus: mediaDoc.ingestionStatus || 'processing',
+        processingStep,
+        timestamp: new Date().toISOString(),
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
+    // Handle terminal callbacks (ready / failed)
     const updateData: Record<string, unknown> = {
       ingestionStatus: status,
       processedAt: new Date().toISOString(),
+      processingStep: status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : undefined,
     }
 
     if (status === 'ready') {
@@ -87,7 +106,6 @@ export async function POST(req: Request) {
           focalLength: Number(technical.focalLength) || undefined,
         }
 
-        // Set captureDate timeline master sort key
         if (technical.captureDate && !mediaDoc.captureDate) {
           try {
             updateData.captureDate = new Date(technical.captureDate).toISOString()
@@ -105,7 +123,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Assign GCS thumbnail references
       if (thumbnails) {
         updateData.thumbnailUrl = thumbnails.small || ''
         updateData.proxyUrl = thumbnails.medium || ''
@@ -114,11 +131,30 @@ export async function POST(req: Request) {
       updateData.errorMessage = errorMessage || 'Failed asynchronously during worker processing'
     }
 
-    // Direct local update to save changes to PostgreSQL
-    const updatedMedia = await payload.update({
-      collection: 'media',
-      id: mediaDoc.id,
-      data: updateData,
+    let updatedMedia
+    try {
+      updatedMedia = await payload.update({
+        collection: 'media',
+        id: mediaDoc.id,
+        data: updateData,
+      })
+    } catch (updateErr) {
+      console.error(`[process-callback] Failed to update media ${mediaDoc.id}:`, updateErr)
+      return NextResponse.json(
+        {
+          error: `Update failed: ${updateErr instanceof Error ? updateErr.message : String(updateErr)}`,
+        },
+        { status: 500 },
+      )
+    }
+
+    processingEvents.emitStatusChange({
+      mediaId: String(mediaDoc.id),
+      ingestionStatus: status,
+      processingStep:
+        status === 'ready' ? 'ready' : status === 'failed' ? 'failed' : 'registering_assets',
+      timestamp: new Date().toISOString(),
+      errorMessage,
     })
 
     return NextResponse.json({

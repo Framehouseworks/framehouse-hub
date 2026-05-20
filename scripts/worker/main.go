@@ -26,15 +26,21 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-// EventarcPayload defines the typical GCS Eventarc event properties
+// Canonical storage path contract (must match TypeScript src/lib/storage-paths.ts):
+//
+// tenants/{user_uuid}/{domain_category}/{year}/{month}/{asset_uuid}/original/{filename}.{ext}
+// tenants/{user_uuid}/{domain_category}/{year}/{month}/{asset_uuid}/derivatives/{size}.webp
+//
+// Segment indices: [0]=tenants [1]=userId [2]=domain [3]=year [4]=month [5]=assetId [6]=original|derivatives [7]=filename
+
 type EventarcPayload struct {
 	Bucket string `json:"bucket"`
 	Name   string `json:"name"`
 }
 
 type Dimensions struct {
-	Width  int     `json:"width"`
-	Height int     `json:"height"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
 type TechnicalMetadata struct {
@@ -58,13 +64,68 @@ type Thumbnails struct {
 }
 
 type CallbackPayload struct {
-	AssetID      string            `json:"assetId"`
-	Status       string            `json:"status"` // "ready" or "failed"
-	ErrorMessage string            `json:"errorMessage,omitempty"`
-	Dimensions   *Dimensions       `json:"dimensions,omitempty"`
-	Technical    *TechnicalMetadata `json:"technical,omitempty"`
-	Location     *Location         `json:"location,omitempty"`
-	Thumbnails   *Thumbnails       `json:"thumbnails,omitempty"`
+	AssetID        string             `json:"assetId"`
+	Status         string             `json:"status"`
+	ErrorMessage   string             `json:"errorMessage,omitempty"`
+	ProcessingStep string             `json:"processingStep,omitempty"`
+	Dimensions     *Dimensions        `json:"dimensions,omitempty"`
+	Technical      *TechnicalMetadata `json:"technical,omitempty"`
+	Location       *Location          `json:"location,omitempty"`
+	Thumbnails     *Thumbnails        `json:"thumbnails,omitempty"`
+}
+
+// --- Path classification (mirrors TypeScript classifyDomainCategory) ---
+
+func classifyDomainCategory(ext string) string {
+	ext = strings.ToLower(ext)
+	switch ext {
+	case ".dng", ".arw", ".cr2", ".nef", ".orf", ".rw2", ".pef", ".raf":
+		return "digital-negatives"
+	case ".jpg", ".jpeg", ".png", ".webp", ".svg", ".gif", ".tiff":
+		return "visual-media"
+	case ".mp4", ".mov", ".mkv", ".avi", ".webm":
+		return "motion-media"
+	case ".mp3", ".wav", ".flac", ".ogg":
+		return "audio-media"
+	case ".pdf", ".json", ".csv", ".md", ".txt":
+		return "structured-records"
+	default:
+		return "unclassified-artifacts"
+	}
+}
+
+type parsedPath struct {
+	UserID   string
+	Domain   string
+	Year     string
+	Month    string
+	AssetID  string
+	Segment  string // "original" or "derivatives"
+	Filename string
+}
+
+func parseStoragePathV2(objectName string) (*parsedPath, bool) {
+	parts := strings.Split(objectName, "/")
+	if len(parts) < 8 || parts[0] != "tenants" {
+		return nil, false
+	}
+	segment := parts[6]
+	if segment != "original" && segment != "derivatives" {
+		return nil, false
+	}
+	return &parsedPath{
+		UserID:   parts[1],
+		Domain:   parts[2],
+		Year:     parts[3],
+		Month:    parts[4],
+		AssetID:  parts[5],
+		Segment:  segment,
+		Filename: strings.Join(parts[7:], "/"),
+	}, true
+}
+
+func buildDerivativePath(userID, domain, year, month, assetID, name string) string {
+	return fmt.Sprintf("tenants/%s/%s/%s/%s/%s/derivatives/%s.webp", userID, domain, year, month, assetID, name)
 }
 
 func main() {
@@ -87,7 +148,6 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Read and parse incoming GCS event payload
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v", err)
@@ -98,8 +158,6 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	var event EventarcPayload
 	if err := json.Unmarshal(bodyBytes, &event); err != nil {
-		log.Printf("Standard JSON unmarshal failed, checking CloudEvent envelope: %v", err)
-		
 		var cloudEvent struct {
 			Data EventarcPayload `json:"data"`
 		}
@@ -117,35 +175,33 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Path Isolation Inspection
-	// Expected key layout: [USER_UUID]/[YEAR]/[ASSET_UUID]/original.[EXTENSION]
-	parts := strings.Split(event.Name, "/")
-	if len(parts) < 4 || strings.Contains(event.Name, "/thumbs/") {
-		// Prevent loops: Ignore any objects residing inside the "thumbs" directory
-		log.Printf("Ignoring non-original file event path: %s", event.Name)
+	parsed, ok := parseStoragePathV2(event.Name)
+	if !ok || parsed.Segment != "original" {
+		log.Printf("Ignoring non-original or unparseable path: %s", event.Name)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	userID := parts[0]
-	year := parts[1]
-	assetID := parts[2]
-	fileName := parts[3]
-	extension := strings.ToLower(filepath.Ext(fileName))
+	if strings.Contains(event.Name, "/derivatives/") {
+		log.Printf("Ignoring derivatives path to prevent loops: %s", event.Name)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
-	log.Printf("Active Ingestion Session: User='%s', Asset='%s', File='%s', Extension='%s'", userID, assetID, fileName, extension)
+	log.Printf("Active Ingestion Session: User='%s', Domain='%s', Asset='%s', File='%s'",
+		parsed.UserID, parsed.Domain, parsed.AssetID, parsed.Filename)
 
-	// Trigger asynchronous pipeline run
 	ctx := context.Background()
-	go processAssetPipeline(ctx, event.Bucket, event.Name, userID, year, assetID, fileName, extension)
+	go processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Asset ingestion processing initiated asynchronously"))
 }
 
-func processAssetPipeline(ctx context.Context, bucketName, objectName, userID, year, assetID, fileName, ext string) {
+func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath) {
 	isLocalMode := bucketName == "local" || os.Getenv("GCS_BUCKET") == ""
 
+	ext := strings.ToLower(filepath.Ext(p.Filename))
 	isRaw := ext == ".dng" || ext == ".arw" || ext == ".cr2" || ext == ".nef"
 	isImage := ext == ".jpg" || ext == ".jpeg" || ext == ".png" || isRaw
 	isVideo := ext == ".mp4" || ext == ".mov" || ext == ".mkv" || ext == ".avi"
@@ -153,83 +209,80 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName, userID, y
 	var dims *Dimensions
 	var tech *TechnicalMetadata
 	var loc *Location
-	var imgData []byte
 
-	// 1. EXIF Metadata Extraction via Range Reader (64KB Limit)
+	// Stage 1: EXIF Metadata Extraction
 	if isImage {
-		log.Printf("[%s] Performing EXIF range parse (64KB)...", assetID)
-		rangeReader, rangeErr := getRangeReader(ctx, isLocalMode, bucketName, objectName, userID, year, assetID, fileName)
+		sendStageUpdate(p.AssetID, "exif_parsing")
+		log.Printf("[%s] Performing EXIF range parse (64KB)...", p.AssetID)
+		rangeReader, rangeErr := getRangeReader(ctx, isLocalMode, bucketName, objectName, p)
 		if rangeErr == nil {
 			tech, loc = parseEXIF(rangeReader)
 			rangeReader.Close()
 		} else {
-			log.Printf("[%s] Range reader request failed: %v", assetID, rangeErr)
+			log.Printf("[%s] Range reader request failed: %v", p.AssetID, rangeErr)
 		}
 	}
 
-	// 2. Image Decoding & Thumbnail Generation
+	// Stage 2: Image Decoding & Thumbnail Generation
 	if isImage {
-		log.Printf("[%s] Downloading original asset bytes for thumbnail generation...", assetID)
-		reader, readErr := getFullReader(ctx, isLocalMode, bucketName, objectName, userID, year, assetID, fileName)
+		sendStageUpdate(p.AssetID, "generating_webp")
+		log.Printf("[%s] Downloading original asset bytes for thumbnail generation...", p.AssetID)
+		reader, readErr := getFullReader(ctx, isLocalMode, bucketName, objectName, p)
 		if readErr != nil {
-			log.Printf("[%s] Failed to open original reader: %v", assetID, readErr)
-			triggerCallbackError(assetID, fmt.Sprintf("Download failed: %v", readErr))
+			log.Printf("[%s] Failed to open original reader: %v", p.AssetID, readErr)
+			triggerCallbackError(p.AssetID, fmt.Sprintf("Download failed: %v", readErr))
 			return
 		}
-		
+
 		var buf bytes.Buffer
 		if _, copyErr := io.Copy(&buf, reader); copyErr != nil {
 			reader.Close()
-			triggerCallbackError(assetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
+			triggerCallbackError(p.AssetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
 			return
 		}
 		reader.Close()
-		imgData = buf.Bytes()
 
-		// Decode original image
-		decodedImg, decodedFormat, decodeErr := decodeOriginalImage(imgData, ext)
+		decodedImg, decodedFormat, decodeErr := decodeOriginalImage(buf.Bytes(), ext)
 		if decodeErr != nil {
-			log.Printf("[%s] Failed to decode image: %v", assetID, decodeErr)
-			triggerCallbackError(assetID, fmt.Sprintf("Decoder failure: %v", decodeErr))
+			log.Printf("[%s] Failed to decode image: %v", p.AssetID, decodeErr)
+			triggerCallbackError(p.AssetID, fmt.Sprintf("Decoder failure: %v", decodeErr))
 			return
 		}
 
 		bounds := decodedImg.Bounds()
 		dims = &Dimensions{Width: bounds.Dx(), Height: bounds.Dy()}
-		log.Printf("[%s] Decoded format: %s, Dimensions: %dx%d", assetID, decodedFormat, dims.Width, dims.Height)
+		log.Printf("[%s] Decoded format: %s, Dimensions: %dx%d", p.AssetID, decodedFormat, dims.Width, dims.Height)
 
-		// Render WebP thumbnails
-		thumbsErr := renderImageThumbnails(ctx, isLocalMode, bucketName, userID, year, assetID, decodedImg)
+		thumbsErr := renderImageThumbnails(ctx, isLocalMode, bucketName, p, decodedImg)
 		if thumbsErr != nil {
-			log.Printf("[%s] Thumbnail rendering failed: %v", assetID, thumbsErr)
-			triggerCallbackError(assetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
+			log.Printf("[%s] Thumbnail rendering failed: %v", p.AssetID, thumbsErr)
+			triggerCallbackError(p.AssetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
 			return
 		}
 	} else if isVideo {
-		log.Printf("[%s] Processing video asset poster frame...", assetID)
-		// Extract video details and poster frame via ffmpeg
+		sendStageUpdate(p.AssetID, "generating_webp")
+		log.Printf("[%s] Processing video asset poster frame...", p.AssetID)
 		var extractErr error
-		dims, extractErr = processVideoPoster(ctx, isLocalMode, bucketName, userID, year, assetID, fileName, objectName)
+		dims, extractErr = processVideoPoster(ctx, isLocalMode, bucketName, p, objectName)
 		if extractErr != nil {
-			log.Printf("[%s] Video poster generation failed: %v", assetID, extractErr)
-			triggerCallbackError(assetID, fmt.Sprintf("Video processing failed: %v", extractErr))
+			log.Printf("[%s] Video poster generation failed: %v", p.AssetID, extractErr)
+			triggerCallbackError(p.AssetID, fmt.Sprintf("Video processing failed: %v", extractErr))
 			return
 		}
 	}
 
-	// 3. Webhook Success Callback
-	triggerCallbackSuccess(isLocalMode, assetID, userID, year, dims, tech, loc, isImage || isVideo)
+	// Stage 3: Webhook Success Callback
+	sendStageUpdate(p.AssetID, "registering_assets")
+	triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo)
 }
 
-// getRangeReader conditionally opens a local file or standard GCS range stream
-func getRangeReader(ctx context.Context, isLocal bool, bucketName, objectName, userID, year, assetID, fileName string) (io.ReadCloser, error) {
+func getRangeReader(ctx context.Context, isLocal bool, bucketName, objectName string, p *parsedPath) (io.ReadCloser, error) {
 	if isLocal {
-		localPath := getLocalAssetPath(userID, year, assetID, fileName)
+		localPath := getLocalAssetPath(p)
 		file, err := os.Open(localPath)
 		if err != nil {
 			return nil, err
 		}
-		// Return 64KB range limit slice
 		return struct {
 			io.Reader
 			io.Closer
@@ -244,10 +297,9 @@ func getRangeReader(ctx context.Context, isLocal bool, bucketName, objectName, u
 	return client.Bucket(bucketName).Object(objectName).NewRangeReader(ctx, 0, 65536)
 }
 
-// getFullReader conditionally opens a local file or standard GCS stream
-func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName, userID, year, assetID, fileName string) (io.ReadCloser, error) {
+func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName string, p *parsedPath) (io.ReadCloser, error) {
 	if isLocal {
-		localPath := getLocalAssetPath(userID, year, assetID, fileName)
+		localPath := getLocalAssetPath(p)
 		return os.Open(localPath)
 	}
 
@@ -259,20 +311,18 @@ func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName, us
 	return client.Bucket(bucketName).Object(objectName).NewReader(ctx)
 }
 
-func getLocalAssetPath(userID, year, assetID, fileName string) string {
-	// Look up in Next.js public directory
+func getLocalAssetPath(p *parsedPath) string {
 	paths := []string{
-		filepath.Join("../../public/media", userID, year, assetID, fileName),
-		filepath.Join("public/media", userID, year, assetID, fileName),
-		filepath.Join("../../public/media", fileName),
-		filepath.Join("public/media", fileName),
+		filepath.Join("../../public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "original", p.Filename),
+		filepath.Join("public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "original", p.Filename),
 	}
-	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
-			return p
+	for _, candidate := range paths {
+		if _, err := os.Stat(candidate); err == nil {
+			log.Printf("[%s] Resolved local asset at: %s", p.AssetID, candidate)
+			return candidate
 		}
 	}
-	// Fallback to first path
+	log.Printf("[%s] WARNING: Could not locate local asset at any tenant path. Tried: %v", p.AssetID, paths)
 	return paths[0]
 }
 
@@ -347,7 +397,7 @@ func parseEXIF(r io.Reader) (*TechnicalMetadata, *Location) {
 	return tech, loc
 }
 
-func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName, userID, year, assetID string, img image.Image) error {
+func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName string, p *parsedPath, img image.Image) error {
 	sizes := map[string]int{
 		"small":  300,
 		"medium": 1200,
@@ -360,14 +410,11 @@ func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName, userID
 
 		resized := imaging.Resize(img, width, height, imaging.Lanczos)
 
-		// 1. Encode the resized image into a lossless PNG buffer
 		var pngBuf bytes.Buffer
 		if err := png.Encode(&pngBuf, resized); err != nil {
 			return fmt.Errorf("encoding png for cwebp failed: %v", err)
 		}
 
-		// 2. Compress PNG into highly optimized WebP via subprocess piping using cwebp
-		// cwebp -q 80 -o - -- -
 		cmd := exec.Command("cwebp", "-q", "80", "-o", "-", "--", "-")
 		cmd.Stdin = &pngBuf
 		var webpBuf bytes.Buffer
@@ -380,53 +427,49 @@ func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName, userID
 		}
 
 		if isLocal {
-			// Write directly to local disk public/media/thumbs/
-			thumbnailDir := filepath.Join("../../public/media", userID, year, assetID, "thumbs")
-			_ = os.MkdirAll(thumbnailDir, 0755)
-			thumbnailPath := filepath.Join(thumbnailDir, fmt.Sprintf("%s.webp", name))
-			
-			err := os.WriteFile(thumbnailPath, webpBuf.Bytes(), 0644)
+			derivDir := filepath.Join("../../public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "derivatives")
+			_ = os.MkdirAll(derivDir, 0755)
+			derivPath := filepath.Join(derivDir, fmt.Sprintf("%s.webp", name))
+
+			err := os.WriteFile(derivPath, webpBuf.Bytes(), 0644)
 			if err != nil {
-				// Try writing to alternative folder if running inside a different CWD
-				altDir := filepath.Join("public/media", userID, year, assetID, "thumbs")
+				altDir := filepath.Join("public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "derivatives")
 				_ = os.MkdirAll(altDir, 0755)
 				err = os.WriteFile(filepath.Join(altDir, fmt.Sprintf("%s.webp", name)), webpBuf.Bytes(), 0644)
 			}
 			if err != nil {
-				return fmt.Errorf("writing local thumbnail failed: %v", err)
+				return fmt.Errorf("writing local derivative failed: %v", err)
 			}
-			log.Printf("[%s] Local Thumbnail '%s' saved to path: %s", assetID, name, thumbnailPath)
+			log.Printf("[%s] Local derivative '%s' saved: %s", p.AssetID, name, derivPath)
 		} else {
-			// Write to GCS
 			client, err := storage.NewClient(ctx)
 			if err != nil {
 				return err
 			}
 			defer client.Close()
 
-			thumbnailPath := fmt.Sprintf("%s/%s/%s/thumbs/%s.webp", userID, year, assetID, name)
-			writer := client.Bucket(bucketName).Object(thumbnailPath).NewWriter(ctx)
+			derivPath := buildDerivativePath(p.UserID, p.Domain, p.Year, p.Month, p.AssetID, name)
+			writer := client.Bucket(bucketName).Object(derivPath).NewWriter(ctx)
 			writer.ContentType = "image/webp"
 
 			if _, err := io.Copy(writer, &webpBuf); err != nil {
 				writer.Close()
-				return fmt.Errorf("uploading thumbnail '%s' failed: %v", name, err)
+				return fmt.Errorf("uploading derivative '%s' failed: %v", name, err)
 			}
 			writer.Close()
-			log.Printf("[%s] GCS Thumbnail '%s' uploaded successfully to path: %s", assetID, name, thumbnailPath)
+			log.Printf("[%s] GCS derivative '%s' uploaded: %s", p.AssetID, name, derivPath)
 		}
 	}
 
 	return nil
 }
 
-func processVideoPoster(ctx context.Context, isLocal bool, bucketName, userID, year, assetID, fileName, objectName string) (*Dimensions, error) {
+func processVideoPoster(ctx context.Context, isLocal bool, bucketName string, p *parsedPath, objectName string) (*Dimensions, error) {
 	var mediaSource string
 
 	if isLocal {
-		mediaSource = getLocalAssetPath(userID, year, assetID, fileName)
+		mediaSource = getLocalAssetPath(p)
 	} else {
-		// Generate GCS secure read URL for ffmpeg streaming input
 		storageClient, err := storage.NewClient(ctx)
 		if err != nil {
 			return nil, err
@@ -443,7 +486,6 @@ func processVideoPoster(ctx context.Context, isLocal bool, bucketName, userID, y
 		mediaSource = signedURL
 	}
 
-	// 1. Probe video dimensions via ffprobe
 	cmdProbe := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", mediaSource)
 	var outProbe bytes.Buffer
 	cmdProbe.Stdout = &outProbe
@@ -452,15 +494,14 @@ func processVideoPoster(ctx context.Context, isLocal bool, bucketName, userID, y
 	}
 
 	dimStr := strings.TrimSpace(outProbe.String())
-	parts := strings.Split(dimStr, "x")
+	dimParts := strings.Split(dimStr, "x")
 	width := 1920
 	height := 1080
-	if len(parts) == 2 {
-		width, _ = strconv.Atoi(parts[0])
-		height, _ = strconv.Atoi(parts[1])
+	if len(dimParts) == 2 {
+		width, _ = strconv.Atoi(dimParts[0])
+		height, _ = strconv.Atoi(dimParts[1])
 	}
 
-	// 2. Extract single frame at 00:00:01 using ffmpeg piped stdout
 	cmdExtract := exec.Command("ffmpeg", "-ss", "00:00:01", "-i", mediaSource, "-vframes", "1", "-f", "image2pipe", "-vcodec", "png", "-")
 	var outFrame bytes.Buffer
 	cmdExtract.Stdout = &outFrame
@@ -468,21 +509,19 @@ func processVideoPoster(ctx context.Context, isLocal bool, bucketName, userID, y
 		return nil, fmt.Errorf("ffmpeg extraction failed: %v", err)
 	}
 
-	// Decode extracted frame
 	img, _, err := image.Decode(bytes.NewReader(outFrame.Bytes()))
 	if err != nil {
 		return nil, fmt.Errorf("decoding extracted poster frame failed: %v", err)
 	}
 
-	// Upload as standard small/medium thumbs
-	if err := renderImageThumbnails(ctx, isLocal, bucketName, userID, year, assetID, img); err != nil {
+	if err := renderImageThumbnails(ctx, isLocal, bucketName, p, img); err != nil {
 		return nil, err
 	}
 
 	return &Dimensions{Width: width, Height: height}, nil
 }
 
-func triggerCallbackSuccess(isLocal bool, assetID, userID, year string, dims *Dimensions, tech *TechnicalMetadata, loc *Location, hasThumbs bool) {
+func triggerCallbackSuccess(isLocal bool, p *parsedPath, dims *Dimensions, tech *TechnicalMetadata, loc *Location, hasThumbs bool) {
 	serverURL := os.Getenv("NEXT_PUBLIC_SERVER_URL")
 	if serverURL == "" {
 		serverURL = "http://localhost:3000"
@@ -497,21 +536,20 @@ func triggerCallbackSuccess(isLocal bool, assetID, userID, year string, dims *Di
 	var thumbs *Thumbnails
 	if hasThumbs {
 		if isLocal {
-			// Local URL paths matching standard Next.js static asset server mapping
 			thumbs = &Thumbnails{
-				Small:  fmt.Sprintf("/media/%s/%s/%s/thumbs/small.webp", userID, year, assetID),
-				Medium: fmt.Sprintf("/media/%s/%s/%s/thumbs/medium.webp", userID, year, assetID),
+				Small:  fmt.Sprintf("/media/tenants/%s/%s/%s/%s/%s/derivatives/small.webp", p.UserID, p.Domain, p.Year, p.Month, p.AssetID),
+				Medium: fmt.Sprintf("/media/tenants/%s/%s/%s/%s/%s/derivatives/medium.webp", p.UserID, p.Domain, p.Year, p.Month, p.AssetID),
 			}
 		} else {
 			thumbs = &Thumbnails{
-				Small:  fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s/%s/thumbs/small.webp", bucketName, userID, year, assetID),
-				Medium: fmt.Sprintf("https://storage.googleapis.com/%s/%s/%s/%s/thumbs/medium.webp", bucketName, userID, year, assetID),
+				Small:  fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, buildDerivativePath(p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "small")),
+				Medium: fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, buildDerivativePath(p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "medium")),
 			}
 		}
 	}
 
 	payload := CallbackPayload{
-		AssetID:    assetID,
+		AssetID:    p.AssetID,
 		Status:     "ready",
 		Dimensions: dims,
 		Technical:  tech,
@@ -540,6 +578,47 @@ func triggerCallbackError(assetID, errMsg string) {
 	}
 
 	sendCallbackPayload(serverURL, secret, payload)
+}
+
+func sendStageUpdate(assetID, step string) {
+	serverURL := os.Getenv("NEXT_PUBLIC_SERVER_URL")
+	if serverURL == "" {
+		serverURL = "http://localhost:3000"
+	}
+
+	secret := os.Getenv("PROCESSOR_CALLBACK_SECRET")
+	if secret == "" {
+		secret = "fallback-dev-secret-key-9988"
+	}
+
+	payload := CallbackPayload{
+		AssetID:        assetID,
+		Status:         "stage_update",
+		ProcessingStep: step,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[%s] Failed to marshal stage update: %v", assetID, err)
+		return
+	}
+
+	callbackURL := fmt.Sprintf("%s/api/media/process-callback", serverURL)
+	req, err := http.NewRequest("POST", callbackURL, bytes.NewBuffer(body))
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-processor-secret", secret)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[%s] Stage update dispatch failed: %v", assetID, err)
+		return
+	}
+	defer resp.Body.Close()
 }
 
 func sendCallbackPayload(serverURL, secret string, payload CallbackPayload) {
