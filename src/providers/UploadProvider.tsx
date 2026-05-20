@@ -1,13 +1,20 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react'
 import { IngestionWorkbench } from '@/components/Gallery/IngestionWorkbench'
 import { ArchivalProgressOverlay } from '@/components/Gallery/ArchivalProgressOverlay'
 import { useRouter } from 'next/navigation'
 import { revalidateDashboardAction } from '@/app/(dashboard)/actions/media'
 import { useAuth } from '@/providers/Auth'
 import { toast } from 'sonner'
-import { mediaTypeFromMimeAndExtension } from '@/lib/storage-paths'
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
 
@@ -297,30 +304,23 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const uploadSession = await signedUrlResponse.json()
 
       if (uploadSession.localMode) {
-        // --- A. LOCAL FALLBACK INGESTION MODE ---
+        // --- A. LOCAL INGESTION MODE (mirrors cloud's signed-url +
+        // register-gcs shape). The custom endpoint owns the enclave write
+        // and the Media doc creation, so we never touch Payload's REST
+        // upload pipeline.
         const formData = new FormData()
-        const manualTags = nextItem.metadata?.tags?.map((t) => ({ tag: t })) || []
-
-        const payloadData = {
-          owner: user?.id,
+        const meta = {
           title: nextItem.metadata?.title || '',
-          alt: nextItem.metadata?.title || uploadFile.name,
-          mediaType: mediaTypeFromMimeAndExtension(uploadFile.type, uploadFile.name),
-          ingestionStatus: 'active',
           shootName: nextItem.metadata?.shootName || '',
-          manualTags,
-          location: {
-            address: nextItem.metadata?.location || '',
-          },
+          manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
+          location: { address: nextItem.metadata?.location || '' },
         }
-
-        formData.append('_payload', JSON.stringify(payloadData))
+        formData.append('_payload', JSON.stringify(meta))
         formData.append('file', uploadFile)
 
-        // Perform standard local multipart POST upload with XHR for upload tracking
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
-          xhr.open('POST', '/api/media')
+          xhr.open('POST', '/api/media/register-local')
 
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -337,11 +337,10 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (xhr.status >= 200 && xhr.status < 300) {
               try {
                 const res = JSON.parse(xhr.responseText)
-                if (res?.doc?.id) {
+                const id = res?.media?.id
+                if (id) {
                   setQueue((prev) =>
-                    prev.map((item) =>
-                      item.id === nextItem.id ? { ...item, mediaId: res.doc.id } : item,
-                    ),
+                    prev.map((item) => (item.id === nextItem.id ? { ...item, mediaId: id } : item)),
                   )
                 }
               } catch {
@@ -349,7 +348,14 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               }
               resolve()
             } else {
-              reject(new Error(`Local upload failed with status ${xhr.status}`))
+              let detail = `status ${xhr.status}`
+              try {
+                const parsed = JSON.parse(xhr.responseText)
+                if (parsed?.error) detail = parsed.error
+              } catch {
+                /* leave default */
+              }
+              reject(new Error(`Local upload failed: ${detail}`))
             }
           }
 
@@ -492,8 +498,29 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [],
   )
 
+  // Stabilise the effect dep on just the set of processing mediaIds so
+  // unrelated queue churn (upload progress %) doesn't tear down the SSE.
+  const processingIdsKey = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          queue.filter((q) => q.status === 'processing' && q.mediaId).map((q) => String(q.mediaId)),
+        ),
+      )
+        .sort()
+        .join(','),
+    [queue],
+  )
+
+  // Hold a ref to the latest queue so the polling closure can read it
+  // without re-subscribing every render.
+  const queueRef = useRef(queue)
   useEffect(() => {
-    const hasProcessing = queue.some((item) => item.status === 'processing' && item.mediaId)
+    queueRef.current = queue
+  }, [queue])
+
+  useEffect(() => {
+    const hasProcessing = processingIdsKey.length > 0
 
     if (!hasProcessing) {
       if (sseRef.current) {
@@ -512,7 +539,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (hasProcessingRef.current && sseRef.current) return
     hasProcessingRef.current = true
 
-    // Open a single unfiltered SSE stream — client filters by mediaId
+    // Open a single unfiltered SSE stream — client filters by mediaId.
+    // SSE delivers near-instant updates when the worker callback's emit
+    // reaches the in-process bus.
     const eventSource = new EventSource('/api/media/status-stream?mediaIds=')
     sseRef.current = eventSource
 
@@ -526,31 +555,44 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     eventSource.onerror = () => {
+      // Close the stream but keep the polling backstop running. SSE may
+      // reopen on the next processing item; if not, polling is sufficient.
       eventSource.close()
       sseRef.current = null
-
-      // Degrade to polling
-      pollingRef.current = setInterval(async () => {
-        const ids = queue
-          .filter((q) => q.status === 'processing' && q.mediaId)
-          .map((q) => String(q.mediaId))
-        for (const id of ids) {
-          try {
-            const res = await fetch(`/api/media/${id}`, { cache: 'no-store' })
-            if (!res.ok) continue
-            const doc = await res.json()
-            handleProcessingEvent({
-              mediaId: id,
-              ingestionStatus: doc?.ingestionStatus,
-              processingStep: doc?.processingStep,
-              errorMessage: doc?.errorMessage,
-            })
-          } catch {
-            /* transient */
-          }
-        }
-      }, 3000)
     }
+
+    // Always-on polling backstop. Even when SSE is healthy this handles the
+    // silent-stream case (events emitted on a different module instance
+    // than the stream subscribed to). Cheap GETs against /api/media/{id}
+    // every 3s while items are in flight.
+    const pollOnce = async () => {
+      const ids = Array.from(
+        new Set(
+          queueRef.current
+            .filter((q) => q.status === 'processing' && q.mediaId)
+            .map((q) => String(q.mediaId)),
+        ),
+      )
+      for (const id of ids) {
+        try {
+          const res = await fetch(`/api/media/${id}`, { cache: 'no-store' })
+          if (!res.ok) continue
+          const doc = await res.json()
+          handleProcessingEvent({
+            mediaId: id,
+            ingestionStatus: doc?.ingestionStatus,
+            processingStep: doc?.processingStep,
+            errorMessage: doc?.errorMessage,
+          })
+        } catch {
+          /* transient */
+        }
+      }
+    }
+    // Kick once immediately so newly-registered items get their current
+    // server state without waiting a full interval.
+    void pollOnce()
+    pollingRef.current = setInterval(pollOnce, 3000)
 
     return () => {
       eventSource.close()
@@ -561,7 +603,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         pollingRef.current = null
       }
     }
-  }, [queue, handleProcessingEvent])
+  }, [processingIdsKey, handleProcessingEvent])
 
   // Warning on page leave
   useEffect(() => {

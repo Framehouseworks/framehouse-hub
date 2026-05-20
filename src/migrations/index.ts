@@ -17,6 +17,7 @@ import * as migration_20260519_161500_add_media_search_gin_index from './2026051
 import * as migration_20260520_120000_add_storage_path_processing_step from './20260520_120000_add_storage_path_processing_step'
 import * as migration_20260520_180000_fix_portfolio_media_cascade from './20260520_180000_fix_portfolio_media_cascade'
 import * as migration_20260520_190000_fix_pricing_logo_cascade from './20260520_190000_fix_pricing_logo_cascade'
+import * as migration_20260520_210000_relax_media_block_fks from './20260520_210000_relax_media_block_fks'
 
 export const migrations = [
   {
@@ -113,5 +114,10 @@ export const migrations = [
     up: migration_20260520_190000_fix_pricing_logo_cascade.up,
     down: migration_20260520_190000_fix_pricing_logo_cascade.down,
     name: '20260520_190000_fix_pricing_logo_cascade',
+  },
+  {
+    up: migration_20260520_210000_relax_media_block_fks.up,
+    down: migration_20260520_210000_relax_media_block_fks.down,
+    name: '20260520_210000_relax_media_block_fks',
   },
 ]

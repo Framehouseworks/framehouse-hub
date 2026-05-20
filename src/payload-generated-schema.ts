@@ -247,11 +247,26 @@ export const enum__pages_v_version_status = pgEnum('enum__pages_v_version_status
   'draft',
   'published',
 ])
-export const enum_media_media_type = pgEnum('enum_media_media_type', ['image', 'raw'])
+export const enum_media_media_type = pgEnum('enum_media_media_type', [
+  'image',
+  'raw',
+  'video',
+  'audio',
+  'document',
+  'unclassified',
+])
 export const enum_media_ingestion_status = pgEnum('enum_media_ingestion_status', [
   'active',
   'processing',
   'stale',
+  'ready',
+  'failed',
+])
+export const enum_media_processing_step = pgEnum('enum_media_processing_step', [
+  'upload_complete',
+  'exif_parsing',
+  'generating_webp',
+  'registering_assets',
   'ready',
   'failed',
 ])
@@ -1671,6 +1686,7 @@ export const media = pgTable(
     title: varchar('title').notNull(),
     alt: varchar('alt').notNull(),
     caption: jsonb('caption'),
+    storagePath: varchar('storage_path'),
     originalUrl: varchar('original_url'),
     proxyUrl: varchar('proxy_url'),
     thumbnailUrl: varchar('thumbnail_url'),
@@ -1679,6 +1695,7 @@ export const media = pgTable(
     shootName: varchar('shoot_name'),
     mediaType: enum_media_media_type('media_type').notNull(),
     ingestionStatus: enum_media_ingestion_status('ingestion_status').default('active'),
+    processingStep: enum_media_processing_step('processing_step').default('upload_complete'),
     captureDate: timestamp('capture_date', { mode: 'string', withTimezone: true, precision: 3 }),
     technical_cameraModel: varchar('technical_camera_model'),
     technical_lensModel: varchar('technical_lens_model'),
@@ -1712,18 +1729,6 @@ export const media = pgTable(
     height: numeric('height', { mode: 'number' }),
     focalX: numeric('focal_x', { mode: 'number' }),
     focalY: numeric('focal_y', { mode: 'number' }),
-    sizes_thumbnail_url: varchar('sizes_thumbnail_url'),
-    sizes_thumbnail_width: numeric('sizes_thumbnail_width', { mode: 'number' }),
-    sizes_thumbnail_height: numeric('sizes_thumbnail_height', { mode: 'number' }),
-    sizes_thumbnail_mimeType: varchar('sizes_thumbnail_mime_type'),
-    sizes_thumbnail_filesize: numeric('sizes_thumbnail_filesize', { mode: 'number' }),
-    sizes_thumbnail_filename: varchar('sizes_thumbnail_filename'),
-    sizes_optimized_url: varchar('sizes_optimized_url'),
-    sizes_optimized_width: numeric('sizes_optimized_width', { mode: 'number' }),
-    sizes_optimized_height: numeric('sizes_optimized_height', { mode: 'number' }),
-    sizes_optimized_mimeType: varchar('sizes_optimized_mime_type'),
-    sizes_optimized_filesize: numeric('sizes_optimized_filesize', { mode: 'number' }),
-    sizes_optimized_filename: varchar('sizes_optimized_filename'),
   },
   (columns) => [
     uniqueIndex('media_accession_id_idx').on(columns.accessionId),
@@ -1734,12 +1739,6 @@ export const media = pgTable(
     index('media_updated_at_idx').on(columns.updatedAt),
     index('media_created_at_idx').on(columns.createdAt),
     uniqueIndex('media_filename_idx').on(columns.filename),
-    index('media_sizes_thumbnail_sizes_thumbnail_filename_idx').on(
-      columns.sizes_thumbnail_filename,
-    ),
-    index('media_sizes_optimized_sizes_optimized_filename_idx').on(
-      columns.sizes_optimized_filename,
-    ),
   ],
 )
 
@@ -1749,11 +1748,9 @@ export const portfolios_blocks_grid_items = pgTable(
     _order: integer('_order').notNull(),
     _parentID: varchar('_parent_id').notNull(),
     id: varchar('id').primaryKey(),
-    media: integer('media_id')
-      .notNull()
-      .references(() => media.id, {
-        onDelete: 'set null',
-      }),
+    media: integer('media_id').references(() => media.id, {
+      onDelete: 'set null',
+    }),
     size: enum_portfolios_blocks_grid_items_size('size').default('medium'),
     alt: varchar('alt'),
     caption: varchar('caption'),
@@ -1825,11 +1822,9 @@ export const portfolios_blocks_featured = pgTable(
     _parentID: integer('_parent_id').notNull(),
     _path: text('_path').notNull(),
     id: varchar('id').primaryKey(),
-    media: integer('media_id')
-      .notNull()
-      .references(() => media.id, {
-        onDelete: 'set null',
-      }),
+    media: integer('media_id').references(() => media.id, {
+      onDelete: 'set null',
+    }),
     caption: jsonb('caption'),
     blockName: varchar('block_name'),
   },
@@ -2719,11 +2714,9 @@ export const pricing_partner_logos = pgTable(
     _order: integer('_order').notNull(),
     _parentID: integer('_parent_id').notNull(),
     id: varchar('id').primaryKey(),
-    logo: integer('logo_id')
-      .notNull()
-      .references(() => media.id, {
-        onDelete: 'set null',
-      }),
+    logo: integer('logo_id').references(() => media.id, {
+      onDelete: 'set null',
+    }),
   },
   (columns) => [
     index('pricing_partner_logos_order_idx').on(columns._order),
@@ -3985,6 +3978,7 @@ type DatabaseSchema = {
   enum__pages_v_version_status: typeof enum__pages_v_version_status
   enum_media_media_type: typeof enum_media_media_type
   enum_media_ingestion_status: typeof enum_media_ingestion_status
+  enum_media_processing_step: typeof enum_media_processing_step
   enum_portfolios_blocks_grid_items_size: typeof enum_portfolios_blocks_grid_items_size
   enum_portfolios_blocks_grid_spacing: typeof enum_portfolios_blocks_grid_spacing
   enum_portfolios_blocks_text_alignment: typeof enum_portfolios_blocks_text_alignment

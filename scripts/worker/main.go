@@ -311,19 +311,60 @@ func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName str
 	return client.Bucket(bucketName).Object(objectName).NewReader(ctx)
 }
 
-func getLocalAssetPath(p *parsedPath) string {
-	paths := []string{
-		filepath.Join("../../public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "original", p.Filename),
-		filepath.Join("public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "original", p.Filename),
+// localMediaRoot returns the absolute path of the project's public/media
+// directory. The dev wrapper (scripts/dev-with-worker.sh) sets
+// LOCAL_MEDIA_ROOT so we don't have to guess from a relative cwd. As a
+// fallback, prefer cwd-relative `public/media` (worker launched from
+// project root) before `../../public/media` (worker launched from
+// scripts/worker/) so we never write outside the project by accident.
+func localMediaRoot() string {
+	if env := os.Getenv("LOCAL_MEDIA_ROOT"); env != "" {
+		return env
 	}
-	for _, candidate := range paths {
-		if _, err := os.Stat(candidate); err == nil {
-			log.Printf("[%s] Resolved local asset at: %s", p.AssetID, candidate)
+	for _, candidate := range []string{"public/media", "../../public/media"} {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			abs, absErr := filepath.Abs(candidate)
+			if absErr == nil {
+				return abs
+			}
 			return candidate
 		}
 	}
-	log.Printf("[%s] WARNING: Could not locate local asset at any tenant path. Tried: %v", p.AssetID, paths)
-	return paths[0]
+	// Last resort: cwd-relative public/media. Will be created on first write.
+	abs, _ := filepath.Abs("public/media")
+	return abs
+}
+
+func localTenantPath(p *parsedPath, segment string) string {
+	return filepath.Join(localMediaRoot(), "tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, segment)
+}
+
+// assertInsideMediaRoot is a safety guard against any future regression
+// that resolves a write path outside the project's public/media tree.
+// Returns an error if `candidate` doesn't sit under `localMediaRoot()`.
+func assertInsideMediaRoot(candidate string) error {
+	root, err := filepath.Abs(localMediaRoot())
+	if err != nil {
+		return fmt.Errorf("media root resolution failed: %v", err)
+	}
+	abs, err := filepath.Abs(candidate)
+	if err != nil {
+		return fmt.Errorf("candidate path resolution failed: %v", err)
+	}
+	if !strings.HasPrefix(abs+string(filepath.Separator), root+string(filepath.Separator)) && abs != root {
+		return fmt.Errorf("refusing write outside media root: %s (root=%s)", abs, root)
+	}
+	return nil
+}
+
+func getLocalAssetPath(p *parsedPath) string {
+	candidate := filepath.Join(localTenantPath(p, "original"), p.Filename)
+	if _, err := os.Stat(candidate); err == nil {
+		log.Printf("[%s] Resolved local asset at: %s", p.AssetID, candidate)
+		return candidate
+	}
+	log.Printf("[%s] WARNING: Could not locate local asset at: %s", p.AssetID, candidate)
+	return candidate
 }
 
 func decodeOriginalImage(data []byte, ext string) (image.Image, string, error) {
@@ -427,17 +468,15 @@ func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName string,
 		}
 
 		if isLocal {
-			derivDir := filepath.Join("../../public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "derivatives")
-			_ = os.MkdirAll(derivDir, 0755)
-			derivPath := filepath.Join(derivDir, fmt.Sprintf("%s.webp", name))
-
-			err := os.WriteFile(derivPath, webpBuf.Bytes(), 0644)
-			if err != nil {
-				altDir := filepath.Join("public/media/tenants", p.UserID, p.Domain, p.Year, p.Month, p.AssetID, "derivatives")
-				_ = os.MkdirAll(altDir, 0755)
-				err = os.WriteFile(filepath.Join(altDir, fmt.Sprintf("%s.webp", name)), webpBuf.Bytes(), 0644)
+			derivDir := localTenantPath(p, "derivatives")
+			if err := assertInsideMediaRoot(derivDir); err != nil {
+				return err
 			}
-			if err != nil {
+			if err := os.MkdirAll(derivDir, 0755); err != nil {
+				return fmt.Errorf("creating derivative dir failed: %v", err)
+			}
+			derivPath := filepath.Join(derivDir, fmt.Sprintf("%s.webp", name))
+			if err := os.WriteFile(derivPath, webpBuf.Bytes(), 0644); err != nil {
 				return fmt.Errorf("writing local derivative failed: %v", err)
 			}
 			log.Printf("[%s] Local derivative '%s' saved: %s", p.AssetID, name, derivPath)

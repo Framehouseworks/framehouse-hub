@@ -145,16 +145,62 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
     })
     const creativeOwnerId = creativeUser.docs[0]?.id || ownerId
 
-    if (mediaDocs.docs.length === 0) {
-      payload.logger.info('No media found, seeding test fixtures...')
+    // Reconcile DB + disk: if any "Seed Portfolio" docs reference enclave
+    // files that no longer exist (e.g., operator wiped public/media), nuke
+    // those rows so the fixture loop below can rewrite them. Leaves
+    // user-uploaded media untouched.
+    const seedOrphans = await payload.find({
+      collection: 'media',
+      // Match legacy variants like "Seed Portfolio [Batch N]" too.
+      where: { shootName: { like: 'Seed Portfolio' } },
+      limit: 100,
+    })
+    const orphanIds: (number | string)[] = []
+    for (const doc of seedOrphans.docs) {
+      const storagePath = (doc as { storagePath?: string }).storagePath
+      if (!storagePath) {
+        orphanIds.push(doc.id)
+        continue
+      }
+      const onDisk = path.join(process.cwd(), 'public', 'media', storagePath)
+      if (!fs.existsSync(onDisk)) orphanIds.push(doc.id)
+    }
+    if (orphanIds.length > 0) {
+      payload.logger.info(
+        `Dropping ${orphanIds.length} seed-fixture row(s) with missing enclave files; will re-seed`,
+      )
+      await payload.delete({
+        collection: 'media',
+        where: { id: { in: orphanIds } },
+      })
+      mediaDocs = await payload.find({ collection: 'media', limit: 10 })
+    }
 
-      const fixturesDir = path.join(__dirname, 'fixtures')
-      const fixtureFiles = fs.existsSync(fixturesDir)
-        ? fs.readdirSync(fixturesDir).filter((f) => /\.(jpg|jpeg|png)$/i.test(f))
-        : []
+    const fixturesDir = path.join(__dirname, 'fixtures')
+    const fixtureFiles = fs.existsSync(fixturesDir)
+      ? fs.readdirSync(fixturesDir).filter((f) => /\.(jpg|jpeg|png)$/i.test(f))
+      : []
+
+    // Determine which fixture filenames are already represented by a doc with
+    // its file on disk. Anything not in this set will be (re-)seeded below.
+    const presentFixtureFilenames = new Set<string>()
+    for (const doc of mediaDocs.docs) {
+      const sp = (doc as { storagePath?: string }).storagePath
+      const docFilename = (doc as { filename?: string }).filename
+      if (!sp || !docFilename) continue
+      if (!fs.existsSync(path.join(MEDIA_ROOT, sp))) continue
+      presentFixtureFilenames.add(docFilename)
+    }
+
+    const missingFixtures = fixtureFiles.filter((f) => !presentFixtureFilenames.has(f))
+
+    if (missingFixtures.length > 0) {
+      payload.logger.info(
+        `Seeding ${missingFixtures.length} missing fixture(s): ${missingFixtures.join(', ')}`,
+      )
 
       if (fixtureFiles.length > 0) {
-        for (const filename of fixtureFiles) {
+        for (const filename of missingFixtures) {
           try {
             const filePath = path.join(fixturesDir, filename)
             const data = fs.readFileSync(filePath)

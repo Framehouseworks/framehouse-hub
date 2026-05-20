@@ -35,7 +35,11 @@ if [ -x "$WORKER_BIN" ]; then
     echo "[dev] Port $WORKER_PORT already in use; assuming worker is already running."
   else
     echo "[dev] Starting Go worker on :$WORKER_PORT..."
-    PORT="$WORKER_PORT" "$WORKER_BIN" 2>&1 | sed 's/^/[worker] /' &
+    # Pin LOCAL_MEDIA_ROOT so the worker never resolves derivative paths
+    # relative to its cwd. Prevents files from escaping the project when
+    # the worker is launched from somewhere other than scripts/worker/.
+    PORT="$WORKER_PORT" LOCAL_MEDIA_ROOT="$ROOT_DIR/public/media" \
+      "$WORKER_BIN" 2>&1 | sed 's/^/[worker] /' &
     WORKER_PID=$!
   fi
 fi

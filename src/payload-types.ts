@@ -951,7 +951,7 @@ export interface Portfolio {
          * Add and reorder images for the grid.
          */
         items: {
-          media: number | Media;
+          media?: (number | null) | Media;
           size?: ('small' | 'medium' | 'large' | 'full') | null;
           /**
            * Override alt text for this specific gallery item
@@ -993,7 +993,7 @@ export interface Portfolio {
         blockType: 'text';
       }
     | {
-        media: number | Media;
+        media?: (number | null) | Media;
         caption?: {
           root: {
             type: string;
@@ -1984,7 +1984,7 @@ export interface Pricing {
     | null;
   partnerLogos?:
     | {
-        logo: number | Media;
+        logo?: (number | null) | Media;
         id?: string | null;
       }[]
     | null;
