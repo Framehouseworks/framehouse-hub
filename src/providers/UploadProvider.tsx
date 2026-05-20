@@ -302,23 +302,27 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const uploadSession = await signedUrlResponse.json()
 
       if (uploadSession.localMode) {
-        // --- A. LOCAL INGESTION MODE (mirrors cloud's signed-url +
-        // register-gcs shape). The custom endpoint owns the enclave write
-        // and the Media doc creation, so we never touch Payload's REST
-        // upload pipeline.
-        const formData = new FormData()
+        // --- A. LOCAL INGESTION MODE. Raw file bytes go in the body;
+        // filename + metadata travel in custom headers. Multipart is
+        // intentionally avoided because Next 15 + Node 22's
+        // `req.formData()` is unreliable in CI. The server endpoint
+        // (/api/media/register-local) re-classifies mediaType from
+        // mimeType+filename, and writeOriginalToEnclave still owns the
+        // disk write.
         const meta = {
           title: nextItem.metadata?.title || '',
           shootName: nextItem.metadata?.shootName || '',
           manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
           location: { address: nextItem.metadata?.location || '' },
         }
-        formData.append('_payload', JSON.stringify(meta))
-        formData.append('file', uploadFile)
+        const encodedMeta = btoa(unescape(encodeURIComponent(JSON.stringify(meta))))
 
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open('POST', '/api/media/register-local')
+          xhr.setRequestHeader('Content-Type', uploadFile.type || 'application/octet-stream')
+          xhr.setRequestHeader('X-Filename', uploadFile.name)
+          xhr.setRequestHeader('X-Upload-Meta', encodedMeta)
 
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -358,7 +362,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
 
           xhr.onerror = () => reject(new Error('Local network upload error'))
-          xhr.send(formData)
+          xhr.send(uploadFile)
         })
       } else {
         // --- B. CLOUD DIRECT GCS INGESTION MODE ---

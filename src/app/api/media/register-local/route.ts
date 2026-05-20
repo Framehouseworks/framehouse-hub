@@ -4,17 +4,26 @@ import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
 import { classifyDomainCategory, domainCategoryToMediaType } from '@/lib/storage-paths'
 
-// Local-mode mirror of /api/media/register-gcs. The client uploads via
-// multipart; we parse it here, then hand the buffer to payload.create via
-// its `file` argument. The writeOriginalToEnclave beforeChange hook owns
-// the disk write to the tenant enclave and stamps storagePath/originalUrl
-// on the doc, so we get a single code path for hook-driven persistence
-// (admin upload, dashboard upload, and seed all flow through the same
-// place).
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+// Local-mode upload endpoint. Cloud-mode equivalent: signed-url +
+// register-gcs. The client sends the raw file bytes as the body, with
+// the filename + metadata in custom headers — multipart is intentionally
+// avoided because Node 22 + Next 15 dev's `req.formData()` is unreliable
+// in CI (intermittent "Failed to parse body as FormData") and adds
+// nothing this route needs.
 //
-// We can't bypass Payload's generateFileData by stamping storagePath
-// ourselves and skipping `file:` — generateFileData throws MissingFile on
-// upload collections that have `filesRequiredOnCreate !== false`.
+// Request contract:
+//   POST /api/media/register-local
+//   Content-Type: <file mime>
+//   X-Filename: <original filename>
+//   X-Upload-Meta: base64(JSON: {title?, shootName?, manualTags?, location?})
+//   body: raw file bytes
+//
+// The writeOriginalToEnclave beforeChange hook still owns the disk
+// write and stamps storagePath/originalUrl, so this route is a thin
+// wrapper around payload.create with no special filesystem knowledge.
 export async function POST(req: Request) {
   try {
     const headers = await getHeaders()
@@ -32,11 +41,11 @@ export async function POST(req: Request) {
       )
     }
 
-    const form = await req.formData()
-    const file = form.get('file')
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'Missing file in multipart payload' }, { status: 400 })
+    const filename = req.headers.get('x-filename')
+    if (!filename) {
+      return NextResponse.json({ error: 'Missing X-Filename header' }, { status: 400 })
     }
+    const mimeType = req.headers.get('content-type') || 'application/octet-stream'
 
     let meta: {
       title?: string
@@ -44,18 +53,19 @@ export async function POST(req: Request) {
       manualTags?: { tag: string }[]
       location?: { address?: string }
     } = {}
-    const metaRaw = form.get('_payload')
-    if (typeof metaRaw === 'string') {
+    const metaRaw = req.headers.get('x-upload-meta')
+    if (metaRaw) {
       try {
-        meta = JSON.parse(metaRaw)
+        meta = JSON.parse(Buffer.from(metaRaw, 'base64').toString('utf-8'))
       } catch {
-        // ignore malformed metadata
+        // Ignore malformed metadata — treat as no metadata supplied.
       }
     }
 
-    const mimeType = file.type || 'application/octet-stream'
-    const filename = file.name
-    const buffer = Buffer.from(await file.arrayBuffer())
+    const buffer = Buffer.from(await req.arrayBuffer())
+    if (buffer.length === 0) {
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 })
+    }
     const domainCategory = classifyDomainCategory(mimeType, filename)
 
     const mediaRecord = await payload.create({
