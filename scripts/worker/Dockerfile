@@ -16,8 +16,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o worker main.go
 # Stage 2: Minimal runner container
 FROM alpine:latest
 
-# Install ffmpeg for video poster and meta extraction, plus webp CLI tools and ca-certificates for secure GCS connections
-RUN apk add --no-cache ffmpeg ca-certificates webp
+# Install ffmpeg for video poster and meta extraction, plus webp CLI tools
+# (libwebp-tools provides the `cwebp` binary main.go shells out to) and
+# ca-certificates for secure GCS connections. Note: on Alpine the package
+# name is `libwebp-tools`, NOT `webp` (the Ubuntu/Debian name).
+RUN apk add --no-cache ffmpeg ca-certificates libwebp-tools
 
 WORKDIR /app
 COPY --from=builder /app/worker .

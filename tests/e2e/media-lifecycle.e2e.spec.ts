@@ -62,7 +62,7 @@ async function completeProcessing(doc: { id: number | string; storagePath: strin
 // In CI, playwright.config.ts auto-spawns the dev server which includes the worker.
 // Locally, run `pnpm dev` in a separate terminal before invoking this spec.
 test.describe('Media lifecycle (e2e)', () => {
-  test.beforeAll(() => {
+  test.beforeAll(async () => {
     // Self-heal: ensure the creative user + fixture media are seeded so the
     // gallery has a known starting state. The seed's reconcile path is a
     // no-op if everything is already in place.
@@ -70,6 +70,25 @@ test.describe('Media lifecycle (e2e)', () => {
       execSync('pnpm run seed', { stdio: 'inherit' })
     } catch (err) {
       console.warn('Seed step skipped:', err)
+    }
+
+    // Pre-compile the API routes the test will hit. In Next dev, the first
+    // request to a never-touched route triggers lazy compilation, which
+    // can drop in-flight requests with ECONNRESET. Issuing a harmless
+    // probe up front amortises that compile cost outside the test's
+    // critical path. We expect 401/400/etc — only the compilation matters.
+    const probeRoutes = [
+      '/api/users/me',
+      '/api/media/signed-url',
+      '/api/media/register-local',
+      '/api/media/process-callback',
+    ]
+    for (const route of probeRoutes) {
+      try {
+        await fetch(`${baseURL}${route}`, { method: 'POST', body: '{}' }).catch(() => {})
+      } catch {
+        /* best-effort */
+      }
     }
   })
 
@@ -165,8 +184,21 @@ test.describe('Media lifecycle (e2e)', () => {
       await page.locator('input[placeholder="INTENT"]').fill('DELETE')
       await page.locator('button:has-text("Authorize Disposal")').click()
 
-      // 8. Card disappears from the grid.
-      await expect(newCard).toHaveCount(0, { timeout: 30_000 })
+      // 8. Wait for the server to actually delete the doc, then reload.
+      // The Server Action calls revalidatePath('/dashboard') which only
+      // schedules a re-render — the gallery DOM keeps the stale card
+      // until the client refetches. Reload forces the new server-rendered
+      // state, so the assertion isn't racing the revalidation.
+      await page.evaluate(async (mediaId: number) => {
+        for (let i = 0; i < 30; i++) {
+          const res = await fetch(`/api/media/${mediaId}`, { cache: 'no-store' })
+          if (res.status === 404) return
+          await new Promise((r) => setTimeout(r, 500))
+        }
+        throw new Error(`Doc ${mediaId} was not deleted within 15s`)
+      }, newDoc.id)
+      await page.reload()
+      await expect(newCard).toHaveCount(0, { timeout: 15_000 })
     } finally {
       try {
         fs.unlinkSync(stagedFixture)
