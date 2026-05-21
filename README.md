@@ -1,6 +1,5 @@
 <img width="1500" height="600" alt="Header Bar HUB" src="https://github.com/user-attachments/assets/18a3b1be-059e-4bc0-bcc7-df4d23780bf4" />
 
-
 # Framehouse Hub
 
 **Framehouse Hub** is a premium digital asset management and high-resolution gallery platform. Built with a focus on professional creatives and their clients, it provides a seamless workflow for managing, proofing, and delivering high-quality visual content.
@@ -34,6 +33,7 @@ docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=<You
 ```
 
 **Useful details:**
+
 - **Connection String**: `postgresql://postgres:<Your Password>@localhost:5432/postgres`
 
 ### 2. Application Setup
@@ -130,7 +130,10 @@ See the [Globals](https://payloadcms.com/docs/configuration/globals) docs for de
 
 ## Holistic Architecture
 
+> **Ingestion pipeline reference**: the storage path contract, processing flow, free-tier knobs, and deferred-to-v1 list live in [`docs/FRH-52-architecture.md`](docs/FRH-52-architecture.md). Edit there; the tracker ticket mirrors.
+
 ### System Overview
+
 This platform is built as a unified application where the frontend and backend are tightly integrated using **Next.js 15** and **Payload CMS v3**.
 
 - **Frontend**: A modern React application utilizing the Next.js App Router, Tailwind CSS, and Radix UI components.
@@ -139,6 +142,7 @@ This platform is built as a unified application where the frontend and backend a
 - **Media Functions**: Asset management is handled through Payload, with current local storage in `public/media` and scalability for cloud storage integration.
 
 ### Data Flow
+
 1.  **Client Interaction**: Users interact with the React frontend in their browser.
 2.  **Server Rendering/API**: Next.js Server Components fetch data using Payload's Local API for fast rendering. Client-side interactions use Payload's REST or GraphQL endpoints.
 3.  **CMS Logic**: Payload processes requests, enforces access control roles (e.g., Admin vs. Creative), and performs data validation.

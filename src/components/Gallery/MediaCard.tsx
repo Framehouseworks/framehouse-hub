@@ -48,7 +48,8 @@ export const MediaCard: React.FC<Props> = ({
 
   const title = media.alt || media.filename || 'Untitled Archive'
   const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-  const src = media.url?.startsWith('http') ? media.url : `${serverUrl}${media.url}`
+  const bestUrl = media.thumbnailUrl || media.proxyUrl || media.originalUrl || media.url
+  const src = bestUrl?.startsWith('http') ? bestUrl : `${serverUrl}${bestUrl || ''}`
 
   const hasTechnical = !!(media.technical?.cameraModel || media.technical?.iso)
   const isProcessing = media.ingestionStatus === 'processing' || media.ingestionStatus === 'active'
@@ -76,7 +77,7 @@ export const MediaCard: React.FC<Props> = ({
       )}
     >
       {/* 1. Primary Asset */}
-      {media.url && (
+      {bestUrl && (
         <Image
           src={src}
           alt={title}
@@ -94,12 +95,36 @@ export const MediaCard: React.FC<Props> = ({
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
         <div className="flex flex-wrap gap-2">
           {isProcessing ? (
-            <div className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-gallery-gold/30 flex items-center gap-2 shadow-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <motion.div
+              className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-amber-400/30 flex items-center gap-2 shadow-sm"
+              animate={{
+                borderColor: [
+                  'rgba(251,191,36,0.3)',
+                  'rgba(251,191,36,0.6)',
+                  'rgba(251,191,36,0.3)',
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <motion.div
+                className="w-1.5 h-1.5 rounded-full bg-amber-400"
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
               <span className="font-rubik text-[9px] tracking-wider text-amber-400 uppercase font-semibold">
                 Processing
               </span>
-            </div>
+            </motion.div>
+          ) : media.ingestionStatus === 'ready' ? (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 shadow-sm"
+            >
+              <span className="font-rubik text-[9px] tracking-wider text-emerald-400 uppercase font-semibold">
+                Ready
+              </span>
+            </motion.div>
           ) : (
             media.manualTags?.[0] && (
               <div className="px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-white/10 shadow-sm">

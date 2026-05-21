@@ -1,14 +1,12 @@
-import { getPayload, Payload } from 'payload'
-import config from '@/payload.config'
-
+import type { Payload } from 'payload'
 import { describe, it, beforeAll, expect } from 'vitest'
+import { getTestPayload } from '../helpers/payload'
 
 let payload: Payload
 
 describe('API', () => {
   beforeAll(async () => {
-    const payloadConfig = await config
-    payload = await getPayload({ config: payloadConfig })
+    payload = await getTestPayload()
   })
 
   it('fetches users', async () => {

@@ -214,9 +214,8 @@ export const ForensicDrawer: React.FC<ForensicDrawerProps> = ({ media, isOpen, o
   }
 
   const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-  const src = activeMedia.url?.startsWith('http')
-    ? activeMedia.url
-    : `${serverUrl}${activeMedia.url}`
+  const bestUrl = activeMedia.proxyUrl || activeMedia.originalUrl || activeMedia.url
+  const src = bestUrl?.startsWith('http') ? bestUrl : `${serverUrl}${bestUrl || ''}`
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>

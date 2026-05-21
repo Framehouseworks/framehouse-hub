@@ -13,6 +13,14 @@ import * as migration_20260514_210800_add_archival_sequence from './20260514_210
 import * as migration_20260514_221500_add_media_shoot_name from './20260514_221500_add_media_shoot_name'
 import * as migration_20260514_230000_intelligence_and_scale from './20260514_230000_intelligence_and_scale'
 import * as migration_20260518_143700_add_smart_collections_lock_relation from './20260518_143700_add_smart_collections_lock_relation'
+import * as migration_20260519_161500_add_media_search_gin_index from './20260519_161500_add_media_search_gin_index'
+import * as migration_20260520_120000_add_storage_path_processing_step from './20260520_120000_add_storage_path_processing_step'
+import * as migration_20260520_180000_fix_portfolio_media_cascade from './20260520_180000_fix_portfolio_media_cascade'
+import * as migration_20260520_190000_fix_pricing_logo_cascade from './20260520_190000_fix_pricing_logo_cascade'
+import * as migration_20260520_210000_relax_media_block_fks from './20260520_210000_relax_media_block_fks'
+import * as migration_20260521_120000_add_media_original_filename from './20260521_120000_add_media_original_filename'
+import * as migration_20260521_130000_extend_media_search_gin from './20260521_130000_extend_media_search_gin'
+import * as migration_20260521_140000_add_upload_batches from './20260521_140000_add_upload_batches'
 
 export const migrations = [
   {
@@ -89,5 +97,45 @@ export const migrations = [
     up: migration_20260518_143700_add_smart_collections_lock_relation.up,
     down: migration_20260518_143700_add_smart_collections_lock_relation.down,
     name: '20260518_143700_add_smart_collections_lock_relation',
+  },
+  {
+    up: migration_20260519_161500_add_media_search_gin_index.up,
+    down: migration_20260519_161500_add_media_search_gin_index.down,
+    name: '20260519_161500_add_media_search_gin_index',
+  },
+  {
+    up: migration_20260520_120000_add_storage_path_processing_step.up,
+    down: migration_20260520_120000_add_storage_path_processing_step.down,
+    name: '20260520_120000_add_storage_path_processing_step',
+  },
+  {
+    up: migration_20260520_180000_fix_portfolio_media_cascade.up,
+    down: migration_20260520_180000_fix_portfolio_media_cascade.down,
+    name: '20260520_180000_fix_portfolio_media_cascade',
+  },
+  {
+    up: migration_20260520_190000_fix_pricing_logo_cascade.up,
+    down: migration_20260520_190000_fix_pricing_logo_cascade.down,
+    name: '20260520_190000_fix_pricing_logo_cascade',
+  },
+  {
+    up: migration_20260520_210000_relax_media_block_fks.up,
+    down: migration_20260520_210000_relax_media_block_fks.down,
+    name: '20260520_210000_relax_media_block_fks',
+  },
+  {
+    up: migration_20260521_120000_add_media_original_filename.up,
+    down: migration_20260521_120000_add_media_original_filename.down,
+    name: '20260521_120000_add_media_original_filename',
+  },
+  {
+    up: migration_20260521_130000_extend_media_search_gin.up,
+    down: migration_20260521_130000_extend_media_search_gin.down,
+    name: '20260521_130000_extend_media_search_gin',
+  },
+  {
+    up: migration_20260521_140000_add_upload_batches.up,
+    down: migration_20260521_140000_add_upload_batches.down,
+    name: '20260521_140000_add_upload_batches',
   },
 ]

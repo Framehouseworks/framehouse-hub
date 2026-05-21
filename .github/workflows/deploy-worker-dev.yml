@@ -1,0 +1,109 @@
+name: Deploy Worker (Dev)
+
+# Worker releases are decoupled from the Next app. Only rebuild + redeploy
+# when the worker's own source changes — keeps Cloud Run revisions tidy and
+# avoids burning Artifact Registry storage on no-op updates (free tier:
+# 0.5 GB).
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'scripts/worker/**'
+      - '.github/workflows/deploy-worker-dev.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip Cloud Run deploy (build & push only)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-worker-dev-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-worker-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGION: us-central1
+      SERVICE: framehouse-hub-worker-dev
+      IMAGE: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/worker:dev
+      GCS_BUCKET: framehouse-hub-dev
+      # The dev Next app's public URL — worker posts process-callback here.
+      CALLBACK_URL: https://framehouse-hub-dev-588985538639.us-central1.run.app
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Worker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/worker
+          file: ./scripts/worker/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha,scope=${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+
+      # Cloud Run dev worker. Resource shape is tuned for the free tier:
+      #   - min-instances=0 → cold-start on demand, zero idle cost
+      #   - max-instances=2 → caps runaway under burst (Eventarc backlog)
+      #   - memory=512Mi + cpu=1 → enough for sharp / imaging on ~10 MP JPEGs
+      #   - concurrency=4 → worker is per-event; low concurrency keeps memory
+      #     headroom and avoids cwebp shell-out contention
+      #   - timeout=300s → matches the longest realistic raw-to-webp pipeline
+      #   - no-allow-unauthenticated → only Eventarc's invoker SA can hit it
+      - name: Deploy to Cloud Run (Worker Dev)
+        if: github.event.inputs.dry_run != 'true'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          image: ${{ env.IMAGE }}
+          region: ${{ env.REGION }}
+          flags: |
+            --min-instances=0
+            --max-instances=2
+            --memory=512Mi
+            --cpu=1
+            --concurrency=4
+            --timeout=300s
+            --no-allow-unauthenticated
+          env_vars_update_strategy: overwrite
+          secrets_update_strategy: overwrite
+          secrets: |
+            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_DEV:latest
+          env_vars: |
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            NEXT_PUBLIC_SERVER_URL=${{ env.CALLBACK_URL }}
+
+      - name: Summarise
+        run: |
+          echo "### Worker Deploy (dev)" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: \`${{ env.IMAGE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: \`${{ env.SERVICE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Region: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Callback target: \`${{ env.CALLBACK_URL }}\`" >> $GITHUB_STEP_SUMMARY
