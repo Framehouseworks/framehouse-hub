@@ -21,6 +21,7 @@ import * as migration_20260520_210000_relax_media_block_fks from './20260520_210
 import * as migration_20260521_120000_add_media_original_filename from './20260521_120000_add_media_original_filename'
 import * as migration_20260521_130000_extend_media_search_gin from './20260521_130000_extend_media_search_gin'
 import * as migration_20260521_140000_add_upload_batches from './20260521_140000_add_upload_batches'
+import * as migration_20260521_190000_add_waitlist from './20260521_190000_add_waitlist'
 
 export const migrations = [
   {
@@ -137,5 +138,10 @@ export const migrations = [
     up: migration_20260521_140000_add_upload_batches.up,
     down: migration_20260521_140000_add_upload_batches.down,
     name: '20260521_140000_add_upload_batches',
+  },
+  {
+    up: migration_20260521_190000_add_waitlist.up,
+    down: migration_20260521_190000_add_waitlist.down,
+    name: '20260521_190000_add_waitlist',
   },
 ]
