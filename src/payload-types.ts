@@ -73,6 +73,7 @@ export interface Config {
     media: Media;
     portfolios: Portfolio;
     'smart-collections': SmartCollection;
+    'upload-batches': UploadBatch;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -93,6 +94,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
     'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
+    'upload-batches': UploadBatchesSelect<false> | UploadBatchesSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -286,6 +288,7 @@ export interface Media {
    * Archival Shoot Identity (e.g. Wildlife Expedition 2024).
    */
   shootName?: string | null;
+  uploadBatchId?: (number | null) | UploadBatch;
   mediaType: 'image' | 'raw' | 'video' | 'audio' | 'document' | 'unclassified';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
   processingStep?:
@@ -330,10 +333,17 @@ export interface Media {
   errorMessage?: string | null;
   processedAt?: string | null;
   owner: number | User;
+  /**
+   * Original filename as uploaded (pre-slugify).
+   */
+  originalFilename?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
   thumbnailURL?: string | null;
+  /**
+   * Slugified, path-safe filename used on disk + in storagePath.
+   */
   filename?: string | null;
   mimeType?: string | null;
   filesize?: number | null;
@@ -341,6 +351,23 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * Ingest grouping. One batch per user-initiated upload session; deleting a batch nullifies the FK on media (assets survive).
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "upload-batches".
+ */
+export interface UploadBatch {
+  id: number;
+  owner: number | User;
+  source: 'dashboard' | 'admin' | 'seed' | 'api';
+  /**
+   * Free-form admin note about this ingest session.
+   */
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1142,6 +1169,10 @@ export interface PayloadLockedDocument {
         value: number | SmartCollection;
       } | null)
     | ({
+        relationTo: 'upload-batches';
+        value: number | UploadBatch;
+      } | null)
+    | ({
         relationTo: 'forms';
         value: number | Form;
       } | null)
@@ -1541,6 +1572,7 @@ export interface MediaSelect<T extends boolean = true> {
   accessionId?: T;
   archivalSequence?: T;
   shootName?: T;
+  uploadBatchId?: T;
   mediaType?: T;
   ingestionStatus?: T;
   processingStep?: T;
@@ -1578,6 +1610,7 @@ export interface MediaSelect<T extends boolean = true> {
   errorMessage?: T;
   processedAt?: T;
   owner?: T;
+  originalFilename?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1671,6 +1704,17 @@ export interface SmartCollectionsSelect<T extends boolean = true> {
   filterQuery?: T;
   icon?: T;
   description?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "upload-batches_select".
+ */
+export interface UploadBatchesSelect<T extends boolean = true> {
+  owner?: T;
+  source?: T;
+  notes?: T;
   updatedAt?: T;
   createdAt?: T;
 }

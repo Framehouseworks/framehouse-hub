@@ -44,6 +44,35 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   const [searchQuery, setSearchQuery] = useState(initialFilters?.search || '')
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilters?.status || null)
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
+  // Server-side search hits (FRH-52 phase C). When debouncedSearchQuery is
+  // non-empty, /api/media/search returns the GIN-ranked matches and we
+  // render those instead of substring-filtering localMedia. Falls back to
+  // localMedia for empty query.
+  const [searchHits, setSearchHits] = useState<Media[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    if (!debouncedSearchQuery) {
+      setSearchHits(null)
+      return
+    }
+    ;(async () => {
+      try {
+        const url = `/api/media/search?q=${encodeURIComponent(debouncedSearchQuery)}&limit=50`
+        const res = await fetch(url, { cache: 'no-store' })
+        if (!res.ok) {
+          setSearchHits(null)
+          return
+        }
+        const data = (await res.json()) as { docs?: Media[] }
+        if (!cancelled) setSearchHits(data.docs || [])
+      } catch {
+        if (!cancelled) setSearchHits(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedSearchQuery])
 
   // Synchronize state when server initialFilters change (e.g., clicking active views)
   useEffect(() => {
@@ -109,18 +138,16 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   }
 
   const filteredMedia = useMemo(() => {
-    return localMedia.filter((item) => {
-      const matchesSearch =
-        !debouncedSearchQuery ||
-        item.title?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        item.filename?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        item.shootName?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-
+    // When a query is active, use the server-side FTS hits as the
+    // source. The endpoint already filters by owner + matches against
+    // title / filename / originalFilename / camera / lens / shootName
+    // via the GIN index. We only layer the status filter on top.
+    const source = searchHits ?? localMedia
+    return source.filter((item) => {
       const matchesStatus = !statusFilter || item.ingestionStatus === statusFilter
-
-      return matchesSearch && matchesStatus
+      return matchesStatus
     })
-  }, [localMedia, debouncedSearchQuery, statusFilter])
+  }, [localMedia, searchHits, statusFilter])
 
   const handleClearFilters = () => {
     setSearchQuery('')

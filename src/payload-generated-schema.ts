@@ -306,6 +306,12 @@ export const enum_smart_collections_icon = pgEnum('enum_smart_collections_icon',
   'camera',
   'map',
 ])
+export const enum_upload_batches_source = pgEnum('enum_upload_batches_source', [
+  'dashboard',
+  'admin',
+  'seed',
+  'api',
+])
 export const enum_forms_confirmation_type = pgEnum('enum_forms_confirmation_type', [
   'message',
   'redirect',
@@ -1693,6 +1699,9 @@ export const media = pgTable(
     accessionId: varchar('accession_id'),
     archivalSequence: numeric('archival_sequence', { mode: 'number' }),
     shootName: varchar('shoot_name'),
+    uploadBatchId: integer('upload_batch_id_id').references(() => upload_batches.id, {
+      onDelete: 'set null',
+    }),
     mediaType: enum_media_media_type('media_type').notNull(),
     ingestionStatus: enum_media_ingestion_status('ingestion_status').default('active'),
     processingStep: enum_media_processing_step('processing_step').default('upload_complete'),
@@ -1714,6 +1723,7 @@ export const media = pgTable(
       .references(() => users.id, {
         onDelete: 'set null',
       }),
+    originalFilename: varchar('original_filename'),
     updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true, precision: 3 })
       .defaultNow()
       .notNull(),
@@ -1734,8 +1744,10 @@ export const media = pgTable(
     uniqueIndex('media_accession_id_idx').on(columns.accessionId),
     uniqueIndex('media_archival_sequence_idx').on(columns.archivalSequence),
     index('media_shoot_name_idx').on(columns.shootName),
+    index('media_upload_batch_id_idx').on(columns.uploadBatchId),
     index('media_capture_date_idx').on(columns.captureDate),
     index('media_owner_idx').on(columns.owner),
+    index('media_original_filename_idx').on(columns.originalFilename),
     index('media_updated_at_idx').on(columns.updatedAt),
     index('media_created_at_idx').on(columns.createdAt),
     uniqueIndex('media_filename_idx').on(columns.filename),
@@ -1927,6 +1939,31 @@ export const smart_collections = pgTable(
     index('smart_collections_owner_idx').on(columns.owner),
     index('smart_collections_updated_at_idx').on(columns.updatedAt),
     index('smart_collections_created_at_idx').on(columns.createdAt),
+  ],
+)
+
+export const upload_batches = pgTable(
+  'upload_batches',
+  {
+    id: serial('id').primaryKey(),
+    owner: integer('owner_id')
+      .notNull()
+      .references(() => users.id, {
+        onDelete: 'set null',
+      }),
+    source: enum_upload_batches_source('source').notNull().default('dashboard'),
+    notes: varchar('notes'),
+    updatedAt: timestamp('updated_at', { mode: 'string', withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp('created_at', { mode: 'string', withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index('upload_batches_owner_idx').on(columns.owner),
+    index('upload_batches_updated_at_idx').on(columns.updatedAt),
+    index('upload_batches_created_at_idx').on(columns.createdAt),
   ],
 )
 
@@ -2352,6 +2389,7 @@ export const payload_locked_documents_rels = pgTable(
     mediaID: integer('media_id'),
     portfoliosID: integer('portfolios_id'),
     'smart-collectionsID': integer('smart_collections_id'),
+    'upload-batchesID': integer('upload_batches_id'),
     formsID: integer('forms_id'),
     'form-submissionsID': integer('form_submissions_id'),
     'payload-foldersID': integer('payload_folders_id'),
@@ -2368,6 +2406,7 @@ export const payload_locked_documents_rels = pgTable(
     index('payload_locked_documents_rels_smart_collections_id_idx').on(
       columns['smart-collectionsID'],
     ),
+    index('payload_locked_documents_rels_upload_batches_id_idx').on(columns['upload-batchesID']),
     index('payload_locked_documents_rels_forms_id_idx').on(columns.formsID),
     index('payload_locked_documents_rels_form_submissions_id_idx').on(
       columns['form-submissionsID'],
@@ -2407,6 +2446,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns['smart-collectionsID']],
       foreignColumns: [smart_collections.id],
       name: 'payload_locked_documents_rels_smart_collections_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [columns['upload-batchesID']],
+      foreignColumns: [upload_batches.id],
+      name: 'payload_locked_documents_rels_upload_batches_fk',
     }).onDelete('cascade'),
     foreignKey({
       columns: [columns['formsID']],
@@ -3438,6 +3482,11 @@ export const relations_media_heuristic_tags = relations(media_heuristic_tags, ({
   }),
 }))
 export const relations_media = relations(media, ({ one, many }) => ({
+  uploadBatchId: one(upload_batches, {
+    fields: [media.uploadBatchId],
+    references: [upload_batches.id],
+    relationName: 'uploadBatchId',
+  }),
   manualTags: many(media_manual_tags, {
     relationName: 'manualTags',
   }),
@@ -3537,6 +3586,13 @@ export const relations_portfolios = relations(portfolios, ({ one, many }) => ({
 export const relations_smart_collections = relations(smart_collections, ({ one }) => ({
   owner: one(users, {
     fields: [smart_collections.owner],
+    references: [users.id],
+    relationName: 'owner',
+  }),
+}))
+export const relations_upload_batches = relations(upload_batches, ({ one }) => ({
+  owner: one(users, {
+    fields: [upload_batches.owner],
     references: [users.id],
     relationName: 'owner',
   }),
@@ -3734,6 +3790,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels['smart-collectionsID']],
       references: [smart_collections.id],
       relationName: 'smart-collections',
+    }),
+    'upload-batchesID': one(upload_batches, {
+      fields: [payload_locked_documents_rels['upload-batchesID']],
+      references: [upload_batches.id],
+      relationName: 'upload-batches',
     }),
     formsID: one(forms, {
       fields: [payload_locked_documents_rels.formsID],
@@ -3986,6 +4047,7 @@ type DatabaseSchema = {
   enum_portfolios_visibility: typeof enum_portfolios_visibility
   enum_portfolios_theme_font_pairing: typeof enum_portfolios_theme_font_pairing
   enum_smart_collections_icon: typeof enum_smart_collections_icon
+  enum_upload_batches_source: typeof enum_upload_batches_source
   enum_forms_confirmation_type: typeof enum_forms_confirmation_type
   enum_payload_folders_folder_type: typeof enum_payload_folders_folder_type
   enum_header_nav_items_link_type: typeof enum_header_nav_items_link_type
@@ -4048,6 +4110,7 @@ type DatabaseSchema = {
   portfolios_blocks_spacer: typeof portfolios_blocks_spacer
   portfolios: typeof portfolios
   smart_collections: typeof smart_collections
+  upload_batches: typeof upload_batches
   forms_blocks_checkbox: typeof forms_blocks_checkbox
   forms_blocks_country: typeof forms_blocks_country
   forms_blocks_email: typeof forms_blocks_email
@@ -4141,6 +4204,7 @@ type DatabaseSchema = {
   relations_portfolios_blocks_spacer: typeof relations_portfolios_blocks_spacer
   relations_portfolios: typeof relations_portfolios
   relations_smart_collections: typeof relations_smart_collections
+  relations_upload_batches: typeof relations_upload_batches
   relations_forms_blocks_checkbox: typeof relations_forms_blocks_checkbox
   relations_forms_blocks_country: typeof relations_forms_blocks_country
   relations_forms_blocks_email: typeof relations_forms_blocks_email

@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
-import { classifyDomainCategory, domainCategoryToMediaType } from '@/lib/storage-paths'
+import {
+  classifyDomainCategory,
+  domainCategoryToMediaType,
+  enforceUploadSizeLimit,
+  UploadSizeLimitError,
+} from '@/lib/storage-paths'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,6 +57,7 @@ export async function POST(req: Request) {
       shootName?: string
       manualTags?: { tag: string }[]
       location?: { address?: string }
+      uploadBatchId?: number | string
     } = {}
     const metaRaw = req.headers.get('x-upload-meta')
     if (metaRaw) {
@@ -67,6 +73,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Empty request body' }, { status: 400 })
     }
     const domainCategory = classifyDomainCategory(mimeType, filename)
+    try {
+      enforceUploadSizeLimit(domainCategoryToMediaType(domainCategory), buffer.length)
+    } catch (err) {
+      if (err instanceof UploadSizeLimitError) {
+        return NextResponse.json({ error: err.message }, { status: err.status })
+      }
+      throw err
+    }
 
     const mediaRecord = await payload.create({
       collection: 'media',
@@ -78,6 +92,7 @@ export async function POST(req: Request) {
         shootName: meta.shootName || '',
         manualTags: meta.manualTags || [],
         location: { address: meta.location?.address || '' },
+        ...(meta.uploadBatchId ? { uploadBatchId: Number(meta.uploadBatchId) } : {}),
       },
       file: {
         data: buffer,

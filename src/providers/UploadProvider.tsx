@@ -13,6 +13,7 @@ import { IngestionWorkbench } from '@/components/Gallery/IngestionWorkbench'
 import { ArchivalProgressOverlay } from '@/components/Gallery/ArchivalProgressOverlay'
 import { useRouter } from 'next/navigation'
 import { revalidateDashboardAction } from '@/app/(dashboard)/actions/media'
+import { MAX_BYTES_BY_MEDIA_TYPE, mediaTypeFromMimeAndExtension } from '@/lib/storage-paths'
 import { toast } from 'sonner'
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'failed'
@@ -51,6 +52,7 @@ export interface UploadItem {
     title?: string
     location?: string
     shootName?: string
+    uploadBatchId?: number
   }
 }
 
@@ -59,7 +61,16 @@ interface UploadContextType {
   stagedFiles: File[]
   isUploading: boolean
   isWorkbenchOpen: boolean
-  addFiles: (files: File[], metadata?: { tags?: string[]; shootName?: string }) => void
+  addFiles: (
+    files: File[],
+    metadata?: {
+      tags?: string[]
+      title?: string
+      location?: string
+      shootName?: string
+      uploadBatchId?: number
+    },
+  ) => void
   commitStagedFiles: (metadata?: {
     title?: string
     location?: string
@@ -148,13 +159,35 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addFiles = useCallback(
     (
       files: File[],
-      metadata?: { title?: string; location?: string; tags?: string[]; shootName?: string },
+      metadata?: {
+        title?: string
+        location?: string
+        tags?: string[]
+        shootName?: string
+        uploadBatchId?: number
+      },
     ) => {
+      // Client-side size pre-flight. Mirrors the server's
+      // enforceUploadSizeLimit so we don't waste a round-trip when the
+      // user picks something obviously too large.
+      const accepted: File[] = []
+      for (const file of files) {
+        const mediaType = mediaTypeFromMimeAndExtension(file.type, file.name)
+        const limit = MAX_BYTES_BY_MEDIA_TYPE[mediaType]
+        if (file.size > limit) {
+          toast.error(
+            `${file.name} exceeds the ${(limit / (1024 * 1024)).toFixed(0)}MB limit for ${mediaType}; skipped.`,
+          )
+          continue
+        }
+        accepted.push(file)
+      }
+      if (accepted.length === 0) return
       setQueue((prev) => {
         const existingFiles = new Set(
           prev.filter((item) => item.file).map((item) => `${item.file!.name}-${item.file!.size}`),
         )
-        const uniqueNewFiles = files.filter((file) => {
+        const uniqueNewFiles = accepted.filter((file) => {
           const key = `${file.name}-${file.size}`
           if (existingFiles.has(key)) {
             console.warn(`Duplicate file detected and skipped: ${file.name}`)
@@ -178,10 +211,35 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   )
 
   const commitStagedFiles = useCallback(
-    (metadata?: { title?: string; location?: string; tags?: string[]; shootName?: string }) => {
+    async (metadata?: {
+      title?: string
+      location?: string
+      tags?: string[]
+      shootName?: string
+    }) => {
       if (stagedFiles.length === 0) return
 
-      addFiles(stagedFiles, metadata)
+      // FRH-52 phase D: mint a UploadBatch so every doc in this ingest
+      // session shares a single uploadBatchId. Best-effort — if the
+      // create fails we still proceed with the upload; the batch is
+      // grouping metadata, not a correctness gate.
+      let uploadBatchId: number | undefined
+      try {
+        const res = await fetch('/api/upload-batches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ source: 'dashboard' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          uploadBatchId = data?.doc?.id ?? data?.id
+        }
+      } catch {
+        /* batch creation is non-blocking */
+      }
+
+      addFiles(stagedFiles, { ...metadata, uploadBatchId })
       closeWorkbench()
     },
     [stagedFiles, addFiles, closeWorkbench],
@@ -314,6 +372,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           shootName: nextItem.metadata?.shootName || '',
           manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
           location: { address: nextItem.metadata?.location || '' },
+          ...(nextItem.metadata?.uploadBatchId
+            ? { uploadBatchId: nextItem.metadata.uploadBatchId }
+            : {}),
         }
         const encodedMeta = btoa(unescape(encodeURIComponent(JSON.stringify(meta))))
 
@@ -418,6 +479,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             location: {
               address: nextItem.metadata?.location || '',
             },
+            ...(nextItem.metadata?.uploadBatchId
+              ? { uploadBatchId: nextItem.metadata.uploadBatchId }
+              : {}),
           }),
         })
 

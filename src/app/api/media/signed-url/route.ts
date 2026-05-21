@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
-import { buildStoragePath, classifyDomainCategory } from '@/lib/storage-paths'
+import {
+  buildStoragePath,
+  classifyDomainCategory,
+  domainCategoryToMediaType,
+  enforceUploadSizeLimit,
+  UploadSizeLimitError,
+} from '@/lib/storage-paths'
 
 export async function POST(req: Request) {
   try {
@@ -15,10 +21,25 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const { filename, mimeType } = body
+    const { filename, mimeType, filesize } = body
 
     if (!filename || !mimeType) {
       return NextResponse.json({ error: 'Missing required filename or mimeType' }, { status: 400 })
+    }
+
+    // Pre-flight size enforcement. Run before any GCS work so an over-limit
+    // client never gets a signed URL it could waste bandwidth filling.
+    if (filesize != null) {
+      const numericSize = Number(filesize)
+      const domainForCheck = classifyDomainCategory(mimeType, filename)
+      try {
+        enforceUploadSizeLimit(domainCategoryToMediaType(domainForCheck), numericSize)
+      } catch (err) {
+        if (err instanceof UploadSizeLimitError) {
+          return NextResponse.json({ error: err.message }, { status: err.status })
+        }
+        throw err
+      }
     }
 
     const bucketName = process.env.GCS_BUCKET

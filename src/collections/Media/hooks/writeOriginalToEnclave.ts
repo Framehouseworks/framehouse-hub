@@ -86,6 +86,7 @@ export const writeOriginalToEnclave: CollectionBeforeChangeHook = async ({
   return {
     ...data,
     filename: path.basename(enclavePath),
+    originalFilename: filename,
     mimeType,
     filesize: incoming.size ?? buffer.length,
     mediaType: data?.mediaType ?? domainCategoryToMediaType(domainCategory),

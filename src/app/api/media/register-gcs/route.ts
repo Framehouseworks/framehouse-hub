@@ -5,7 +5,9 @@ import { headers as getHeaders } from 'next/headers'
 import {
   classifyDomainCategory,
   domainCategoryToMediaType,
+  enforceUploadSizeLimit,
   parseStoragePath,
+  UploadSizeLimitError,
 } from '@/lib/storage-paths'
 
 // Records a Media doc for an object the client has just uploaded to GCS
@@ -27,8 +29,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const { filename, mimeType, filesize, storagePath, title, shootName, manualTags, location } =
-      body
+    const {
+      filename,
+      mimeType,
+      filesize,
+      storagePath,
+      title,
+      shootName,
+      manualTags,
+      location,
+      uploadBatchId,
+    } = body
 
     if (!filename || !mimeType || !storagePath) {
       return NextResponse.json(
@@ -86,6 +97,22 @@ export async function POST(req: Request) {
     }
 
     const mediaType = domainCategoryToMediaType(serverDomainCategory)
+
+    // Reject obviously-oversized assets. Client lied about size, or the
+    // signed URL was exhausted with more bytes than declared — either way
+    // we refuse to record the doc. Defence in depth alongside signed-url's
+    // pre-flight check.
+    if (filesize != null) {
+      try {
+        enforceUploadSizeLimit(mediaType, Number(filesize))
+      } catch (err) {
+        if (err instanceof UploadSizeLimitError) {
+          return NextResponse.json({ error: err.message }, { status: err.status })
+        }
+        throw err
+      }
+    }
+
     const originalUrl = `https://storage.googleapis.com/${bucketName}/${storagePath}`
 
     const mediaRecord = await payload.create({
@@ -94,6 +121,7 @@ export async function POST(req: Request) {
         title: title || filename.split('.').slice(0, -1).join('.') || filename,
         alt: title || filename,
         filename,
+        originalFilename: filename,
         mimeType,
         filesize: Number(filesize) || 0,
         mediaType,
@@ -107,6 +135,7 @@ export async function POST(req: Request) {
         location: {
           address: location?.address || '',
         },
+        ...(uploadBatchId ? { uploadBatchId: Number(uploadBatchId) } : {}),
       },
       req,
     })

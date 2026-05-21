@@ -70,6 +70,46 @@ export function mediaTypeFromMimeAndExtension(mimeType: string, filename: string
   return domainCategoryToMediaType(classifyDomainCategory(mimeType, filename))
 }
 
+// POC upload size limits per ticket FRH-52. Caps are enforced server-side
+// at every upload entrypoint (signed-url, register-gcs, register-local)
+// and pre-flighted on the client to save round-trip bytes. Stops cost
+// surprises on GCS egress and Cloud Run runtime, and rejects obvious
+// abuse vectors before the body is even read.
+const MB = 1024 * 1024
+const GB = 1024 * MB
+export const MAX_BYTES_BY_MEDIA_TYPE: Record<MediaTypeValue, number> = {
+  image: 250 * MB,
+  raw: 5 * GB,
+  video: 5 * GB,
+  audio: 250 * MB,
+  document: 50 * MB,
+  unclassified: 50 * MB,
+}
+
+export class UploadSizeLimitError extends Error {
+  readonly status = 413
+  constructor(
+    public readonly mediaType: MediaTypeValue,
+    public readonly observed: number,
+    public readonly limit: number,
+  ) {
+    super(
+      `File exceeds ${(limit / MB).toFixed(0)}MB limit for ${mediaType} (received ${(
+        observed / MB
+      ).toFixed(1)}MB)`,
+    )
+    this.name = 'UploadSizeLimitError'
+  }
+}
+
+export function enforceUploadSizeLimit(mediaType: MediaTypeValue, size: number): void {
+  const limit = MAX_BYTES_BY_MEDIA_TYPE[mediaType]
+  if (!Number.isFinite(size) || size < 0) {
+    throw new Error(`Invalid upload size: ${size}`)
+  }
+  if (size > limit) throw new UploadSizeLimitError(mediaType, size, limit)
+}
+
 function slugifyFilename(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || ''
   const name = filename.slice(0, filename.length - ext.length - 1)

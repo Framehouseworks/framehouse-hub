@@ -138,6 +138,18 @@ export const Media: CollectionConfig = {
       },
     },
     {
+      // Links the asset to the ingest session it came in on (FRH-52
+      // phase D). Nullable — older assets and seed fixtures without an
+      // explicit batch leave this blank. ON DELETE SET NULL so deleting
+      // a batch doesn't take the assets with it.
+      name: 'uploadBatchId',
+      type: 'relationship',
+      relationTo: 'upload-batches',
+      required: false,
+      index: true,
+      admin: { readOnly: true, position: 'sidebar' },
+    },
+    {
       name: 'mediaType',
       type: 'select',
       options: [
@@ -351,6 +363,20 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
+        description: 'Slugified, path-safe filename used on disk + in storagePath.',
+      },
+    },
+    {
+      // Original upload name as supplied by the client. `filename` is slugified
+      // for filesystem safety; this field preserves what the user actually sent
+      // so download UX, audit logs, and search can show the human-readable name.
+      name: 'originalFilename',
+      type: 'text',
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Original filename as uploaded (pre-slugify).',
       },
     },
     {

@@ -199,6 +199,14 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         `Seeding ${missingFixtures.length} missing fixture(s): ${missingFixtures.join(', ')}`,
       )
 
+      // FRH-52 phase D: mint a single UploadBatch{ source: 'seed' } so
+      // every fixture asset shares one batch — matches the per-ingest-
+      // session grouping the dashboard uses for real uploads.
+      const seedBatch = await payload.create({
+        collection: 'upload-batches',
+        data: { owner: creativeOwnerId, source: 'seed', notes: 'Initial fixture seed' },
+      })
+
       if (fixtureFiles.length > 0) {
         for (const filename of missingFixtures) {
           try {
@@ -217,6 +225,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 owner: creativeOwnerId,
                 ingestionStatus: 'active',
                 shootName: 'Seed Portfolio',
+                uploadBatchId: seedBatch.id,
               },
               file: {
                 data,
