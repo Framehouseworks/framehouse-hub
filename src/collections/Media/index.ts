@@ -15,6 +15,7 @@ import { triggerLocalWorker } from './hooks/triggerLocalWorker'
 import { cleanupEnclave } from './hooks/cleanupEnclave'
 import { writeOriginalToEnclave } from './hooks/writeOriginalToEnclave'
 import { aliasUrl } from './hooks/aliasUrl'
+import { signCloudUrls } from './hooks/signCloudUrls'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -25,7 +26,11 @@ export const Media: CollectionConfig = {
     beforeOperation: [preventDuplicates],
     beforeValidate: [],
     beforeChange: [writeOriginalToEnclave, generateAccessionId, extractMetadata],
-    afterRead: [aliasUrl],
+    // aliasUrl runs first so legacy consumers reading `url` get the
+    // canonical originalUrl shape; signCloudUrls then rewrites cloud-mode
+    // URLs to v4 signed GET variants (private bucket → browser-fetchable).
+    // Both are no-ops outside cloud mode / when storagePath is unset.
+    afterRead: [aliasUrl, signCloudUrls],
     afterChange: [triggerLocalWorker],
     afterDelete: [cleanupEnclave],
   },

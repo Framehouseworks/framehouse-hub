@@ -71,17 +71,17 @@ export async function POST(req: Request) {
         const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
         storageInstance = new Storage({
           credentials,
-          projectId: process.env.GCP_PROJECT_ID,
+          projectId: process.env.GCS_PROJECT_ID,
         })
       } catch (keyErr) {
         console.error('Failed to parse GCP_SERVICE_ACCOUNT_KEY, falling back to ADC:', keyErr)
         storageInstance = new Storage({
-          projectId: process.env.GCP_PROJECT_ID,
+          projectId: process.env.GCS_PROJECT_ID,
         })
       }
     } else {
       storageInstance = new Storage({
-        projectId: process.env.GCP_PROJECT_ID,
+        projectId: process.env.GCS_PROJECT_ID,
       })
     }
 
