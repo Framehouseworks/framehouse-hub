@@ -19,6 +19,15 @@ export const extractMetadata: CollectionBeforeChangeHook = async ({ data, req, o
       data.title = file.name.split('.').slice(0, -1).join('.') || file.name
     }
 
+    const isCloudMode = !!process.env.GCS_BUCKET
+    const useAsync = isCloudMode || process.env.LOCAL_ASYNC_PROCESSING !== 'false'
+
+    if (useAsync) {
+      // In cloud mode or local async mode, we set status to processing and let the Go worker handle the heavy lifting.
+      data.ingestionStatus = 'processing'
+      return data
+    }
+
     const metadata = await sharp(file.data).metadata()
 
     // 1. Basic Dimensions

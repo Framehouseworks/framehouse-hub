@@ -23,6 +23,8 @@ import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'
 import { SmartCollections } from '@/collections/SmartCollections'
+import { UploadBatches } from '@/collections/UploadBatches'
+import { Waitlist } from '@/collections/Waitlist'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -72,7 +74,16 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media, Portfolios, SmartCollections],
+  collections: [
+    Users,
+    Pages,
+    Categories,
+    Media,
+    Portfolios,
+    SmartCollections,
+    UploadBatches,
+    Waitlist,
+  ],
   db: postgresAdapter({
     push: false,
     pool: {

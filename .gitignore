@@ -8,8 +8,11 @@
 # testing
 /coverage
 .playwright
+playwright/.cache/
 playwright-report/
 playwright-report/index.html
+test-results/
+blob-report/
 
 # next.js
 /.next/
@@ -42,9 +45,19 @@ yarn-error.log*
 next-env.d.ts
 
 public/media
+!public/media/.gitkeep
+
+# compiled binaries
+scripts/worker/worker
 
 # reports and logs
 lint_report*.txt
 build_output.txt
 test.env
+
+# Claude Code artifacts
+.claude/
+CLAUDE.md
+.claude.json
+.claude.local.json
 

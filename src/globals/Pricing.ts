@@ -2,7 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 /**
  * Pricing Global
- * 
+ *
  * Defines the schema for tiered pricing plans and the detailed feature inventory.
  * Follows Payload 3.0 best practices for enterprise-grade data management.
  */
@@ -147,7 +147,10 @@ export const Pricing: GlobalConfig = {
                   name: 'logo',
                   type: 'upload',
                   relationTo: 'media',
-                  required: true,
+                  // Nullable so the FK can ON DELETE SET NULL without
+                  // violating NOT NULL. See migration
+                  // 20260520_190000_fix_pricing_logo_cascade.
+                  required: false,
                 },
               ],
             },
@@ -171,7 +174,8 @@ export const Pricing: GlobalConfig = {
             {
               name: 'enterpriseDescription',
               type: 'textarea',
-              defaultValue: 'For high-volume production houses and enterprise teams requiring custom integrations, advanced security, and dedicated support.',
+              defaultValue:
+                'For high-volume production houses and enterprise teams requiring custom integrations, advanced security, and dedicated support.',
             },
           ],
         },

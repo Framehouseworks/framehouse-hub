@@ -167,9 +167,11 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
   }
 
   const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-  const src = activeMedia.url?.startsWith('http')
-    ? activeMedia.url
-    : `${serverUrl}${activeMedia.url}`
+  // Prefer the canonical enclave URL stamped by writeOriginalToEnclave /
+  // register-gcs. Payload's own `url` is filename-only and points at the
+  // legacy flat path, which no longer exists with disableLocalStorage.
+  const canonicalUrl = activeMedia.originalUrl || activeMedia.url
+  const src = canonicalUrl?.startsWith('http') ? canonicalUrl : `${serverUrl}${canonicalUrl ?? ''}`
 
   const technicalData = [
     { label: 'Camera', value: activeMedia.technical?.cameraModel, icon: Camera },
