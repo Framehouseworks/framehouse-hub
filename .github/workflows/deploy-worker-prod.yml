@@ -28,9 +28,6 @@ jobs:
   deploy-worker-prod:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Gated: flip to true once prod Cloud Run service + Eventarc trigger +
-    # PROCESSOR_CALLBACK_SECRET_PROD secret are provisioned.
-    if: false
     env:
       REGION: us-central1
       SERVICE: framehouse-hub-worker-prod
