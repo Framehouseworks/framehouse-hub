@@ -74,6 +74,7 @@ export interface Config {
     portfolios: Portfolio;
     'smart-collections': SmartCollection;
     'upload-batches': UploadBatch;
+    waitlist: Waitlist;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -95,6 +96,7 @@ export interface Config {
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
     'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
     'upload-batches': UploadBatchesSelect<false> | UploadBatchesSelect<true>;
+    waitlist: WaitlistSelect<false> | WaitlistSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -1104,6 +1106,22 @@ export interface SmartCollection {
   createdAt: string;
 }
 /**
+ * Email signups for Coming Soon page. Minimal pre-launch list.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "waitlist".
+ */
+export interface Waitlist {
+  id: number;
+  email: string;
+  /**
+   * Optional subscriber name.
+   */
+  name?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
@@ -1171,6 +1189,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'upload-batches';
         value: number | UploadBatch;
+      } | null)
+    | ({
+        relationTo: 'waitlist';
+        value: number | Waitlist;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1715,6 +1737,16 @@ export interface UploadBatchesSelect<T extends boolean = true> {
   owner?: T;
   source?: T;
   notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "waitlist_select".
+ */
+export interface WaitlistSelect<T extends boolean = true> {
+  email?: T;
+  name?: T;
   updatedAt?: T;
   createdAt?: T;
 }
