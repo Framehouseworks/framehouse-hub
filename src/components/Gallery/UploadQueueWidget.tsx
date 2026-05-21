@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useUpload } from '@/providers/UploadProvider'
+import { useUpload, computeEffectiveProgress } from '@/providers/UploadProvider'
 import {
   CheckCircle2,
   CircleDashed,
@@ -76,10 +76,10 @@ export const UploadQueueWidget: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] font-medium text-primary truncate pr-4">
-                            {item.file.name}
+                            {item.filename || item.file?.name || 'Unknown asset'}
                           </span>
                           <span className="text-[9px] tabular-nums text-on-surface/30 font-varela">
-                            {item.status === 'ready' ? '100%' : `${item.progress}%`}
+                            {computeEffectiveProgress(item)}%
                           </span>
                         </div>
 
@@ -111,7 +111,7 @@ export const UploadQueueWidget: React.FC = () => {
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{
-                              width: item.status === 'ready' ? '100%' : `${item.progress}%`,
+                              width: `${computeEffectiveProgress(item)}%`,
                               backgroundColor:
                                 item.status === 'failed' ? '#ef4444' : 'var(--gallery-gold)',
                             }}

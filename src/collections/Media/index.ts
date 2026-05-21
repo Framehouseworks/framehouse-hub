@@ -11,6 +11,10 @@ import { fileURLToPath } from 'url'
 import { extractMetadata } from './hooks/extractMetadata'
 import { preventDuplicates } from './hooks/preventDuplicates'
 import { generateAccessionId } from './hooks/generateAccessionId'
+import { triggerLocalWorker } from './hooks/triggerLocalWorker'
+import { cleanupEnclave } from './hooks/cleanupEnclave'
+import { writeOriginalToEnclave } from './hooks/writeOriginalToEnclave'
+import { aliasUrl } from './hooks/aliasUrl'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -20,7 +24,10 @@ export const Media: CollectionConfig = {
   hooks: {
     beforeOperation: [preventDuplicates],
     beforeValidate: [],
-    beforeChange: [generateAccessionId, extractMetadata],
+    beforeChange: [writeOriginalToEnclave, generateAccessionId, extractMetadata],
+    afterRead: [aliasUrl],
+    afterChange: [triggerLocalWorker],
+    afterDelete: [cleanupEnclave],
   },
   admin: {
     group: 'Content',
@@ -34,24 +41,15 @@ export const Media: CollectionConfig = {
     delete: ownerOrAdmin,
   },
   upload: {
-    // TEMP DEV: store originals in public/media for now (dev only).
-    // Production: replace with S3/GCS adapter in payload.config.ts plugins.
+    // Originals live under the tenant enclave at
+    //   public/media/tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/original/{filename}
+    // Payload's own local adapter would write a duplicate flat copy at
+    // staticDir/{filename}, so we disable it. `writeOriginalToEnclave`
+    // (beforeChange) owns the write; `cleanupEnclave` (afterDelete) owns the
+    // teardown. Mirrors cloud-mode where the gcsStorage plugin / signed-url
+    // flow already bypasses local storage.
+    disableLocalStorage: true,
     staticDir: path.resolve(dirname, '../../../public/media'),
-    imageSizes: [
-      {
-        name: 'thumbnail',
-        width: 400,
-        height: undefined,
-        position: 'centre',
-      },
-      {
-        name: 'optimized',
-        width: 1600,
-        height: undefined,
-        position: 'centre',
-      },
-    ],
-    adminThumbnail: 'thumbnail',
   },
   fields: [
     {
@@ -74,6 +72,16 @@ export const Media: CollectionConfig = {
       }),
     },
     // ---- DAM-specific fields (MVP) ---- //
+    {
+      name: 'storagePath',
+      type: 'text',
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description:
+          'Canonical storage path (tenants/{userId}/{domain}/{year}/{month}/{assetId}/...).',
+      },
+    },
     {
       name: 'originalUrl',
       type: 'text',
@@ -130,11 +138,27 @@ export const Media: CollectionConfig = {
       },
     },
     {
+      // Links the asset to the ingest session it came in on (FRH-52
+      // phase D). Nullable — older assets and seed fixtures without an
+      // explicit batch leave this blank. ON DELETE SET NULL so deleting
+      // a batch doesn't take the assets with it.
+      name: 'uploadBatchId',
+      type: 'relationship',
+      relationTo: 'upload-batches',
+      required: false,
+      index: true,
+      admin: { readOnly: true, position: 'sidebar' },
+    },
+    {
       name: 'mediaType',
       type: 'select',
       options: [
         { label: 'Image', value: 'image' },
         { label: 'Raw', value: 'raw' },
+        { label: 'Video', value: 'video' },
+        { label: 'Audio', value: 'audio' },
+        { label: 'Document', value: 'document' },
+        { label: 'Unclassified', value: 'unclassified' },
       ],
       required: true,
       admin: {
@@ -152,6 +176,23 @@ export const Media: CollectionConfig = {
         { label: 'Failed', value: 'failed' },
       ],
       defaultValue: 'active',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'processingStep',
+      type: 'select',
+      options: [
+        { label: 'Upload Complete', value: 'upload_complete' },
+        { label: 'EXIF Parsing', value: 'exif_parsing' },
+        { label: 'Generating WebP', value: 'generating_webp' },
+        { label: 'Registering Assets', value: 'registering_assets' },
+        { label: 'Ready', value: 'ready' },
+        { label: 'Failed', value: 'failed' },
+      ],
+      defaultValue: 'upload_complete',
       admin: {
         position: 'sidebar',
         readOnly: true,
@@ -322,6 +363,20 @@ export const Media: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
+        description: 'Slugified, path-safe filename used on disk + in storagePath.',
+      },
+    },
+    {
+      // Original upload name as supplied by the client. `filename` is slugified
+      // for filesystem safety; this field preserves what the user actually sent
+      // so download UX, audit logs, and search can show the human-readable name.
+      name: 'originalFilename',
+      type: 'text',
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Original filename as uploaded (pre-slugify).',
       },
     },
     {

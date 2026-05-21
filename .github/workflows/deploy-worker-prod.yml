@@ -1,0 +1,94 @@
+name: Deploy Worker (Prod)
+
+# Production worker deploy. Mirrors deploy-worker-dev.yml, gated behind
+# `if: false` until prod infrastructure (Cloud Run + Eventarc trigger +
+# bucket + secrets) is provisioned. Flip the gate when ready.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/worker/**'
+      - '.github/workflows/deploy-worker-prod.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip Cloud Run deploy (build & push only)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-worker-prod-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-worker-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Gated: flip to true once prod Cloud Run service + Eventarc trigger +
+    # PROCESSOR_CALLBACK_SECRET_PROD secret are provisioned.
+    if: false
+    env:
+      REGION: us-central1
+      SERVICE: framehouse-hub-worker-prod
+      IMAGE: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/worker:latest
+      GCS_BUCKET: framehouse-hub-prod
+      CALLBACK_URL: https://hub.framehouseworks.com
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Worker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/worker
+          file: ./scripts/worker/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha,scope=${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+
+      - name: Deploy to Cloud Run (Worker Prod)
+        if: github.event.inputs.dry_run != 'true'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          image: ${{ env.IMAGE }}
+          region: ${{ env.REGION }}
+          flags: |
+            --min-instances=0
+            --max-instances=4
+            --memory=512Mi
+            --cpu=1
+            --concurrency=4
+            --timeout=300s
+            --no-allow-unauthenticated
+          env_vars_update_strategy: overwrite
+          secrets_update_strategy: overwrite
+          secrets: |
+            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_PROD:latest
+          env_vars: |
+            GCS_BUCKET=${{ env.GCS_BUCKET }}
+            NEXT_PUBLIC_SERVER_URL=${{ env.CALLBACK_URL }}

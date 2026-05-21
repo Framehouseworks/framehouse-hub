@@ -4,7 +4,7 @@ import {
   BoldFeature,
   FixedToolbarFeature,
   ItalicFeature,
-  lexicalEditor
+  lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 import type { CollectionConfig } from 'payload'
 // REMOVED: Direct component imports to prevent CSS loading errors in Node
@@ -17,18 +17,13 @@ import { stripDocumentId } from './hooks/stripDocumentId'
 
 // Minimal Lexical for Titles/Subheadings
 const minimalistLexical = lexicalEditor({
-  features: () => [
-    BoldFeature(),
-    ItalicFeature(),
-    AlignFeature(),
-    FixedToolbarFeature(),
-  ],
+  features: () => [BoldFeature(), ItalicFeature(), AlignFeature(), FixedToolbarFeature()],
 })
 
 // Rich Lexical for Content Blocks
 const richLexical = lexicalEditor({
   features: ({ defaultFeatures }) => [
-    ...defaultFeatures.filter(f => f.key !== 'table'),
+    ...defaultFeatures.filter((f) => f.key !== 'table'),
     FixedToolbarFeature(),
   ],
 })
@@ -154,7 +149,7 @@ export const Portfolios: CollectionConfig = {
       ],
       admin: {
         position: 'sidebar',
-      }
+      },
     },
     {
       name: 'password',
@@ -162,7 +157,7 @@ export const Portfolios: CollectionConfig = {
       admin: {
         condition: (_, { visibility }) => visibility === 'shared',
         position: 'sidebar',
-      }
+      },
     },
     {
       name: 'theme',
@@ -228,7 +223,8 @@ export const Portfolios: CollectionConfig = {
                 initCollapsed: true,
                 description: 'Add and reorder images for the grid.',
                 components: {
-                  Field: '@/collections/Portfolios/components/MasonryGridV2/ModernMasonryEditor#ModernMasonryEditor',
+                  Field:
+                    '@/collections/Portfolios/components/MasonryGridV2/ModernMasonryEditor#ModernMasonryEditor',
                 },
               },
               fields: [
@@ -236,7 +232,10 @@ export const Portfolios: CollectionConfig = {
                   name: 'media',
                   type: 'relationship',
                   relationTo: 'media',
-                  required: true,
+                  // Nullable so the FK can ON DELETE SET NULL without
+                  // violating NOT NULL. See migration
+                  // 20260520_180000_fix_portfolio_media_cascade.
+                  required: false,
                 },
                 {
                   name: 'size',
@@ -339,7 +338,10 @@ export const Portfolios: CollectionConfig = {
               name: 'media',
               type: 'relationship',
               relationTo: 'media',
-              required: true,
+              // Nullable so the FK can ON DELETE SET NULL without
+              // violating NOT NULL. See migration
+              // 20260520_180000_fix_portfolio_media_cascade.
+              required: false,
             },
             {
               name: 'caption',
