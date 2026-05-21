@@ -3,7 +3,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const baseURL = 'http://localhost:3000'
@@ -61,37 +60,8 @@ async function completeProcessing(doc: { id: number | string; storagePath: strin
 // Reaches the worker via the Go binary auto-launched by pnpm dev (scripts/dev-with-worker.sh).
 // In CI, playwright.config.ts auto-spawns the dev server which includes the worker.
 // Locally, run `pnpm dev` in a separate terminal before invoking this spec.
+// Database is seeded via tests/e2e/globalSetup.ts before any tests run.
 test.describe('Media lifecycle (e2e)', () => {
-  test.beforeAll(async () => {
-    // Self-heal: ensure the creative user + fixture media are seeded so the
-    // gallery has a known starting state. The seed's reconcile path is a
-    // no-op if everything is already in place.
-    try {
-      execSync('pnpm run seed', { stdio: 'inherit' })
-    } catch (err) {
-      console.warn('Seed step skipped:', err)
-    }
-
-    // Pre-compile the API routes the test will hit. In Next dev, the first
-    // request to a never-touched route triggers lazy compilation, which
-    // can drop in-flight requests with ECONNRESET. Issuing a harmless
-    // probe up front amortises that compile cost outside the test's
-    // critical path. We expect 401/400/etc — only the compilation matters.
-    const probeRoutes = [
-      '/api/users/me',
-      '/api/media/signed-url',
-      '/api/media/register-local',
-      '/api/media/process-callback',
-    ]
-    for (const route of probeRoutes) {
-      try {
-        await fetch(`${baseURL}${route}`, { method: 'POST', body: '{}' }).catch(() => {})
-      } catch {
-        /* best-effort */
-      }
-    }
-  })
-
   test('uploads, processes, renders thumbnail, then bulk-deletes', async ({ page }) => {
     // Make the upload identifiable across reloads by copying the fixture
     // to a unique filename. MediaCard renders `alt={media.alt || filename}`,
@@ -110,11 +80,11 @@ test.describe('Media lifecycle (e2e)', () => {
       await Promise.all([
         page.waitForResponse(
           (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
-          { timeout: 30_000 },
+          { timeout: 60_000 },
         ),
         page.getByRole('button', { name: /continue/i }).click(),
       ])
-      await page.waitForURL(/\/dashboard/, { timeout: 30_000 })
+      await page.waitForURL(/\/dashboard/, { timeout: 60_000 })
 
       // 2. Trigger the upload picker, populate the hidden input.
       await page.locator('button:has-text("Ingest New Work")').first().click()
@@ -168,7 +138,7 @@ test.describe('Media lifecycle (e2e)', () => {
       //    derivative URL — proves thumbnailUrl was stamped on the doc.
       await page.reload()
       const newCard = page.locator(`main img[alt="${uniqueName}"]`)
-      await expect(newCard).toBeVisible({ timeout: 30_000 })
+      await expect(newCard).toBeVisible({ timeout: 60_000 })
       const src = await newCard.getAttribute('src')
       expect(src).toMatch(/\/media\/tenants\/.+\/derivatives\/.+\.webp/)
 

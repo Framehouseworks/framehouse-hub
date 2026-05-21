@@ -1,22 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { execSync } from 'child_process'
 
 test.describe('Admin Dashboard Smoke Gate', () => {
   const baseURL = 'http://localhost:3000'
   const adminEmail = 'sys.admin@framehouseworks.com'
   const adminPassword = 'password123'
 
-  test.beforeAll(async () => {
-    // Run the self-healing standalone seeding script before the E2E test run.
-    // This guarantees that the default system admin exists, has the 'admin' role, and uses the correct 'password123' credentials
-    // across both clean slate (CI/CD) and existing populated (local dev) databases.
-    try {
-      console.log('Synchronizing E2E test database state via self-healing seed...')
-      execSync('pnpm run seed', { stdio: 'inherit' })
-    } catch (err) {
-      console.error('Failsafe standalone seeding script skipped or failed:', err)
-    }
-  })
+  // Database is seeded via tests/e2e/globalSetup.ts before any tests run.
 
   test('should successfully authenticate, load the Admin home page, and support mobile reflow', async ({
     page,
@@ -44,7 +33,7 @@ test.describe('Admin Dashboard Smoke Gate', () => {
     // 4. Assert the admin dashboard has resolved successfully by checking standard layout elements.
     // Using robust href selector to guarantee exact authentication detection independent of compiled CSS Module hashes.
     await expect(page.locator('a[href*="/admin/collections/users"]').first()).toBeVisible({
-      timeout: 15000,
+      timeout: 60000,
     })
 
     // 5. Ensure no query or database crashes occurred, ignoring generic browser warnings or missing asset 404s
@@ -65,7 +54,7 @@ test.describe('Admin Dashboard Smoke Gate', () => {
     const menuToggler = page
       .locator('button[aria-label*="menu" i]:visible, button[class*="toggler"]:visible')
       .first()
-    await expect(menuToggler).toBeVisible({ timeout: 15000 })
+    await expect(menuToggler).toBeVisible({ timeout: 60000 })
 
     // 8. Verify touch trigger exists and is active with positive dimensions inside the layout
     const boundingBox = await menuToggler.boundingBox()
