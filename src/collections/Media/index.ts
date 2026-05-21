@@ -49,6 +49,12 @@ export const Media: CollectionConfig = {
     // teardown. Mirrors cloud-mode where the gcsStorage plugin / signed-url
     // flow already bypasses local storage.
     disableLocalStorage: true,
+    // Cloud register-gcs creates docs with storagePath already populated —
+    // bytes are in GCS via the signed-URL PUT, not in memory, so we can't
+    // hand Payload a file arg. Without this flag, generateFileData throws
+    // MissingFile on every cloud upload. Local mode still provides
+    // req.file, so writeOriginalToEnclave continues to gate writes on it.
+    filesRequiredOnCreate: false,
     staticDir: path.resolve(dirname, '../../../public/media'),
   },
   fields: [
