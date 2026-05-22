@@ -30,12 +30,20 @@ else
 fi
 
 WORKER_PID=""
+NEXT_PID=""
 cleanup() {
+  if [ -n "$NEXT_PID" ] && kill -0 "$NEXT_PID" 2>/dev/null; then
+    kill "$NEXT_PID" 2>/dev/null || true
+  fi
   if [ -n "$WORKER_PID" ] && kill -0 "$WORKER_PID" 2>/dev/null; then
     echo "[dev] Stopping worker (pid $WORKER_PID)"
     kill "$WORKER_PID" 2>/dev/null || true
     wait "$WORKER_PID" 2>/dev/null || true
   fi
+  # Fallback: free the port even if PID tracking lost the process
+  local stale
+  stale=$(lsof -ti:"$WORKER_PORT" 2>/dev/null) || true
+  [ -n "$stale" ] && kill -9 $stale 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -44,9 +52,6 @@ if [ -x "$WORKER_BIN" ]; then
     echo "[dev] Port $WORKER_PORT already in use; assuming worker is already running."
   else
     echo "[dev] Starting Go worker on :$WORKER_PORT..."
-    # Pin LOCAL_MEDIA_ROOT so the worker never resolves derivative paths
-    # relative to its cwd. Prevents files from escaping the project when
-    # the worker is launched from somewhere other than scripts/worker/.
     PORT="$WORKER_PORT" LOCAL_MEDIA_ROOT="$ROOT_DIR/public/media" \
       "$WORKER_BIN" 2>&1 | sed 's/^/[worker] /' &
     WORKER_PID=$!
@@ -54,4 +59,9 @@ if [ -x "$WORKER_BIN" ]; then
 fi
 
 echo "[dev] Starting Next dev server..."
-NODE_OPTIONS=--no-deprecation pnpm exec next dev
+# Background next dev so bash's wait builtin remains signal-interruptible.
+# A foreground process blocks the EXIT/INT/TERM trap until it exits — which
+# next dev never does cleanly — leaving the Go worker orphaned on :8080.
+NODE_OPTIONS=--no-deprecation pnpm exec next dev &
+NEXT_PID=$!
+wait $NEXT_PID || true

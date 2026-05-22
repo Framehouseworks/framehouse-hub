@@ -70,18 +70,17 @@ export const EmptyState: React.FC<{
           <Search size={32} strokeWidth={1} />
         </div>
         <h3 className="text-2xl font-semibold tracking-tight text-primary mb-3">
-          No Forensic Matches
+          No results found
         </h3>
         <p className="text-sm text-on-surface/40 max-w-sm mx-auto mb-10 font-varela">
-          The archive could not find any assets matching your current discovery parameters. Try
-          broadening your criteria.
+          Nothing matched your search. Try a different term or clear the filter.
         </p>
         <Button
           variant="outline"
           onClick={onClearFilters}
           className="h-12 px-8 rounded-2xl border-black/[0.05] dark:border-white/[0.05] hover:bg-gallery-gold/5 hover:text-gallery-gold font-rubik text-[10px] font-bold uppercase tracking-widest transition-all"
         >
-          Clear All Filters
+          Clear Search
         </Button>
       </div>
     )
