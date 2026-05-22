@@ -1,5 +1,4 @@
 import React from 'react'
-import { cn } from '@/utilities/cn'
 import type { DateMode } from '@/lib/groupMedia'
 
 interface GroupHeaderProps {
@@ -7,25 +6,46 @@ interface GroupHeaderProps {
   labelType: 'date' | 'shoot'
   count: number
   dateMode: DateMode
+  isFirst?: boolean
 }
 
-export const GroupHeader: React.FC<GroupHeaderProps> = ({ label, labelType, count, dateMode }) => {
+export const GroupHeader: React.FC<GroupHeaderProps> = ({
+  label,
+  labelType,
+  count,
+  dateMode,
+  isFirst,
+}) => {
+  const modeLabel =
+    labelType === 'date' ? (dateMode === 'capture' ? 'by capture date' : 'by upload date') : null
+
   return (
-    <div className="flex items-baseline gap-4 mb-5 mt-10 first:mt-0">
-      <span
-        className={cn(
-          labelType === 'date'
-            ? 'font-mono text-[10px] tracking-[0.2em] text-on-surface/40 uppercase'
-            : 'font-semibold text-base text-primary tracking-tight',
-        )}
-      >
-        {label}
-      </span>
-      <span className="font-mono text-[9px] tracking-widest text-on-surface/25 uppercase">
-        {count} {count === 1 ? 'item' : 'items'}
-        {labelType === 'date' && dateMode === 'capture' && ' · by capture date'}
-        {labelType === 'date' && dateMode === 'ingest' && ' · by upload date'}
-      </span>
+    <div
+      className={isFirst ? 'mb-6' : 'mt-16 mb-6'}
+      role="rowheader"
+      aria-label={`${label} — ${count} ${count === 1 ? 'asset' : 'assets'}${modeLabel ? `, ${modeLabel}` : ''}`}
+    >
+      {!isFirst && (
+        <div className="h-px w-full bg-black/[0.04] dark:bg-white/[0.06] mb-6" aria-hidden="true" />
+      )}
+      <div className="flex items-center gap-3">
+        <h2
+          className={
+            labelType === 'date'
+              ? 'font-mono text-xs tracking-[0.18em] text-on-surface/60 uppercase'
+              : 'font-semibold text-sm text-primary tracking-tight'
+          }
+        >
+          {label}
+        </h2>
+        <span
+          className="font-mono text-[10px] tracking-widest text-on-surface/35 uppercase"
+          aria-hidden="true"
+        >
+          {count} {count === 1 ? 'item' : 'items'}
+          {modeLabel && ` · ${modeLabel}`}
+        </span>
+      </div>
     </div>
   )
 }
