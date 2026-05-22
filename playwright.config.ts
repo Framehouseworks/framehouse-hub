@@ -17,6 +17,8 @@ export default defineConfig({
   retries: process.env.CI ? 3 : 1,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
+  /* Increase timeout for CI environments with slower startup and resource constraints. */
+  timeout: process.env.CI ? 60000 : 30000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -35,12 +37,14 @@ export default defineConfig({
   ],
   /* Automatically spawn the dev server background subprocess only in CI environments.
    * Locally, developers manage their own dev server directly to prevent port collisions and ensure instant Playwright UI boottimes.
+   * In CI, use production build (pnpm start) to eliminate dynamic compilation overhead.
    */
   webServer: process.env.CI
     ? {
-        command: 'pnpm dev',
+        command: 'pnpm start',
         reuseExistingServer: true,
         url: 'http://localhost:3000',
       }
     : undefined,
+  globalSetup: './tests/e2e/globalSetup.ts',
 })

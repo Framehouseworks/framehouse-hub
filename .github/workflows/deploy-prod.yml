@@ -79,7 +79,6 @@ jobs:
     timeout-minutes: 25
     needs: validate
     # Gated: Change 'false' to 'true' once production infrastructure is ready
-    if: false
     env:
       ENV_NAME: prod
       DOCKER_TAG: latest
@@ -164,6 +163,7 @@ jobs:
           secrets: |
             DATABASE_URI=DATABASE_URI_PROD:latest
             PAYLOAD_SECRET=PAYLOAD_SECRET_PROD:latest
+            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_PROD:latest
           env_vars: |
             GCS_BUCKET=${{ env.GCS_BUCKET }}
             GCS_PROJECT_ID=framehouse-hub
