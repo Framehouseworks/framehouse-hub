@@ -3,26 +3,10 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
 import type { MediaTypeValue } from '@/lib/storage-paths'
+import { searchMediaByQuery, buildPrefixTsquery } from '@/lib/searchMedia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-// FRH-52 phase C: full-text media search backed by the existing
-// media_search_idx GIN index. Owner-scoped server-side so user A can
-// never reach user B's docs. Raw SQL returns only ids; Payload's
-// find({ where: { id: { in: [...] } } }) hydrates with access control
-// so the wire response respects collection-level permissions.
-//
-// POC search vector covers: title, filename, original_filename,
-// technical_camera_model, technical_lens_model, shoot_name.
-// Anything else (manualTags, location, captureDate) is intentionally
-// deferred — Elasticsearch territory.
-
-type DrizzleExec = {
-  execute: (query: { queryChunks?: unknown } | unknown) => Promise<{
-    rows: Array<Record<string, unknown>>
-  }>
-}
 
 const ALLOWED_MEDIA_TYPES: ReadonlyArray<MediaTypeValue> = [
   'image',
@@ -32,6 +16,10 @@ const ALLOWED_MEDIA_TYPES: ReadonlyArray<MediaTypeValue> = [
   'document',
   'unclassified',
 ]
+
+type Pool = {
+  query: (text: string, values: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>
+}
 
 export async function GET(req: Request) {
   try {
@@ -47,6 +35,42 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: '`q` exceeds 256-char limit' }, { status: 400 })
     }
 
+    const type = url.searchParams.get('type') === 'suggestions' ? 'suggestions' : 'results'
+
+    if (type === 'suggestions') {
+      const pool = (payload.db as unknown as { pool?: Pool }).pool
+      if (!pool) return NextResponse.json({ suggestions: [] })
+
+      const tsquery = buildPrefixTsquery(q)
+      if (!tsquery) return NextResponse.json({ suggestions: [] })
+
+      const result = await pool.query(
+        `SELECT match_value FROM (
+          (SELECT title AS match_value FROM media
+            WHERE owner_id = $2::int
+              AND to_tsvector('english', COALESCE(title,'')) @@ to_tsquery('english', $1)
+              AND title IS NOT NULL AND title <> ''
+            LIMIT 4)
+          UNION ALL
+          (SELECT DISTINCT technical_camera_model FROM media
+            WHERE owner_id = $2::int
+              AND to_tsvector('english', COALESCE(technical_camera_model,'')) @@ to_tsquery('english', $1)
+              AND technical_camera_model IS NOT NULL AND technical_camera_model <> ''
+            LIMIT 3)
+          UNION ALL
+          (SELECT DISTINCT mmt.tag FROM media_manual_tags mmt
+            JOIN media m ON m.id = mmt._parent_id
+            WHERE m.owner_id = $2::int
+              AND to_tsvector('english', COALESCE(mmt.tag,'')) @@ to_tsquery('english', $1)
+              AND mmt.tag IS NOT NULL AND mmt.tag <> ''
+            LIMIT 3)
+        ) AS matches LIMIT 10`,
+        [tsquery, String(user.id)],
+      )
+      const suggestions = result.rows.map((r) => String(r.match_value)).filter(Boolean)
+      return NextResponse.json({ suggestions })
+    }
+
     const rawLimit = Number(url.searchParams.get('limit'))
     const limit = Math.max(1, Math.min(50, Number.isFinite(rawLimit) ? rawLimit : 24))
 
@@ -54,75 +78,12 @@ export async function GET(req: Request) {
     const mediaType =
       mediaTypeParam && ALLOWED_MEDIA_TYPES.includes(mediaTypeParam) ? mediaTypeParam : null
 
-    // payload.db.drizzle.execute uses parameterised SQL via the sql tag.
-    // We bind via the postgres pool's pg-driver placeholders, but the
-    // Payload abstraction expects an sql`` template tag. Use the
-    // adapter's exposed `sql` to bind parameters safely — never
-    // interpolate user input into the query string.
-    const dbAdapter = payload.db as unknown as {
-      drizzle: DrizzleExec
-      pool?: {
-        query: (text: string, values: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>
-      }
-    }
-    if (!dbAdapter.pool) {
-      return NextResponse.json(
-        { error: 'Search requires postgres adapter; pool missing' },
-        { status: 500 },
-      )
-    }
-
-    const params: unknown[] = [q, String(user.id), limit]
-    let sqlText = `
-      SELECT id, ts_rank(
-        to_tsvector('english',
-          COALESCE(title, '') || ' ' ||
-          COALESCE(filename, '') || ' ' ||
-          COALESCE(original_filename, '') || ' ' ||
-          COALESCE(technical_camera_model, '') || ' ' ||
-          COALESCE(technical_lens_model, '') || ' ' ||
-          COALESCE(shoot_name, '')
-        ),
-        plainto_tsquery('english', $1)
-      ) AS rank
-      FROM media
-      WHERE owner_id = $2::int
-        AND to_tsvector('english',
-          COALESCE(title, '') || ' ' ||
-          COALESCE(filename, '') || ' ' ||
-          COALESCE(original_filename, '') || ' ' ||
-          COALESCE(technical_camera_model, '') || ' ' ||
-          COALESCE(technical_lens_model, '') || ' ' ||
-          COALESCE(shoot_name, '')
-        ) @@ plainto_tsquery('english', $1)
-    `
+    let docs = await searchMediaByQuery(payload, user.id, q, limit)
     if (mediaType) {
-      params.push(mediaType)
-      sqlText += ` AND media_type = $${params.length}`
-    }
-    sqlText += ` ORDER BY rank DESC, capture_date DESC NULLS LAST LIMIT $3`
-
-    const result = await dbAdapter.pool.query(sqlText, params)
-    const ids = result.rows.map((r) => Number(r.id)).filter((n) => Number.isFinite(n))
-
-    if (ids.length === 0) {
-      return NextResponse.json({ docs: [], totalDocs: 0 })
+      docs = docs.filter((d) => d.mediaType === mediaType)
     }
 
-    // Hydrate via Payload so access rules + relationship depth apply.
-    const hydrated = await payload.find({
-      collection: 'media',
-      where: { id: { in: ids } },
-      limit: ids.length,
-      depth: 0,
-      overrideAccess: false,
-      user,
-    })
-    // Preserve the relevance ordering from the SQL ranking.
-    const byId = new Map(hydrated.docs.map((d) => [Number(d.id), d]))
-    const ordered = ids.map((id) => byId.get(id)).filter(Boolean)
-
-    return NextResponse.json({ docs: ordered, totalDocs: ordered.length })
+    return NextResponse.json({ docs, totalDocs: docs.length })
   } catch (error: unknown) {
     console.error('[media/search API Error]:', error)
     const message = error instanceof Error ? error.message : 'Internal Server Error'

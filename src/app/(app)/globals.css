@@ -234,3 +234,9 @@ button {
   animation: marquee 80s linear infinite;
   will-change: transform;
 }
+
+@keyframes search-progress {
+  0%   { transform: scaleX(0.1); transform-origin: left; opacity: 0.6; }
+  50%  { transform: scaleX(0.7); transform-origin: left; opacity: 1; }
+  100% { transform: scaleX(1);   transform-origin: left; opacity: 0.6; }
+}
