@@ -56,7 +56,6 @@ export const MediaCard: React.FC<Props> = ({
 
   return (
     <motion.div
-      layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onMouseEnter={() => setIsHovered(true)}
@@ -69,8 +68,11 @@ export const MediaCard: React.FC<Props> = ({
           onView?.()
         }
       }}
+      style={{
+        aspectRatio: media.width && media.height ? `${media.width} / ${media.height}` : '4 / 3',
+      }}
       className={cn(
-        'group relative aspect-[4/5] rounded-[24px] bg-gallery-surface dark:bg-[#0a0c10] overflow-hidden border transition-all duration-500 cursor-pointer',
+        'group relative w-full rounded-[24px] bg-gallery-surface dark:bg-[#0a0c10] overflow-hidden border transition-all duration-500 cursor-pointer',
         isSelected
           ? 'border-gallery-gold ring-4 ring-gallery-gold/10'
           : 'border-black/[0.03] dark:border-white/[0.03] hover:border-gallery-gold/30 shadow-sm hover:shadow-xl',
@@ -225,7 +227,7 @@ export const MediaCard: React.FC<Props> = ({
                     {media.technical?.cameraModel && (
                       <div className="flex flex-col">
                         <span className="text-[8px] text-white/50 uppercase font-rubik">Body</span>
-                        <span className="text-[11px] font-medium truncate">
+                        <span className="text-[11px] font-mono truncate">
                           {media.technical.cameraModel}
                         </span>
                       </div>
@@ -233,7 +235,7 @@ export const MediaCard: React.FC<Props> = ({
                     {media.technical?.iso && (
                       <div className="flex flex-col">
                         <span className="text-[8px] text-white/50 uppercase font-rubik">ISO</span>
-                        <span className="text-[11px] font-medium">{media.technical.iso}</span>
+                        <span className="text-[11px] font-mono">{media.technical.iso}</span>
                       </div>
                     )}
                   </div>
