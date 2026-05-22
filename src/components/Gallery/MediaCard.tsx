@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Camera, Zap, Tag as TagIcon, X as CloseIcon, Edit3 } from 'lucide-react'
 import Image from 'next/image'
 import React from 'react'
+import tempAsset from '@/assets/hub/temp_asset.png'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -53,11 +54,13 @@ export const MediaCard: React.FC<Props> = ({
 
   const hasTechnical = !!(media.technical?.cameraModel || media.technical?.iso)
   const isProcessing = media.ingestionStatus === 'processing' || media.ingestionStatus === 'active'
+  const isFailed = media.ingestionStatus === 'failed'
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={(e) => {
@@ -79,15 +82,15 @@ export const MediaCard: React.FC<Props> = ({
       )}
     >
       {/* 1. Primary Asset */}
-      {bestUrl && (
+      {(bestUrl || isFailed) && (
         <Image
-          src={src}
+          src={isFailed ? tempAsset : src}
           alt={title}
           fill
-          unoptimized
+          unoptimized={!isFailed}
           className={cn(
             'object-cover transition-all duration-700',
-            isHovered ? 'blur-[2px] opacity-40' : 'opacity-100',
+            isFailed ? 'opacity-30 grayscale' : isHovered ? 'blur-[2px] opacity-40' : 'opacity-100',
           )}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
         />
@@ -96,7 +99,18 @@ export const MediaCard: React.FC<Props> = ({
       {/* 2. Top Badges (Status & Tags) */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
         <div className="flex flex-wrap gap-2">
-          {isProcessing ? (
+          {isFailed ? (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="px-3 py-1 rounded-full bg-red-500/20 backdrop-blur-md border border-red-400/30 shadow-sm flex items-center gap-2"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+              <span className="font-rubik text-[9px] tracking-wider text-red-400 uppercase font-semibold">
+                Failed
+              </span>
+            </motion.div>
+          ) : isProcessing ? (
             <motion.div
               className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-amber-400/30 flex items-center gap-2 shadow-sm"
               animate={{

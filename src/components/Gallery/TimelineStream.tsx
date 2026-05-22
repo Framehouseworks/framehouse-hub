@@ -24,14 +24,18 @@ export const TimelineStream: React.FC<TimelineStreamProps> = ({
   onView,
 }) => {
   return (
-    <div className="w-full">
-      {groups.map((group) => (
-        <div key={group.key}>
+    <div className="w-full" role="feed" aria-label="Media archive timeline">
+      {groups.map((group, index) => (
+        <section
+          key={group.key}
+          aria-label={`${group.label} — ${group.items.length} ${group.items.length === 1 ? 'asset' : 'assets'}`}
+        >
           <GroupHeader
             label={group.label}
             labelType={group.labelType}
             count={group.items.length}
             dateMode={dateMode}
+            isFirst={index === 0}
           />
           <MasonryGrid
             items={group.items}
@@ -40,7 +44,7 @@ export const TimelineStream: React.FC<TimelineStreamProps> = ({
             onSelect={onSelect}
             onView={onView}
           />
-        </div>
+        </section>
       ))}
     </div>
   )
