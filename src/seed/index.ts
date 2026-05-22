@@ -15,6 +15,12 @@ const FIXTURE_DIMENSIONS: Record<string, { width: number; height: number }> = {
   'studio-portrait-04.jpg': { width: 1400, height: 1400 },
   'forest-canopy-05.jpg': { width: 1800, height: 1200 },
   'desert-horizon-06.jpg': { width: 2400, height: 1350 },
+  'mountain-mist-07.jpg': { width: 1920, height: 1280 },
+  'night-market-08.jpg': { width: 1080, height: 1620 },
+  'tide-pools-09.jpg': { width: 2200, height: 1100 },
+  'rooftop-light-10.jpg': { width: 1500, height: 2000 },
+  'dune-shadows-11.jpg': { width: 2560, height: 1440 },
+  'moss-grove-12.jpg': { width: 1600, height: 1067 },
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -132,10 +138,42 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       })
     }
 
-    // 1. Seed test media fixtures (owned by creative user for dashboard testing)
+    // 0d. Seed additional creative users
+    const additionalCreatives = [
+      { email: 'alex.chen@framehouseworks.com', name: 'Alex Chen' },
+      { email: 'maya.patel@framehouseworks.com', name: 'Maya Patel' },
+      { email: 'leo.strand@framehouseworks.com', name: 'Leo Strand' },
+    ]
+    const creativeUserIds: Record<string, string | number> = {}
+    for (const { email, name } of additionalCreatives) {
+      const existing = await payload.find({
+        collection: 'users',
+        where: { email: { equals: email } },
+        limit: 1,
+      })
+      if (!existing.docs[0]) {
+        payload.logger.info(`Seeding creative user (${email})...`)
+        const u = await payload.create({
+          collection: 'users',
+          data: { email, password: 'password123', name, roles: ['creative'] },
+          context: { disableRevalidate: true },
+        })
+        creativeUserIds[email] = u.id
+      } else {
+        await payload.update({
+          collection: 'users',
+          id: existing.docs[0].id,
+          data: { password: 'password123', roles: ['creative'] },
+          context: { disableRevalidate: true },
+        })
+        creativeUserIds[email] = existing.docs[0].id
+      }
+    }
+
+    // 1. Seed test media fixtures distributed across creative users
     let mediaDocs = await payload.find({
       collection: 'media',
-      limit: 10,
+      limit: 20,
     })
 
     const creativeUser = await payload.find({
@@ -151,8 +189,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
     // user-uploaded media untouched.
     const seedOrphans = await payload.find({
       collection: 'media',
-      // Match legacy variants like "Seed Portfolio [Batch N]" too.
-      where: { shootName: { like: 'Seed Portfolio' } },
+      where: { shootName: { like: 'Seed' } },
       limit: 100,
     })
     const orphanIds: (number | string)[] = []
@@ -173,7 +210,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         collection: 'media',
         where: { id: { in: orphanIds } },
       })
-      mediaDocs = await payload.find({ collection: 'media', limit: 10 })
+      mediaDocs = await payload.find({ collection: 'media', limit: 100 })
     }
 
     const fixturesDir = path.join(__dirname, 'fixtures')
@@ -199,17 +236,72 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         `Seeding ${missingFixtures.length} missing fixture(s): ${missingFixtures.join(', ')}`,
       )
 
-      // FRH-52 phase D: mint a single UploadBatch{ source: 'seed' } so
-      // every fixture asset shares one batch — matches the per-ingest-
-      // session grouping the dashboard uses for real uploads.
-      const seedBatch = await payload.create({
-        collection: 'upload-batches',
-        data: { owner: creativeOwnerId, source: 'seed', notes: 'Initial fixture seed' },
-      })
+      const allCreativeIds: Record<string, string | number> = {
+        [creativeEmail]: creativeOwnerId,
+        ...creativeUserIds,
+      }
+
+      const FIXTURE_OWNERSHIP: Record<string, { ownerEmail: string; shootName: string }> = {
+        'alpine-summit-01.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+        'urban-neon-02.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+        'mountain-mist-07.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+        'coastal-dawn-03.jpg': {
+          ownerEmail: 'alex.chen@framehouseworks.com',
+          shootName: 'Seed: Street & Shore',
+        },
+        'night-market-08.jpg': {
+          ownerEmail: 'alex.chen@framehouseworks.com',
+          shootName: 'Seed: Street & Shore',
+        },
+        'studio-portrait-04.jpg': {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          shootName: 'Seed: Studio & Nature',
+        },
+        'rooftop-light-10.jpg': {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          shootName: 'Seed: Studio & Nature',
+        },
+        'tide-pools-09.jpg': {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          shootName: 'Seed: Studio & Nature',
+        },
+        'forest-canopy-05.jpg': {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          shootName: 'Seed: Landscape',
+        },
+        'desert-horizon-06.jpg': {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          shootName: 'Seed: Landscape',
+        },
+        'dune-shadows-11.jpg': {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          shootName: 'Seed: Landscape',
+        },
+        'moss-grove-12.jpg': {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          shootName: 'Seed: Landscape',
+        },
+      }
+
+      // One UploadBatch per creative user so each user's fixtures share a batch
+      const seedBatches: Record<string, { id: string | number }> = {}
+      for (const [email, id] of Object.entries(allCreativeIds)) {
+        seedBatches[email] = await payload.create({
+          collection: 'upload-batches',
+          data: { owner: id as number, source: 'seed', notes: 'Fixture seed' },
+        })
+      }
 
       if (fixtureFiles.length > 0) {
         for (const filename of missingFixtures) {
           try {
+            const ownership = FIXTURE_OWNERSHIP[filename] ?? {
+              ownerEmail: creativeEmail,
+              shootName: 'Seed: Main Portfolio',
+            }
+            const fixtureOwnerId = allCreativeIds[ownership.ownerEmail] ?? creativeOwnerId
+            const fixtureBatch = seedBatches[ownership.ownerEmail] ?? seedBatches[creativeEmail]
+
             const filePath = path.join(fixturesDir, filename)
             const data = fs.readFileSync(filePath)
             const mimeType = filename.endsWith('.png') ? 'image/png' : 'image/jpeg'
@@ -222,10 +314,10 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 title,
                 alt: title,
                 mediaType,
-                owner: creativeOwnerId,
+                owner: fixtureOwnerId as number,
                 ingestionStatus: 'active',
-                shootName: 'Seed Portfolio',
-                uploadBatchId: seedBatch.id,
+                shootName: ownership.shootName,
+                uploadBatchId: fixtureBatch.id as number,
               },
               file: {
                 data,
@@ -335,7 +427,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       }
 
       // Re-fetch after seeding
-      mediaDocs = await payload.find({ collection: 'media', limit: 10 })
+      mediaDocs = await payload.find({ collection: 'media', limit: 100 })
     }
 
     const fallbackMediaIds = mediaDocs.docs.map((doc) => doc.id)
