@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
-import { MediaCard } from './MediaCard'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { ForensicDrawer } from './ForensicDrawer'
 import type { Media } from '@/payload-types'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
-import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
@@ -16,8 +15,8 @@ import { SaveViewModal } from './SaveViewModal'
 import { EmptyState } from './EmptyState'
 import { bulkDeleteMediaAction, createSmartCollectionAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
-import { VirtuosoGrid } from 'react-virtuoso'
-import { Save } from 'lucide-react'
+import { TimelineStream } from './TimelineStream'
+import { groupMedia, type DateMode } from '@/lib/groupMedia'
 
 interface MediaGridProps {
   initialMedia: Media[]
@@ -40,6 +39,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
   // Discovery & Filtering State — search is URL-driven (GlobalSearch in TopBar)
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilters?.status || null)
+  const [dateMode, setDateMode] = useState<DateMode>('capture')
 
   // Sync status filter when server initialFilters change
   useEffect(() => {
@@ -109,6 +109,26 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     return localMedia.filter((item) => !statusFilter || item.ingestionStatus === statusFilter)
   }, [localMedia, statusFilter])
 
+  const groups = useMemo(() => groupMedia(filteredMedia, dateMode), [filteredMedia, dateMode])
+
+  const statusCounts = useMemo(() => {
+    const localIds = new Set(localMedia.map((m) => String(m.id)))
+    const queueNotYetLocal = (status: 'processing' | 'failed') =>
+      queue.filter(
+        (q) => q.mediaId != null && q.status === status && !localIds.has(String(q.mediaId)),
+      ).length
+    return {
+      ready: localMedia.filter((m) => m.ingestionStatus === 'ready').length,
+      processing:
+        localMedia.filter(
+          (m) => m.ingestionStatus === 'processing' || m.ingestionStatus === 'active',
+        ).length + queueNotYetLocal('processing'),
+      failed:
+        localMedia.filter((m) => m.ingestionStatus === 'failed').length +
+        queueNotYetLocal('failed'),
+    }
+  }, [localMedia, queue])
+
   const handleClearFilters = () => {
     setStatusFilter(null)
     router.push('/dashboard')
@@ -135,16 +155,77 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     }
   }
 
-  // Listen for queue completion to refresh the data
+  // Merge queue status into localMedia so processing/failed tabs reflect live state
   useEffect(() => {
-    const hasActiveUploads = queue.some(
-      (item) =>
-        item.status === 'uploading' || item.status === 'pending' || item.status === 'processing',
-    )
+    const queueWithMedia = queue.filter((item) => item.mediaId != null)
+    if (queueWithMedia.length === 0) return
 
-    if (!hasActiveUploads && queue.length > 0) {
+    const statusMap: Record<string, Media['ingestionStatus']> = {
+      uploading: 'active',
+      processing: 'processing',
+      ready: 'ready',
+      failed: 'failed',
+    }
+
+    setLocalMedia((prev) =>
+      prev.map((m) => {
+        const qItem = queueWithMedia.find((q) => String(q.mediaId) === String(m.id))
+        if (!qItem) return m
+        const mapped = statusMap[qItem.status]
+        if (!mapped || m.ingestionStatus === mapped) return m
+        return { ...m, ingestionStatus: mapped }
+      }),
+    )
+  }, [queue])
+
+  // Inject newly registered items into localMedia so they appear in the processing tab immediately
+  const seenMediaIds = useRef(new Set<string>())
+  useEffect(() => {
+    const newlyRegistered = queue.filter(
+      (item) =>
+        item.mediaId != null &&
+        (item.status === 'processing' || item.status === 'failed') &&
+        !seenMediaIds.current.has(String(item.mediaId)),
+    )
+    if (newlyRegistered.length === 0) return
+
+    newlyRegistered.forEach((item) => seenMediaIds.current.add(String(item.mediaId)))
+
+    // Read current localMedia via setter to avoid stale closure — no localMedia dep needed
+    setLocalMedia((prev) => {
+      const existingIds = new Set(prev.map((m) => String(m.id)))
+      const toFetch = newlyRegistered.filter((item) => !existingIds.has(String(item.mediaId)))
+      if (toFetch.length === 0) return prev
+
+      Promise.all(
+        toFetch.map((item) =>
+          fetch(`/api/media/${item.mediaId}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        ),
+      ).then((docs) => {
+        const valid = docs.filter(Boolean) as Media[]
+        if (valid.length === 0) return
+        setLocalMedia((current) => {
+          const currentIds = new Set(current.map((m) => String(m.id)))
+          return [...valid.filter((d) => !currentIds.has(String(d.id))), ...current]
+        })
+      })
+
+      return prev
+    })
+  }, [queue])
+
+  // Fire router.refresh() exactly once on the active→idle transition
+  const hadActiveUploads = useRef(false)
+  useEffect(() => {
+    const hasActive = queue.some((item) =>
+      ['uploading', 'pending', 'processing'].includes(item.status),
+    )
+    if (hadActiveUploads.current && !hasActive && queue.length > 0) {
       router.refresh()
     }
+    hadActiveUploads.current = hasActive
   }, [queue, router])
 
   useEffect(() => {
@@ -206,19 +287,57 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
       {/* 2. Discovery Bar */}
       <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+        {/* Status filters */}
         <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
-          {['ready', 'processing', 'failed'].map((status) => (
+          {(['ready', 'processing', 'failed'] as const).map((status) => {
+            const count = statusCounts[status]
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                  statusFilter === status
+                    ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
+                    : 'text-on-surface/30 hover:text-on-surface/60',
+                )}
+              >
+                {status}
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-bold leading-none',
+                      statusFilter === status
+                        ? 'bg-gallery-gold/20 text-gallery-gold'
+                        : status === 'failed'
+                          ? 'bg-red-500/20 text-red-400'
+                          : status === 'processing'
+                            ? 'bg-amber-400/20 text-amber-400'
+                            : 'bg-on-surface/10 text-on-surface/50',
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Date mode toggle */}
+        <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+          {(['capture', 'ingest'] as const).map((mode) => (
             <button
-              key={status}
-              onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+              key={mode}
+              onClick={() => setDateMode(mode)}
               className={cn(
                 'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
-                statusFilter === status
+                dateMode === mode
                   ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
                   : 'text-on-surface/30 hover:text-on-surface/60',
               )}
             >
-              {status}
+              {mode === 'capture' ? 'Capture Date' : 'Upload Date'}
             </button>
           ))}
         </div>
@@ -243,60 +362,23 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
         )}
       </div>
 
-      {/* 2. Media Grid (Virtualized for 1000+ assets) */}
+      {/* 3. Timeline Stream */}
       <div className="flex-1 min-h-[600px]">
         {filteredMedia.length > 0 ? (
-          <VirtuosoGrid
-            data={filteredMedia}
-            totalCount={filteredMedia.length}
-            useWindowScroll
-            listClassName="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 p-1"
-            components={{
-              Item: VirtuosoItem,
-            }}
-            itemContent={(index, item) => (
-              <>
-                <MediaCard
-                  key={item.id}
-                  media={item}
-                  isSelected={selectedIds.has(item.id)}
-                  onSelect={(id) => toggleSelection(id)}
-                  onView={() => setSelectedMedia(item)}
-                  isSelectionMode={isSelectionMode || selectedIds.size > 0}
-                />
-                {/* Selection Overlay for high-visibility */}
-                <AnimatePresence>
-                  {(isSelectionMode || selectedIds.has(item.id)) && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => toggleSelection(item.id)}
-                      className={cn(
-                        'absolute inset-0 z-30 rounded-[24px] border-2 transition-all cursor-pointer',
-                        selectedIds.has(item.id)
-                          ? 'border-gallery-gold bg-gallery-gold/5'
-                          : 'border-white/20 hover:border-white/40',
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'absolute top-4 right-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
-                          selectedIds.has(item.id)
-                            ? 'bg-gallery-gold border-gallery-gold text-white shadow-lg'
-                            : 'bg-black/20 border-white/40',
-                        )}
-                      >
-                        {selectedIds.has(item.id) && <CheckSquare size={12} />}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
+          <TimelineStream
+            groups={groups}
+            dateMode={dateMode}
+            selectedIds={selectedIds}
+            isSelectionMode={isSelectionMode}
+            onSelect={toggleSelection}
+            onView={(media) => setSelectedMedia(media)}
           />
         ) : (
-          <EmptyState mode="no-results" onClearFilters={handleClearFilters} />
+          <EmptyState
+            mode="no-results"
+            statusFilter={statusFilter}
+            onClearFilters={handleClearFilters}
+          />
         )}
       </div>
 
@@ -397,12 +479,3 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     </>
   )
 }
-
-const VirtuosoItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ children, ...props }, ref) => (
-    <div ref={ref} {...props} className="relative group min-h-[400px]">
-      {children}
-    </div>
-  ),
-)
-VirtuosoItem.displayName = 'VirtuosoItem'
