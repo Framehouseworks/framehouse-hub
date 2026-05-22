@@ -7,23 +7,18 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/utilities/cn'
 
 const QUICK_FILTERS = ['RAW', 'Video', 'Drone', 'Portrait'] as const
-// Suggestions fetch debounce — fast enough to feel live
-const SUGGEST_DEBOUNCE = 300
-// Navigation debounce — avoids a server render on every keystroke
-const NAV_DEBOUNCE = 500
+const SUGGEST_DEBOUNCE = 150
 
 export const GlobalSearch: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
-  const isFirstRender = useRef(true)
   const [isPending, startTransition] = useTransition()
 
   const [inputValue, setInputValue] = useState(searchParams.get('search') || '')
   const [showDropdown, setShowDropdown] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const debouncedSuggest = useDebounce(inputValue, SUGGEST_DEBOUNCE)
-  const debouncedNav = useDebounce(inputValue, NAV_DEBOUNCE)
   const activeSearch = searchParams.get('search') || ''
 
   // Keep input in sync with URL (e.g. clicking saved views)
@@ -47,7 +42,7 @@ export const GlobalSearch: React.FC = () => {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  // Autocomplete suggestions
+  // Autocomplete suggestions only — no auto-navigate
   useEffect(() => {
     if (debouncedSuggest.length < 2) {
       setSuggestions([])
@@ -64,22 +59,6 @@ export const GlobalSearch: React.FC = () => {
       cancelled = true
     }
   }, [debouncedSuggest])
-
-  // Auto-navigate after debounce — skip initial mount to avoid redundant push
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
-    if (debouncedNav === activeSearch) return
-    setShowDropdown(false)
-    startTransition(() => {
-      router.push(
-        debouncedNav ? `/dashboard?search=${encodeURIComponent(debouncedNav)}` : '/dashboard',
-      )
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedNav])
 
   const navigate = useCallback(
     (query: string) => {
@@ -109,8 +88,9 @@ export const GlobalSearch: React.FC = () => {
 
   return (
     <div className="relative w-full">
-      <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface/30 group-focus-within:text-gallery-gold transition-colors pointer-events-none" />
+      {/* Input + progress bar share the same relative container so the bar aligns to the input */}
+      <div className="relative group overflow-hidden rounded-[16px]" role="search">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface/30 group-focus-within:text-gallery-gold transition-colors pointer-events-none z-10" />
         <input
           ref={inputRef}
           type="text"
@@ -120,9 +100,9 @@ export const GlobalSearch: React.FC = () => {
           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
           onKeyDown={handleKeyDown}
           placeholder="Search your visual archive..."
-          className="w-full h-11 pl-12 pr-14 bg-gallery-surface/50 rounded-[16px] text-sm outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gallery-gold/20 focus:bg-white dark:focus:bg-white/5 transition-all"
+          className="w-full h-11 pl-12 pr-14 bg-gallery-surface/50 text-sm outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gallery-gold/20 focus:bg-white dark:focus:bg-white/5 transition-all rounded-[16px]"
         />
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center z-10">
           {isPending ? (
             <Loader2 size={14} className="animate-spin text-gallery-gold" />
           ) : inputValue ? (
@@ -142,6 +122,15 @@ export const GlobalSearch: React.FC = () => {
             </span>
           )}
         </div>
+
+        {/* Gold progress bar — hugs the bottom edge of the input */}
+        <div
+          className={cn(
+            'absolute bottom-0 left-0 right-0 h-[2px] bg-gallery-gold origin-left transition-opacity duration-300',
+            isPending ? 'opacity-100' : 'opacity-0',
+          )}
+          style={isPending ? { animation: 'search-progress 1.4s ease-in-out infinite' } : undefined}
+        />
       </div>
 
       {showDropdown && (
