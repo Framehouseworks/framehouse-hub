@@ -4,7 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { MediaCard } from './MediaCard'
 import { ForensicDrawer } from './ForensicDrawer'
 import type { Media } from '@/payload-types'
-import { useDebounce } from '@/hooks/useDebounce'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
 import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon } from 'lucide-react'
@@ -18,8 +17,7 @@ import { EmptyState } from './EmptyState'
 import { bulkDeleteMediaAction, createSmartCollectionAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
 import { VirtuosoGrid } from 'react-virtuoso'
-import { Search, Save } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Save } from 'lucide-react'
 
 interface MediaGridProps {
   initialMedia: Media[]
@@ -40,45 +38,13 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
 
-  // Discovery & Filtering State
-  const [searchQuery, setSearchQuery] = useState(initialFilters?.search || '')
+  // Discovery & Filtering State — search is URL-driven (GlobalSearch in TopBar)
   const [statusFilter, setStatusFilter] = useState<string | null>(initialFilters?.status || null)
-  const debouncedSearchQuery = useDebounce(searchQuery, 300)
-  // Server-side search hits (FRH-52 phase C). When debouncedSearchQuery is
-  // non-empty, /api/media/search returns the GIN-ranked matches and we
-  // render those instead of substring-filtering localMedia. Falls back to
-  // localMedia for empty query.
-  const [searchHits, setSearchHits] = useState<Media[] | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    if (!debouncedSearchQuery) {
-      setSearchHits(null)
-      return
-    }
-    ;(async () => {
-      try {
-        const url = `/api/media/search?q=${encodeURIComponent(debouncedSearchQuery)}&limit=50`
-        const res = await fetch(url, { cache: 'no-store' })
-        if (!res.ok) {
-          setSearchHits(null)
-          return
-        }
-        const data = (await res.json()) as { docs?: Media[] }
-        if (!cancelled) setSearchHits(data.docs || [])
-      } catch {
-        if (!cancelled) setSearchHits(null)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [debouncedSearchQuery])
 
-  // Synchronize state when server initialFilters change (e.g., clicking active views)
+  // Sync status filter when server initialFilters change
   useEffect(() => {
-    setSearchQuery(initialFilters?.search || '')
     setStatusFilter(initialFilters?.status || null)
-  }, [initialFilters?.search, initialFilters?.status])
+  }, [initialFilters?.status])
 
   // Modal States
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
@@ -137,21 +103,15 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     setIsSelectionMode(false)
   }
 
+  // Server already returns the search-filtered set via ?search= URL param.
+  // Client only applies status filter on top.
   const filteredMedia = useMemo(() => {
-    // When a query is active, use the server-side FTS hits as the
-    // source. The endpoint already filters by owner + matches against
-    // title / filename / originalFilename / camera / lens / shootName
-    // via the GIN index. We only layer the status filter on top.
-    const source = searchHits ?? localMedia
-    return source.filter((item) => {
-      const matchesStatus = !statusFilter || item.ingestionStatus === statusFilter
-      return matchesStatus
-    })
-  }, [localMedia, searchHits, statusFilter])
+    return localMedia.filter((item) => !statusFilter || item.ingestionStatus === statusFilter)
+  }, [localMedia, statusFilter])
 
   const handleClearFilters = () => {
-    setSearchQuery('')
-    setStatusFilter('all')
+    setStatusFilter(null)
+    router.push('/dashboard')
   }
 
   const handleSaveViewAction = async (data: { name: string; icon: string }) => {
@@ -159,7 +119,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
       const result = await createSmartCollectionAction({
         name: data.name,
         filterQuery: {
-          search: searchQuery,
+          search: initialFilters?.search,
           status: statusFilter,
         },
         icon: data.icon as 'folder' | 'tag' | 'sparkles' | 'camera' | 'map',
@@ -246,37 +206,6 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
       {/* 2. Discovery Bar */}
       <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
-        <div className="relative flex-1 group">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface/30 group-focus-within:text-gallery-gold transition-colors"
-            size={18}
-          />
-          <Input
-            placeholder="Discover by title, filename, or shoot batch..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              'h-12 pl-12 bg-gallery-surface/50 dark:bg-white/[0.03] border-black/[0.05] dark:border-white/[0.05] rounded-2xl focus:ring-gallery-gold/20 focus:border-gallery-gold/30 transition-all text-sm font-varela',
-              searchQuery !== debouncedSearchQuery ? 'pr-10' : 'pr-4',
-            )}
-          />
-          <AnimatePresence>
-            {searchQuery !== debouncedSearchQuery && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gallery-gold/65 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-gallery-gold"></span>
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
         <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
           {['ready', 'processing', 'failed'].map((status) => (
             <button
@@ -294,21 +223,21 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
           ))}
         </div>
 
-        {(searchQuery || statusFilter) && (
+        {(initialFilters?.search || statusFilter) && (
           <div className="flex flex-col items-end gap-1">
             <Button
               variant="outline"
               onClick={() => setIsSaveViewOpen(true)}
               className="h-12 px-6 rounded-2xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 flex items-center gap-2 font-semibold"
-              title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${searchQuery && statusFilter ? ' + ' : ''}${searchQuery ? `Search='${searchQuery}'` : ''}`}
+              title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${initialFilters?.search && statusFilter ? ' + ' : ''}${initialFilters?.search ? `Search='${initialFilters.search}'` : ''}`}
             >
               <Save size={16} />
               <span>Save View</span>
             </Button>
             <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface/30 font-varela pr-2">
               {statusFilter ? `Status:${statusFilter}` : ''}
-              {searchQuery && statusFilter ? ' + ' : ''}
-              {searchQuery ? `Query:${searchQuery}` : ''}
+              {initialFilters?.search && statusFilter ? ' + ' : ''}
+              {initialFilters?.search ? `Query:${initialFilters.search}` : ''}
             </span>
           </div>
         )}

@@ -3,6 +3,7 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { EmptyState } from './EmptyState'
 import { MediaGrid } from './MediaGrid'
+import { searchMediaByQuery } from '@/lib/searchMedia'
 
 export const Gallery = async ({
   searchParams,
@@ -43,27 +44,29 @@ export const Gallery = async ({
     initialFilters.search = searchParams.search as string
   }
 
-  const { docs: media } = await payload.find({
-    collection: 'media',
-    where: {
-      owner: {
-        equals: user.id,
-      },
-    },
-    sort: '-captureDate,-createdAt',
-    limit: 1000, // Reasonable limit for initial batch
-  })
+  const searchQuery = initialFilters.search?.trim()
+  let media
+  if (searchQuery) {
+    media = await searchMediaByQuery(payload, user.id, searchQuery)
+  } else {
+    const result = await payload.find({
+      collection: 'media',
+      where: { owner: { equals: user.id } },
+      sort: '-captureDate,-createdAt',
+      limit: 1000,
+    })
+    media = result.docs
+  }
+
+  const gridKey = `${viewId || 'all'}-${searchParams?.search || 'none'}`
 
   if (media.length === 0) {
+    // Active search with no matches → "no results" state, not the ingest CTA
+    if (searchQuery) {
+      return <MediaGrid key={gridKey} initialMedia={[]} initialFilters={initialFilters} />
+    }
     return <EmptyState />
   }
 
-  // Generate a key based on active filters to reset MediaGrid state upon navigation
-  const gridKey = `${viewId || 'all'}-${searchParams?.search || 'none'}`
-
-  return (
-    <>
-      <MediaGrid key={gridKey} initialMedia={media} initialFilters={initialFilters} />
-    </>
-  )
+  return <MediaGrid key={gridKey} initialMedia={media} initialFilters={initialFilters} />
 }
