@@ -3,7 +3,15 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CloudUpload, FilePlus, LayoutGrid, Search, ShieldCheck, Zap } from 'lucide-react'
+import {
+  AlertCircle,
+  CloudUpload,
+  FilePlus,
+  LayoutGrid,
+  Search,
+  ShieldCheck,
+  Zap,
+} from 'lucide-react'
 import React from 'react'
 import { useUpload } from '@/providers/UploadProvider'
 
@@ -33,10 +41,35 @@ const intelligenceItems = [
 const masterFormats = ['RAW', '4K', 'PRORES']
 const standardFormats = ['TIFF', 'JPEG', 'PNG', 'MOV', 'MP4']
 
+const STATUS_CONTEXT: Record<
+  string,
+  { icon: React.ElementType; heading: string; body: string; cta: string }
+> = {
+  processing: {
+    icon: Zap,
+    heading: 'No assets in processing',
+    body: 'Assets actively being ingested will appear here. Upload new work to begin the archival sequence.',
+    cta: 'Upload New Work',
+  },
+  failed: {
+    icon: AlertCircle,
+    heading: 'No failed assets',
+    body: 'Assets that encountered ingestion errors will surface here. All current archives are intact.',
+    cta: 'Clear Filter',
+  },
+  ready: {
+    icon: LayoutGrid,
+    heading: 'No ready assets',
+    body: 'Successfully archived assets will appear here once ingestion completes.',
+    cta: 'Clear Filter',
+  },
+}
+
 export const EmptyState: React.FC<{
   mode?: 'ingest' | 'no-results'
+  statusFilter?: string | null
   onClearFilters?: () => void
-}> = ({ mode = 'ingest', onClearFilters }) => {
+}> = ({ mode = 'ingest', statusFilter, onClearFilters }) => {
   const [isDragging, setIsDragging] = React.useState(false)
   const { openPicker, addFiles } = useUpload()
 
@@ -64,23 +97,44 @@ export const EmptyState: React.FC<{
   }
 
   if (mode === 'no-results') {
+    const ctx = statusFilter ? STATUS_CONTEXT[statusFilter] : null
+    const Icon = ctx?.icon ?? Search
+    const heading = ctx?.heading ?? 'No results found'
+    const body =
+      ctx?.body ?? 'Nothing matched your search. Try a different term or clear the filter.'
+    const cta = ctx?.cta ?? 'Clear Search'
+    const iconColor =
+      statusFilter === 'failed'
+        ? 'text-red-400/40'
+        : statusFilter === 'processing'
+          ? 'text-amber-400/40'
+          : statusFilter === 'ready'
+            ? 'text-emerald-400/40'
+            : 'text-gallery-gold/30'
+    const bgColor =
+      statusFilter === 'failed'
+        ? 'bg-red-500/5'
+        : statusFilter === 'processing'
+          ? 'bg-amber-400/5'
+          : statusFilter === 'ready'
+            ? 'bg-emerald-500/5'
+            : 'bg-gallery-gold/5'
+
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
-        <div className="w-20 h-20 rounded-[32px] bg-gallery-gold/5 flex items-center justify-center text-gallery-gold/30 mb-8">
-          <Search size={32} strokeWidth={1} />
+        <div
+          className={`w-20 h-20 rounded-[32px] ${bgColor} flex items-center justify-center ${iconColor} mb-8`}
+        >
+          <Icon size={32} strokeWidth={1} />
         </div>
-        <h3 className="text-2xl font-semibold tracking-tight text-primary mb-3">
-          No results found
-        </h3>
-        <p className="text-sm text-on-surface/40 max-w-sm mx-auto mb-10 font-varela">
-          Nothing matched your search. Try a different term or clear the filter.
-        </p>
+        <h3 className="text-2xl font-semibold tracking-tight text-primary mb-3">{heading}</h3>
+        <p className="text-sm text-on-surface/40 max-w-sm mx-auto mb-10 font-varela">{body}</p>
         <Button
           variant="outline"
           onClick={onClearFilters}
           className="h-12 px-8 rounded-2xl border-black/[0.05] dark:border-white/[0.05] hover:bg-gallery-gold/5 hover:text-gallery-gold font-rubik text-[10px] font-bold uppercase tracking-widest transition-all"
         >
-          Clear Search
+          {cta}
         </Button>
       </div>
     )

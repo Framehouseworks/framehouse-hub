@@ -73,6 +73,53 @@ const fixtures: FixtureSpec[] = [
     color: { r: 210, g: 160, b: 80 },
     exif: { Make: 'Leica', Model: 'Q3', ISO: 100, DateTimeOriginal: '2026-02-28T17:30:00' },
   },
+  {
+    name: 'mountain-mist-07.jpg',
+    width: 1920,
+    height: 1280,
+    color: { r: 140, g: 160, b: 180 },
+    exif: { Make: 'FUJIFILM', Model: 'X-T5', ISO: 400, DateTimeOriginal: '2026-03-20T07:10:00' },
+  },
+  {
+    name: 'night-market-08.jpg',
+    width: 1080,
+    height: 1620,
+    color: { r: 200, g: 120, b: 40 },
+    exif: { Make: 'Sony', Model: 'A7IV', ISO: 6400, DateTimeOriginal: '2026-04-10T21:45:00' },
+  },
+  {
+    name: 'tide-pools-09.jpg',
+    width: 2200,
+    height: 1100,
+    color: { r: 40, g: 130, b: 140 },
+    exif: { Make: 'Canon', Model: 'EOS R5', ISO: 200, DateTimeOriginal: '2026-02-14T09:20:00' },
+  },
+  {
+    name: 'rooftop-light-10.jpg',
+    width: 1500,
+    height: 2000,
+    color: { r: 230, g: 190, b: 80 },
+    exif: { Make: 'Nikon', Model: 'Z8', ISO: 800, DateTimeOriginal: '2026-05-05T18:30:00' },
+  },
+  {
+    name: 'dune-shadows-11.jpg',
+    width: 2560,
+    height: 1440,
+    color: { r: 195, g: 150, b: 70 },
+    exif: { Make: 'Leica', Model: 'Q3', ISO: 100, DateTimeOriginal: '2026-03-01T16:00:00' },
+  },
+  {
+    name: 'moss-grove-12.jpg',
+    width: 1600,
+    height: 1067,
+    color: { r: 20, g: 80, b: 40 },
+    exif: {
+      Make: 'FUJIFILM',
+      Model: 'GFX100S',
+      ISO: 1000,
+      DateTimeOriginal: '2025-10-12T13:45:00',
+    },
+  },
 ]
 
 function buildExifBuffer(spec: FixtureSpec['exif']): Buffer {
