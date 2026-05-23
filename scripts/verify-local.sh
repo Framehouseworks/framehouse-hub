@@ -23,8 +23,8 @@ if [[ "$SUBCOMMAND" == "down" ]]; then
   exit 0
 fi
 
-# 'up' path — shift past subcommand if explicitly passed
-if [[ "$SUBCOMMAND" == "up" ]]; then
+# 'up' path — shift past subcommand only if it was explicitly passed
+if [[ "$SUBCOMMAND" == "up" && $# -gt 0 ]]; then
   shift
 fi
 
