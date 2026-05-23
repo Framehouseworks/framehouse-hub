@@ -191,8 +191,11 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Active Ingestion Session: User='%s', Domain='%s', Asset='%s', File='%s'",
 		parsed.UserID, parsed.Domain, parsed.AssetID, parsed.Filename)
 
-	ctx := context.Background()
-	go processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	go func() {
+		defer cancel()
+		processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
+	}()
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Asset ingestion processing initiated asynchronously"))
@@ -276,6 +279,21 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 	triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo)
 }
 
+// gcsReadCloser keeps the GCS client alive until the caller closes the reader.
+// The previous pattern of `defer client.Close()` inside the getter functions
+// closed the client transport before the caller could read a single byte,
+// causing io.Copy to hang indefinitely.
+type gcsReadCloser struct {
+	io.ReadCloser
+	client *storage.Client
+}
+
+func (g *gcsReadCloser) Close() error {
+	err := g.ReadCloser.Close()
+	g.client.Close()
+	return err
+}
+
 func getRangeReader(ctx context.Context, isLocal bool, bucketName, objectName string, p *parsedPath) (io.ReadCloser, error) {
 	if isLocal {
 		localPath := getLocalAssetPath(p)
@@ -293,8 +311,12 @@ func getRangeReader(ctx context.Context, isLocal bool, bucketName, objectName st
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
-	return client.Bucket(bucketName).Object(objectName).NewRangeReader(ctx, 0, 65536)
+	reader, err := client.Bucket(bucketName).Object(objectName).NewRangeReader(ctx, 0, 65536)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	return &gcsReadCloser{reader, client}, nil
 }
 
 func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName string, p *parsedPath) (io.ReadCloser, error) {
@@ -307,8 +329,12 @@ func getFullReader(ctx context.Context, isLocal bool, bucketName, objectName str
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
-	return client.Bucket(bucketName).Object(objectName).NewReader(ctx)
+	reader, err := client.Bucket(bucketName).Object(objectName).NewReader(ctx)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	return &gcsReadCloser{reader, client}, nil
 }
 
 // localMediaRoot returns the absolute path of the project's public/media
@@ -456,7 +482,7 @@ func renderImageThumbnails(ctx context.Context, isLocal bool, bucketName string,
 			return fmt.Errorf("encoding png for cwebp failed: %v", err)
 		}
 
-		cmd := exec.Command("cwebp", "-q", "80", "-o", "-", "--", "-")
+		cmd := exec.CommandContext(ctx, "cwebp", "-q", "80", "-o", "-", "--", "-")
 		cmd.Stdin = &pngBuf
 		var webpBuf bytes.Buffer
 		cmd.Stdout = &webpBuf
@@ -525,7 +551,7 @@ func processVideoPoster(ctx context.Context, isLocal bool, bucketName string, p 
 		mediaSource = signedURL
 	}
 
-	cmdProbe := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", mediaSource)
+	cmdProbe := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", mediaSource)
 	var outProbe bytes.Buffer
 	cmdProbe.Stdout = &outProbe
 	if err := cmdProbe.Run(); err != nil {
@@ -541,7 +567,7 @@ func processVideoPoster(ctx context.Context, isLocal bool, bucketName string, p 
 		height, _ = strconv.Atoi(dimParts[1])
 	}
 
-	cmdExtract := exec.Command("ffmpeg", "-ss", "00:00:01", "-i", mediaSource, "-vframes", "1", "-f", "image2pipe", "-vcodec", "png", "-")
+	cmdExtract := exec.CommandContext(ctx, "ffmpeg", "-ss", "00:00:01", "-i", mediaSource, "-vframes", "1", "-f", "image2pipe", "-vcodec", "png", "-")
 	var outFrame bytes.Buffer
 	cmdExtract.Stdout = &outFrame
 	if err := cmdExtract.Run(); err != nil {
@@ -658,6 +684,10 @@ func sendStageUpdate(assetID, step string) {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[%s] Stage update rejected %d: %s", assetID, resp.StatusCode, string(body))
+	}
 }
 
 func sendCallbackPayload(serverURL, secret string, payload CallbackPayload) {
