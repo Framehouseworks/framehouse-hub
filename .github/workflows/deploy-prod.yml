@@ -169,3 +169,4 @@ jobs:
             GCS_PROJECT_ID=framehouse-hub
             NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
             SEED_SECRET=${{ secrets.SEED_SECRET }}
+            COMING_SOON=true
