@@ -8,6 +8,7 @@ import {
   enforceUploadSizeLimit,
   UploadSizeLimitError,
 } from '@/lib/storage-paths'
+import { validateFileMagicBytes, FileValidationError } from '@/lib/file-validation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -77,6 +78,17 @@ export async function POST(req: Request) {
       enforceUploadSizeLimit(domainCategoryToMediaType(domainCategory), buffer.length)
     } catch (err) {
       if (err instanceof UploadSizeLimitError) {
+        return NextResponse.json({ error: err.message }, { status: err.status })
+      }
+      throw err
+    }
+
+    // Validate file signature (magic bytes) before creating any DB record.
+    // Catches corrupt or misrepresented files before they enter the pipeline.
+    try {
+      validateFileMagicBytes(buffer, filename)
+    } catch (err) {
+      if (err instanceof FileValidationError) {
         return NextResponse.json({ error: err.message }, { status: err.status })
       }
       throw err
