@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { processingEvents } from '@/lib/processing-events'
+import { cleanupFailedStorage } from '@/lib/cleanup-failed-storage'
 
 export async function POST(req: Request) {
   try {
@@ -139,6 +140,7 @@ export async function POST(req: Request) {
         data: updateData,
       })
     } catch (updateErr) {
+      // istanbul ignore next
       console.error(`[process-callback] Failed to update media ${mediaDoc.id}:`, updateErr)
       return NextResponse.json(
         {
@@ -146,6 +148,18 @@ export async function POST(req: Request) {
         },
         { status: 500 },
       )
+    }
+
+    // On failure: remove storage artifacts (GCS objects or local enclave) but keep the
+    // DB record so the user can see and delete the failed asset from the admin.
+    if (status === 'failed' && mediaDoc.storagePath) {
+      // Fire-and-forget — don't block the callback response on storage cleanup.
+      cleanupFailedStorage(mediaDoc.storagePath).catch((err) => {
+        console.error(
+          `[process-callback] Storage cleanup failed for ${mediaDoc.storagePath}:`,
+          err instanceof Error ? err.message : String(err),
+        )
+      })
     }
 
     processingEvents.emitStatusChange({

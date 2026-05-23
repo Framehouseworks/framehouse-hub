@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -191,15 +192,43 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Active Ingestion Session: User='%s', Domain='%s', Asset='%s', File='%s'",
 		parsed.UserID, parsed.Domain, parsed.AssetID, parsed.Filename)
 
-	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Minute)
+	// Use background context — r.Context() is tied to this HTTP request lifetime and
+	// may be cancelled by Cloud Run before the pipeline finishes. The pipeline owns
+	// its own 4-minute deadline via the explicit timeout below.
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
-	processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
+
+	// callbackOnce guarantees exactly one terminal callback (success or error)
+	// even if both a pipeline error and a context timeout race to fire.
+	var callbackOnce sync.Once
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		processAssetPipeline(ctx, event.Bucket, event.Name, parsed, &callbackOnce)
+	}()
+
+	select {
+	case <-done:
+		// Pipeline completed normally — success/error callback already sent inside.
+	case <-ctx.Done():
+		// io.Copy or a subprocess hung past the 4-minute deadline (common with corrupt
+		// GCS objects that stall mid-stream). Fire the error callback on a fresh context
+		// so the DB record transitions to 'failed' and Eventarc stops retrying.
+		log.Printf("[%s] Pipeline timed out (%v) — asset may be corrupt or unreadable", parsed.AssetID, ctx.Err())
+		callbackOnce.Do(func() {
+			triggerCallbackError(parsed.AssetID, "Processing timed out after 4 minutes — asset may be corrupt")
+		})
+		// Do NOT wait for <-done; the goroutine may be stuck in io.Copy indefinitely.
+		// Returning 200 here is intentional: it tells Eventarc the event was accepted
+		// so it will not be retried. The DB record is already being marked failed above.
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Asset ingestion processing complete"))
 }
 
-func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath) {
+func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath, once *sync.Once) {
 	isLocalMode := bucketName == "local" || os.Getenv("GCS_BUCKET") == ""
 
 	ext := strings.ToLower(filepath.Ext(p.Filename))
@@ -231,14 +260,16 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		reader, readErr := getFullReader(ctx, isLocalMode, bucketName, objectName, p)
 		if readErr != nil {
 			log.Printf("[%s] Failed to open original reader: %v", p.AssetID, readErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Download failed: %v", readErr))
+			once.Do(func() { triggerCallbackError(p.AssetID, fmt.Sprintf("Download failed: %v", readErr)) })
 			return
 		}
 
 		var buf bytes.Buffer
 		if _, copyErr := io.Copy(&buf, reader); copyErr != nil {
 			reader.Close()
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
+			})
 			return
 		}
 		reader.Close()
@@ -246,7 +277,9 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		decodedImg, decodedFormat, decodeErr := decodeOriginalImage(buf.Bytes(), ext)
 		if decodeErr != nil {
 			log.Printf("[%s] Failed to decode image: %v", p.AssetID, decodeErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Decoder failure: %v", decodeErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Decoder failure — corrupt or unsupported file: %v", decodeErr))
+			})
 			return
 		}
 
@@ -257,7 +290,9 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		thumbsErr := renderImageThumbnails(ctx, isLocalMode, bucketName, p, decodedImg)
 		if thumbsErr != nil {
 			log.Printf("[%s] Thumbnail rendering failed: %v", p.AssetID, thumbsErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
+			})
 			return
 		}
 	} else if isVideo {
@@ -267,14 +302,16 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		dims, extractErr = processVideoPoster(ctx, isLocalMode, bucketName, p, objectName)
 		if extractErr != nil {
 			log.Printf("[%s] Video poster generation failed: %v", p.AssetID, extractErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Video processing failed: %v", extractErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Video processing failed: %v", extractErr))
+			})
 			return
 		}
 	}
 
 	// Stage 3: Webhook Success Callback
 	sendStageUpdate(p.AssetID, "registering_assets")
-	triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo)
+	once.Do(func() { triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo) })
 }
 
 // gcsReadCloser keeps the GCS client alive until the caller closes the reader.
