@@ -1,0 +1,97 @@
+name: Reset Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment to reset'
+        type: choice
+        options: [dev, prod]
+        required: true
+      confirm_phrase:
+        description: 'Safety phrase: NUKE-DEV or NUKE-PROD'
+        type: string
+        required: true
+
+concurrency:
+  group: reset-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Confirm phrase guard
+        run: |
+          EXPECTED="NUKE-${{ inputs.environment }}"
+          EXPECTED="${EXPECTED^^}"
+          if [[ "${{ inputs.confirm_phrase }}" != "$EXPECTED" ]]; then
+            echo "::error::Confirmation phrase mismatch. Expected: $EXPECTED"
+            exit 1
+          fi
+          echo "Guard passed."
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Google Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Resolve Secrets
+        id: secrets
+        uses: google-github-actions/get-secretmanager-secrets@v2
+        with:
+          secrets: |-
+            database_uri:framehouse-hub/DATABASE_URI_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
+            payload_secret:framehouse-hub/PAYLOAD_SECRET_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
+            processor_callback_secret:framehouse-hub/PROCESSOR_CALLBACK_SECRET_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
+
+      - name: Run Reset Core
+        run: bash scripts/reset.sh --target ${{ inputs.environment }} --no-confirm
+        env:
+          DATABASE_URI: ${{ steps.secrets.outputs.database_uri }}
+          PAYLOAD_SECRET: ${{ steps.secrets.outputs.payload_secret }}
+          PROCESSOR_CALLBACK_SECRET: ${{ steps.secrets.outputs.processor_callback_secret }}
+          GCS_BUCKET: framehouse-hub-${{ inputs.environment }}
+          GCS_PROJECT_ID: framehouse-hub
+          NODE_ENV: production
+          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'dev' && 'https://framehouse-hub-dev-588985538639.us-central1.run.app' || 'https://hub.framehouseworks.com' }}
+
+      - name: Health Check
+        run: |
+          if [[ "${{ inputs.environment }}" == "dev" ]]; then
+            URL="https://framehouse-hub-dev-588985538639.us-central1.run.app/api/healthz"
+          else
+            URL="https://hub.framehouseworks.com/api/healthz"
+          fi
+          echo "Checking $URL"
+          curl -fsS --retry 5 --retry-delay 5 --retry-connrefused "$URL"
+          echo ""
+          echo "✅ Health check passed."
