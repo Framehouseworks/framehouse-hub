@@ -191,14 +191,12 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Active Ingestion Session: User='%s', Domain='%s', Asset='%s', File='%s'",
 		parsed.UserID, parsed.Domain, parsed.AssetID, parsed.Filename)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
-	go func() {
-		defer cancel()
-		processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
-	}()
+	ctx, cancel := context.WithTimeout(r.Context(), 4*time.Minute)
+	defer cancel()
+	processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Asset ingestion processing initiated asynchronously"))
+	w.Write([]byte("Asset ingestion processing complete"))
 }
 
 func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath) {
