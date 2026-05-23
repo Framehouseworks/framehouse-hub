@@ -4,7 +4,12 @@ import { aboutPageData, hubPageData } from './content/hubPages'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { mediaTypeFromMimeAndExtension } from '@/lib/storage-paths'
+import crypto from 'crypto'
+import {
+  buildStoragePath,
+  classifyDomainCategory,
+  mediaTypeFromMimeAndExtension,
+} from '@/lib/storage-paths'
 
 const MEDIA_ROOT = path.resolve(process.cwd(), 'public/media')
 
@@ -308,76 +313,49 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             const title = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
             const mediaType = mediaTypeFromMimeAndExtension(mimeType, filename)
 
-            const newMedia = await payload.create({
-              collection: 'media',
-              data: {
-                title,
-                alt: title,
-                mediaType,
-                owner: fixtureOwnerId as number,
-                ingestionStatus: 'active',
-                shootName: ownership.shootName,
-                uploadBatchId: fixtureBatch.id as number,
-              },
-              file: {
-                data,
-                name: filename,
-                mimetype: mimeType,
-                size: data.length,
-              },
-              context: { disableRevalidate: true },
-            })
+            const gcsBucket = process.env.GCS_BUCKET
 
-            // The writeOriginalToEnclave beforeChange hook has already laid
-            // the original down at `tenants/.../{assetUUID}/original/{file}`
-            // and stamped storagePath on the doc. We just need to install the
-            // pre-built derivatives next to it and mark the doc ready, so the
-            // blank-slate seed isn't dependent on the Go worker running.
-            try {
-              const storagePath = (newMedia as { storagePath?: string }).storagePath
-              if (!storagePath) {
-                throw new Error('storagePath not populated by enclave write hook')
-              }
+            if (gcsBucket) {
+              // Cloud mode: generate storagePath, upload to GCS, create doc directly.
+              // writeOriginalToEnclave no-ops in cloud so we own the path generation here.
+              // Eventarc will fire from the GCS upload and the worker will generate thumbnails.
+              const now = new Date()
+              const year = now.getFullYear().toString()
+              const month = (now.getMonth() + 1).toString().padStart(2, '0')
+              const assetId = crypto.randomUUID()
+              const domainCategory = classifyDomainCategory(mimeType, filename)
+              const storagePath = buildStoragePath({
+                userId: String(fixtureOwnerId),
+                domainCategory,
+                year,
+                month,
+                assetId,
+                filename,
+              })
 
-              const enclaveOriginal = path.join(MEDIA_ROOT, storagePath)
-              const derivativeBase = path.join(
-                path.dirname(path.dirname(enclaveOriginal)),
-                'derivatives',
-              )
-              const derivativesSrc = path.join(
-                fixturesDir,
-                'derivatives',
-                filename.replace(/\.[^.]+$/, ''),
-              )
-              fs.mkdirSync(derivativeBase, { recursive: true })
-
-              const derivativeUrlBase = storagePath
-                .split('/')
-                .slice(0, -2)
-                .join('/')
-                .concat('/derivatives')
-
-              let thumbnailUrl: string | undefined
-              let proxyUrl: string | undefined
-              for (const size of ['small', 'medium'] as const) {
-                const src = path.join(derivativesSrc, `${size}.webp`)
-                if (!fs.existsSync(src)) continue
-                fs.copyFileSync(src, path.join(derivativeBase, `${size}.webp`))
-                const url = `/media/${derivativeUrlBase}/${size}.webp`
-                if (size === 'small') thumbnailUrl = url
-                if (size === 'medium') proxyUrl = url
-              }
+              const { Storage } = await import('@google-cloud/storage')
+              const gcs = new Storage({ projectId: process.env.GCS_PROJECT_ID })
+              await gcs.bucket(gcsBucket).file(storagePath).save(data, { contentType: mimeType })
 
               const dims = FIXTURE_DIMENSIONS[filename]
-              await payload.update({
+              const newMedia = await payload.create({
                 collection: 'media',
-                id: newMedia.id,
                 data: {
-                  thumbnailUrl,
-                  proxyUrl,
+                  title,
+                  alt: title,
+                  mediaType,
+                  owner: fixtureOwnerId as number,
                   ingestionStatus: 'ready',
                   processingStep: 'ready',
                   processedAt: new Date().toISOString(),
+                  shootName: ownership.shootName,
+                  uploadBatchId: fixtureBatch.id as number,
+                  storagePath,
+                  originalUrl: `https://storage.googleapis.com/${gcsBucket}/${storagePath}`,
+                  filename,
+                  originalFilename: filename,
+                  mimeType,
+                  filesize: data.length,
                   ...(dims
                     ? {
                         width: dims.width,
@@ -388,13 +366,95 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 },
                 context: { disableRevalidate: true },
               })
-            } catch (derivErr) {
-              payload.logger.warn(
-                `  Derivative wiring failed for ${filename}: ${derivErr instanceof Error ? derivErr.message : String(derivErr)}`,
-              )
-            }
 
-            payload.logger.info(`  Seeded: ${filename} → id=${newMedia.id}`)
+              payload.logger.info(`  Seeded (cloud): ${filename} → id=${newMedia.id}`)
+            } else {
+              // Local mode: writeOriginalToEnclave lays the original on disk and stamps
+              // storagePath. Install pre-built derivatives and mark ready immediately so
+              // the blank-slate seed doesn't require the Go worker to be running.
+              const newMedia = await payload.create({
+                collection: 'media',
+                data: {
+                  title,
+                  alt: title,
+                  mediaType,
+                  owner: fixtureOwnerId as number,
+                  ingestionStatus: 'active',
+                  shootName: ownership.shootName,
+                  uploadBatchId: fixtureBatch.id as number,
+                },
+                file: {
+                  data,
+                  name: filename,
+                  mimetype: mimeType,
+                  size: data.length,
+                },
+                context: { disableRevalidate: true },
+              })
+
+              try {
+                const storagePath = (newMedia as { storagePath?: string }).storagePath
+                if (!storagePath) {
+                  throw new Error('storagePath not populated by enclave write hook')
+                }
+
+                const enclaveOriginal = path.join(MEDIA_ROOT, storagePath)
+                const derivativeBase = path.join(
+                  path.dirname(path.dirname(enclaveOriginal)),
+                  'derivatives',
+                )
+                const derivativesSrc = path.join(
+                  fixturesDir,
+                  'derivatives',
+                  filename.replace(/\.[^.]+$/, ''),
+                )
+                fs.mkdirSync(derivativeBase, { recursive: true })
+
+                const derivativeUrlBase = storagePath
+                  .split('/')
+                  .slice(0, -2)
+                  .join('/')
+                  .concat('/derivatives')
+
+                let thumbnailUrl: string | undefined
+                let proxyUrl: string | undefined
+                for (const size of ['small', 'medium'] as const) {
+                  const src = path.join(derivativesSrc, `${size}.webp`)
+                  if (!fs.existsSync(src)) continue
+                  fs.copyFileSync(src, path.join(derivativeBase, `${size}.webp`))
+                  const url = `/media/${derivativeUrlBase}/${size}.webp`
+                  if (size === 'small') thumbnailUrl = url
+                  if (size === 'medium') proxyUrl = url
+                }
+
+                const dims = FIXTURE_DIMENSIONS[filename]
+                await payload.update({
+                  collection: 'media',
+                  id: newMedia.id,
+                  data: {
+                    thumbnailUrl,
+                    proxyUrl,
+                    ingestionStatus: 'ready',
+                    processingStep: 'ready',
+                    processedAt: new Date().toISOString(),
+                    ...(dims
+                      ? {
+                          width: dims.width,
+                          height: dims.height,
+                          aspectRatio: (dims.width / dims.height).toFixed(2),
+                        }
+                      : {}),
+                  },
+                  context: { disableRevalidate: true },
+                })
+              } catch (derivErr) {
+                payload.logger.warn(
+                  `  Derivative wiring failed for ${filename}: ${derivErr instanceof Error ? derivErr.message : String(derivErr)}`,
+                )
+              }
+
+              payload.logger.info(`  Seeded: ${filename} → id=${newMedia.id}`)
+            }
           } catch (fixtureErr) {
             payload.logger.error(
               `  Failed to seed ${filename}: ${fixtureErr instanceof Error ? fixtureErr.message : String(fixtureErr)}`,
