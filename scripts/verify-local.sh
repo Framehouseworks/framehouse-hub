@@ -3,8 +3,31 @@ set -e
 
 # Enterprise Standard: Local-CI Parity Script
 # Purpose: Verifies migrations and seeding against a fresh, blank database.
+# Usage: verify-local.sh [up] [--keep-open]
+#        verify-local.sh down
 
-# Check for flags
+SUBCOMMAND="${1:-up}"
+
+# Handle 'down' subcommand (replaces cleanup-local.sh)
+if [[ "$SUBCOMMAND" == "down" ]]; then
+  CONTAINER_NAME="frh-verify-db"
+  echo "--- Dismantling Local Verification Environment ---"
+  if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
+    echo "Stopping and removing container: $CONTAINER_NAME..."
+    docker stop "$CONTAINER_NAME" > /dev/null
+    docker rm "$CONTAINER_NAME" > /dev/null
+    echo "✅ Environment dismantled successfully."
+  else
+    echo "No verification environment found running."
+  fi
+  exit 0
+fi
+
+# 'up' path — shift past subcommand only if it was explicitly passed
+if [[ "$SUBCOMMAND" == "up" && $# -gt 0 ]]; then
+  shift
+fi
+
 KEEP_OPEN=false
 for arg in "$@"; do
   if [ "$arg" == "--keep-open" ]; then
@@ -20,13 +43,11 @@ fi
 
 echo "--- Starting Local 'Blank-Slate' Verification ---"
 
-# Configuration
 CONTAINER_NAME="frh-verify-db"
 POSTGRES_PASSWORD="password"
 POSTGRES_DB="framehouse_test"
 PORT=5433
 
-# Cleanup Function
 cleanup() {
     if [ "$KEEP_OPEN" = false ]; then
         echo "4. Cleaning up temporary resources..."
@@ -35,16 +56,14 @@ cleanup() {
     fi
 }
 
-# Trap unexpected exits (Ctrl+C, errors) unless KEEP_OPEN is true
 if [ "$KEEP_OPEN" = false ]; then
     trap cleanup EXIT
 fi
 
-# 1. Cleanup any existing container from a failed previous run
+# Remove any stale container from a previous run
 docker stop "$CONTAINER_NAME" > /dev/null 2>&1 || true
 docker rm "$CONTAINER_NAME" > /dev/null 2>&1 || true
 
-# 2. Spin up a temporary Postgres container
 echo "1. Initializing temporary database container on port $PORT..."
 if ! docker run --name "$CONTAINER_NAME" \
   -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
@@ -55,7 +74,6 @@ if ! docker run --name "$CONTAINER_NAME" \
     exit 1
 fi
 
-# Wait for postgres to be ready
 echo "   Waiting for database to initialize..."
 MAX_RETRIES=30
 COUNT=0
@@ -68,18 +86,16 @@ until docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; do
   fi
 done
 
-# 3. Define Test Connection String
 TEST_DATABASE_URI="postgres://postgres:$POSTGRES_PASSWORD@localhost:$PORT/$POSTGRES_DB"
 
-# 4. Run Migrations
-echo "2. Running remote-migration mirror..."
-DATABASE_URI=$TEST_DATABASE_URI pnpm run payload migrate
+echo "2. Running reset core (migrate + seed)..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/reset.sh" \
+  --target local \
+  --database-uri "$TEST_DATABASE_URI" \
+  --skip-storage \
+  --no-confirm
 
-# 5. Run Seed
-echo "3. Running 'Day Zero' seeding test..."
-DATABASE_URI=$TEST_DATABASE_URI pnpm run seed
-
-# 6. Final Instructions if Persisting
 if [ "$KEEP_OPEN" = true ]; then
     echo "----------------------------------------------"
     echo "✅ Local Verification Successful (PERSISTENT)"
@@ -88,7 +104,7 @@ if [ "$KEEP_OPEN" = true ]; then
     echo "To test the frontend against this blank-slate data, run:"
     echo "DATABASE_URI=$TEST_DATABASE_URI pnpm run dev"
     echo ""
-    echo "When finished, run './scripts/cleanup-local.sh' to dismantle."
+    echo "When finished, run './scripts/verify-local.sh down' to dismantle."
     echo "----------------------------------------------"
 else
     echo "----------------------------------------------"
