@@ -545,6 +545,11 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       processingStep?: string
       errorMessage?: string
     }) => {
+      if (data.ingestionStatus === 'failed') {
+        const item = queueRef.current.find((q) => String(q.mediaId) === String(data.mediaId))
+        const name = item?.file?.name || item?.filename || 'Unknown file'
+        toast.error(`Ingestion Failed [${name}]: ${data.errorMessage || 'Processing failed'}`)
+      }
       setQueue((prev) => {
         let changed = false
         const next = prev.map((q) => {
