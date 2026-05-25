@@ -31,29 +31,46 @@ export async function POST(req: Request) {
 
     const payload = await getPayload({ config: configPromise })
 
-    // Locate the corresponding asset record
+    // Locate the corresponding asset record.
+    // Retry with backoff to handle the cloud race condition: Eventarc can fire the worker
+    // before the client's register-gcs call has committed the DB doc (corrupt files fail
+    // the header check in < 1s and call back immediately, while valid files take 10–60s
+    // to process so the race window never matters for them).
     let mediaDoc = null
+    const retryDelays = [0, 1500, 2000, 2500] // ms; total max ~6s, within worker's 15s timeout
 
-    try {
-      mediaDoc = await payload.findByID({
-        collection: 'media',
-        id: assetId,
-      })
-    } catch {
-      // Fallback to GCS originalUrl contains search
-    }
+    for (let attempt = 0; attempt < retryDelays.length; attempt++) {
+      if (retryDelays[attempt] > 0) {
+        await new Promise((r) => setTimeout(r, retryDelays[attempt]))
+      }
 
-    if (!mediaDoc) {
-      const { docs: mediaDocs } = await payload.find({
-        collection: 'media',
-        where: {
-          originalUrl: {
-            contains: assetId,
+      try {
+        mediaDoc = await payload.findByID({
+          collection: 'media',
+          id: assetId,
+        })
+      } catch {
+        // Payload throws when ID type mismatches (UUID vs integer) — expected
+      }
+
+      if (!mediaDoc) {
+        const { docs: mediaDocs } = await payload.find({
+          collection: 'media',
+          where: {
+            originalUrl: {
+              contains: assetId,
+            },
           },
-        },
-        limit: 1,
-      })
-      mediaDoc = mediaDocs?.[0]
+          limit: 1,
+        })
+        mediaDoc = mediaDocs?.[0] ?? null
+      }
+
+      if (mediaDoc) break
+
+      console.warn(
+        `[process-callback] Doc not found for assetId=${assetId}, attempt ${attempt + 1}/${retryDelays.length}`,
+      )
     }
 
     if (!mediaDoc) {
