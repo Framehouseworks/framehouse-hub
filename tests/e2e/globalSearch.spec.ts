@@ -21,6 +21,11 @@ test.describe('Global Search (FRH-44)', () => {
   })
 
   test('/ key focuses the search input', async ({ page }) => {
+    // CI headless Chromium does not give the document focus after navigation.
+    // window.addEventListener('keydown') only fires if the document is the active
+    // focus target. Clicking body (not the input) engages focus without activating
+    // any interactive element, so the '/' shortcut guard (tag !== INPUT) still fires.
+    await page.locator('body').click()
     await page.keyboard.press('/')
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeFocused()
@@ -29,6 +34,8 @@ test.describe('Global Search (FRH-44)', () => {
   // Meta+k is macOS-only; ControlOrMeta is cross-platform (Ctrl on Linux CI,
   // Cmd on macOS) and requires Playwright ≥ 1.43 (project uses 1.56.1).
   test('Cmd+K / Ctrl+K focuses the search input', async ({ page }) => {
+    // Same focus requirement as '/' shortcut — see comment above.
+    await page.locator('body').click()
     await page.keyboard.press('ControlOrMeta+k')
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeFocused()
@@ -43,17 +50,22 @@ test.describe('Global Search (FRH-44)', () => {
 
   test('Enter routes to /dashboard?search=<query>', async ({ page }) => {
     const input = page.locator('header input[type="text"]')
-    await input.fill('iceland')
+    // pressSequentially triggers per-keystroke React synthetic events — consistent
+    // with other search tests and guards against any React batching edge cases.
+    await input.click()
+    await input.pressSequentially('iceland')
     await input.press('Enter')
     await expect(page).toHaveURL(/\/dashboard\?search=iceland/)
   })
 
   test('clicking quick filter chip sets ?search= and navigates to /dashboard', async ({ page }) => {
     await page.locator('header input[type="text"]').click()
-    await Promise.all([
-      page.waitForURL('**/dashboard?search=raw**'),
-      page.locator('button:has-text("RAW")').first().click(),
-    ])
+    // Ensure the dropdown has rendered before attempting the chip click.
+    // input.click() triggers onFocus → setShowDropdown(true) → React re-render;
+    // in a production build the button may not be in the DOM when Promise.all starts.
+    const rawChip = page.locator('button:has-text("RAW")').first()
+    await expect(rawChip).toBeVisible()
+    await Promise.all([page.waitForURL('**/dashboard?search=raw**'), rawChip.click()])
     await expect(page).toHaveURL(/\/dashboard\?search=raw/)
   })
 
@@ -68,11 +80,16 @@ test.describe('Global Search (FRH-44)', () => {
 
   // /dashboard/collections does not exist; /account shares DashboardLayout
   // (same header search input) and is a real authenticated route.
+  // pressSequentially types char-by-char, triggering per-keystroke React synthetic
+  // events — eliminates any residual state batching race on the Enter handler.
+  // The component fix (e.currentTarget.value in handleKeyDown) is the primary guard;
+  // pressSequentially is belt-and-suspenders for CI robustness.
   test('searching from another dashboard route redirects to /dashboard', async ({ page }) => {
     await page.goto(`${baseURL}/account`, { waitUntil: 'load' })
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeVisible()
-    await input.fill('portrait')
+    await input.click()
+    await input.pressSequentially('portrait')
     await input.press('Enter')
     await expect(page).toHaveURL(/\/dashboard\?search=portrait/)
   })
