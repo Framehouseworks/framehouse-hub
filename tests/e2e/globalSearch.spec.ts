@@ -6,6 +6,7 @@ const password = 'password123'
 
 test.describe('Global Search (FRH-44)', () => {
   test.beforeEach(async ({ page }) => {
+    // /login has no persistent connections — networkidle is safe here
     await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' })
     await page.locator('input[name="email"]').fill(email)
     await page.locator('input[name="password"]').fill(password)
@@ -13,6 +14,10 @@ test.describe('Global Search (FRH-44)', () => {
       page.waitForURL('**/dashboard**'),
       page.locator('button[type="submit"]').click(),
     ])
+    // Wait for the header search input to be present before each test.
+    // /dashboard holds an open SSE connection (/api/media/status-stream)
+    // so waitUntil: 'networkidle' is never satisfied — use explicit element wait.
+    await expect(page.locator('header input[type="text"]')).toBeVisible()
   })
 
   test('/ key focuses the search input', async ({ page }) => {
@@ -21,8 +26,10 @@ test.describe('Global Search (FRH-44)', () => {
     await expect(input).toBeFocused()
   })
 
-  test('Cmd+K focuses the search input', async ({ page }) => {
-    await page.keyboard.press('Meta+k')
+  // Meta+k is macOS-only; ControlOrMeta is cross-platform (Ctrl on Linux CI,
+  // Cmd on macOS) and requires Playwright ≥ 1.43 (project uses 1.56.1).
+  test('Cmd+K / Ctrl+K focuses the search input', async ({ page }) => {
+    await page.keyboard.press('ControlOrMeta+k')
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeFocused()
   })
@@ -50,15 +57,21 @@ test.describe('Global Search (FRH-44)', () => {
     await expect(page).toHaveURL(/\/dashboard\?search=raw/)
   })
 
+  // Use 'load' (not 'networkidle') — /dashboard holds a persistent SSE
+  // connection that prevents networkidle from ever firing in CI.
   test('search input stays pre-filled on /dashboard after navigation', async ({ page }) => {
-    await page.goto(`${baseURL}/dashboard?search=canyon`, { waitUntil: 'networkidle' })
+    await page.goto(`${baseURL}/dashboard?search=canyon`, { waitUntil: 'load' })
     const input = page.locator('header input[type="text"]')
+    await expect(input).toBeVisible()
     await expect(input).toHaveValue('canyon')
   })
 
+  // /dashboard/collections does not exist; /account shares DashboardLayout
+  // (same header search input) and is a real authenticated route.
   test('searching from another dashboard route redirects to /dashboard', async ({ page }) => {
-    await page.goto(`${baseURL}/dashboard/collections`, { waitUntil: 'networkidle' })
+    await page.goto(`${baseURL}/account`, { waitUntil: 'load' })
     const input = page.locator('header input[type="text"]')
+    await expect(input).toBeVisible()
     await input.fill('portrait')
     await input.press('Enter')
     await expect(page).toHaveURL(/\/dashboard\?search=portrait/)
