@@ -12,6 +12,7 @@ interface TimelineStreamProps {
   selectedIds: Set<string | number>
   isSelectionMode: boolean
   onSelect: (id: string | number) => void
+  onSelectGroup: (ids: (string | number)[], allSelected: boolean) => void
   onView: (media: Media) => void
 }
 
@@ -21,6 +22,7 @@ export const TimelineStream: React.FC<TimelineStreamProps> = ({
   selectedIds,
   isSelectionMode,
   onSelect,
+  onSelectGroup,
   onView,
 }) => {
   return (
@@ -36,6 +38,10 @@ export const TimelineStream: React.FC<TimelineStreamProps> = ({
             count={group.items.length}
             dateMode={dateMode}
             isFirst={index === 0}
+            groupItemIds={group.items.map((i) => i.id)}
+            selectedIds={selectedIds}
+            isSelectionMode={isSelectionMode}
+            onSelectGroup={onSelectGroup}
           />
           <MasonryGrid
             items={group.items}

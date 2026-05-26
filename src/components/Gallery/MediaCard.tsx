@@ -15,7 +15,7 @@ import { CardMetadataPanel } from './cards/CardMetadataPanel'
 
 interface Props {
   media: Media
-  onView?: () => void
+  onView?: (media: Media) => void
   onSelect?: (id: string | number) => void
   isSelected?: boolean
   isSelectionMode?: boolean
@@ -43,7 +43,7 @@ function useCardSize(ref: React.RefObject<HTMLElement | null>): CardSize {
   return 'lg'
 }
 
-export const MediaCard: React.FC<Props> = ({
+const MediaCardComponent: React.FC<Props> = ({
   media,
   onView,
   onSelect,
@@ -83,9 +83,9 @@ export const MediaCard: React.FC<Props> = ({
     // On touch: first tap opens panel, second navigates
     if (isTapped) {
       setIsTapped(false)
-      onView?.()
+      onView?.(media)
     } else {
-      onView?.()
+      onView?.(media)
     }
   }
 
@@ -112,7 +112,7 @@ export const MediaCard: React.FC<Props> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (isSelectionMode) onSelect?.(media.id)
-      else onView?.()
+      else onView?.(media)
     }
     if (e.key === ' ') {
       e.preventDefault()
@@ -225,3 +225,7 @@ export const MediaCard: React.FC<Props> = ({
     </motion.article>
   )
 }
+
+// Memoised: only re-renders when isSelected, isSelectionMode, or media reference changes.
+// Keeps re-render cost O(changed cards) rather than O(all visible cards) on any selection.
+export const MediaCard = React.memo(MediaCardComponent)

@@ -55,7 +55,7 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
             media={item}
             isSelected={selectedIds.has(item.id)}
             onSelect={onSelect}
-            onView={() => onView(item)}
+            onView={onView}
             isSelectionMode={isSelectionMode || selectedIds.size > 0}
           />
         </div>
