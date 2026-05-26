@@ -155,7 +155,12 @@ export const MediaCard: React.FC<Props> = ({
       role="article"
       aria-label={title}
       style={{
-        aspectRatio: media.width && media.height ? `${media.width} / ${media.height}` : '4 / 3',
+        aspectRatio: (() => {
+          if (!media.width || !media.height) return '4 / 3'
+          // Floor at 3:4 (0.75): prevents excessively tall portrait cards.
+          // object-fit: cover handles the proportional crop. Landscape/square unaffected.
+          return String(Math.max(media.width / media.height, 0.75))
+        })(),
       }}
       className={cn(
         'group relative w-full rounded-[24px] overflow-hidden cursor-pointer',
