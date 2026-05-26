@@ -84,6 +84,8 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
         next.delete(id)
       } else {
         next.add(id)
+        // Entering selection via card checkbox activates global mode
+        setIsSelectionMode(true)
       }
       return next
     })
