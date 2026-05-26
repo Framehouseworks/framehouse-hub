@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
-import { ForensicDrawer } from './ForensicDrawer'
+import { AssetViewer } from '@/components/AssetViewer'
 import type { Media } from '@/payload-types'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
@@ -496,10 +496,10 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
         )}
       </AnimatePresence>
 
-      {/* Modals & Drawers */}
-      <ForensicDrawer
-        isOpen={!!selectedMedia}
+      {/* Asset Viewer */}
+      <AssetViewer
         media={selectedMedia}
+        mediaList={filteredMedia}
         onClose={() => setSelectedMedia(null)}
       />
 
