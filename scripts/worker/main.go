@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -191,17 +192,43 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Active Ingestion Session: User='%s', Domain='%s', Asset='%s', File='%s'",
 		parsed.UserID, parsed.Domain, parsed.AssetID, parsed.Filename)
 
+	// Use background context — r.Context() is tied to this HTTP request lifetime and
+	// may be cancelled by Cloud Run before the pipeline finishes. The pipeline owns
+	// its own 4-minute deadline via the explicit timeout below.
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	// callbackOnce guarantees exactly one terminal callback (success or error)
+	// even if both a pipeline error and a context timeout race to fire.
+	var callbackOnce sync.Once
+
+	done := make(chan struct{})
 	go func() {
-		defer cancel()
-		processAssetPipeline(ctx, event.Bucket, event.Name, parsed)
+		defer close(done)
+		processAssetPipeline(ctx, event.Bucket, event.Name, parsed, &callbackOnce)
 	}()
 
+	select {
+	case <-done:
+		// Pipeline completed normally — success/error callback already sent inside.
+	case <-ctx.Done():
+		// io.Copy or a subprocess hung past the 4-minute deadline (common with corrupt
+		// GCS objects that stall mid-stream). Fire the error callback on a fresh context
+		// so the DB record transitions to 'failed' and Eventarc stops retrying.
+		log.Printf("[%s] Pipeline timed out (%v) — asset may be corrupt or unreadable", parsed.AssetID, ctx.Err())
+		callbackOnce.Do(func() {
+			triggerCallbackError(parsed.AssetID, "Processing timed out after 4 minutes — asset may be corrupt")
+		})
+		// Do NOT wait for <-done; the goroutine may be stuck in io.Copy indefinitely.
+		// Returning 200 here is intentional: it tells Eventarc the event was accepted
+		// so it will not be retried. The DB record is already being marked failed above.
+	}
+
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Asset ingestion processing initiated asynchronously"))
+	w.Write([]byte("Asset ingestion processing complete"))
 }
 
-func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath) {
+func processAssetPipeline(ctx context.Context, bucketName, objectName string, p *parsedPath, once *sync.Once) {
 	isLocalMode := bucketName == "local" || os.Getenv("GCS_BUCKET") == ""
 
 	ext := strings.ToLower(filepath.Ext(p.Filename))
@@ -213,8 +240,43 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 	var tech *TechnicalMetadata
 	var loc *Location
 
-	// Stage 1: EXIF Metadata Extraction
-	if isImage {
+	// Pre-flight: validate file header (magic bytes) from the 64KB range read.
+	// This runs before any stage update so corrupt files fail at upload_complete
+	// rather than hanging the pipeline. Both image and non-image types are checked.
+	if isImage || isVideo || ext == ".mp3" || ext == ".wav" || ext == ".flac" ||
+		ext == ".ogg" || ext == ".pdf" {
+		log.Printf("[%s] Validating file header (magic bytes) for %s...", p.AssetID, ext)
+		headerReader, headerErr := getRangeReader(ctx, isLocalMode, bucketName, objectName, p)
+		if headerErr != nil {
+			log.Printf("[%s] Header read failed: %v", p.AssetID, headerErr)
+			once.Do(func() {
+				triggerCallbackError(p.AssetID,
+					fmt.Sprintf("Failed to read file for validation: %v", headerErr))
+			})
+			return
+		}
+		// Read enough for the widest signature (12 bytes), plus extra for EXIF reuse
+		headerBuf := make([]byte, 65536)
+		headerN, _ := io.ReadFull(headerReader, headerBuf)
+		headerBuf = headerBuf[:headerN]
+		headerReader.Close()
+
+		if err := validateFileHeader(headerBuf, ext); err != nil {
+			log.Printf("[%s] File header validation failed: %v", p.AssetID, err)
+			once.Do(func() { triggerCallbackError(p.AssetID, err.Error()) })
+			return
+		}
+		log.Printf("[%s] File header valid (%d bytes read)", p.AssetID, headerN)
+
+		// Reuse the already-fetched header buffer for EXIF parsing (images only)
+		if isImage {
+			sendStageUpdate(p.AssetID, "exif_parsing")
+			tech, loc = parseEXIF(bytes.NewReader(headerBuf))
+		}
+	}
+
+	// Stage 1: EXIF Metadata Extraction (for files where range read was skipped above)
+	if isImage && tech == nil && loc == nil {
 		sendStageUpdate(p.AssetID, "exif_parsing")
 		log.Printf("[%s] Performing EXIF range parse (64KB)...", p.AssetID)
 		rangeReader, rangeErr := getRangeReader(ctx, isLocalMode, bucketName, objectName, p)
@@ -233,14 +295,16 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		reader, readErr := getFullReader(ctx, isLocalMode, bucketName, objectName, p)
 		if readErr != nil {
 			log.Printf("[%s] Failed to open original reader: %v", p.AssetID, readErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Download failed: %v", readErr))
+			once.Do(func() { triggerCallbackError(p.AssetID, fmt.Sprintf("Download failed: %v", readErr)) })
 			return
 		}
 
 		var buf bytes.Buffer
 		if _, copyErr := io.Copy(&buf, reader); copyErr != nil {
 			reader.Close()
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Reading asset buffer failed: %v", copyErr))
+			})
 			return
 		}
 		reader.Close()
@@ -248,7 +312,9 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		decodedImg, decodedFormat, decodeErr := decodeOriginalImage(buf.Bytes(), ext)
 		if decodeErr != nil {
 			log.Printf("[%s] Failed to decode image: %v", p.AssetID, decodeErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Decoder failure: %v", decodeErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Decoder failure — corrupt or unsupported file: %v", decodeErr))
+			})
 			return
 		}
 
@@ -259,7 +325,9 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		thumbsErr := renderImageThumbnails(ctx, isLocalMode, bucketName, p, decodedImg)
 		if thumbsErr != nil {
 			log.Printf("[%s] Thumbnail rendering failed: %v", p.AssetID, thumbsErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Thumbnail generation failed: %v", thumbsErr))
+			})
 			return
 		}
 	} else if isVideo {
@@ -269,14 +337,16 @@ func processAssetPipeline(ctx context.Context, bucketName, objectName string, p 
 		dims, extractErr = processVideoPoster(ctx, isLocalMode, bucketName, p, objectName)
 		if extractErr != nil {
 			log.Printf("[%s] Video poster generation failed: %v", p.AssetID, extractErr)
-			triggerCallbackError(p.AssetID, fmt.Sprintf("Video processing failed: %v", extractErr))
+			once.Do(func() {
+				triggerCallbackError(p.AssetID, fmt.Sprintf("Video processing failed: %v", extractErr))
+			})
 			return
 		}
 	}
 
 	// Stage 3: Webhook Success Callback
 	sendStageUpdate(p.AssetID, "registering_assets")
-	triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo)
+	once.Do(func() { triggerCallbackSuccess(isLocalMode, p, dims, tech, loc, isImage || isVideo) })
 }
 
 // gcsReadCloser keeps the GCS client alive until the caller closes the reader.
@@ -391,6 +461,122 @@ func getLocalAssetPath(p *parsedPath) string {
 	}
 	log.Printf("[%s] WARNING: Could not locate local asset at: %s", p.AssetID, candidate)
 	return candidate
+}
+
+// validateFileHeader checks magic bytes against the expected file format.
+// Returns a descriptive error if the signature is missing or invalid.
+// Mirrors the TypeScript logic in src/lib/file-validation.ts.
+func validateFileHeader(header []byte, ext string) error {
+	if len(header) == 0 {
+		return fmt.Errorf("file is empty (0 bytes) — nothing to process")
+	}
+
+	hexSnippet := func(b []byte, n int) string {
+		if n > len(b) {
+			n = len(b)
+		}
+		parts := make([]string, n)
+		for i := 0; i < n; i++ {
+			parts[i] = fmt.Sprintf("%02X", b[i])
+		}
+		return strings.Join(parts, " ")
+	}
+
+	switch ext {
+	case ".jpg", ".jpeg":
+		if len(header) < 3 || header[0] != 0xFF || header[1] != 0xD8 || header[2] != 0xFF {
+			return fmt.Errorf("invalid JPEG: expected header FF D8 FF, got %s", hexSnippet(header, 3))
+		}
+
+	case ".png":
+		png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+		if len(header) < 8 || !bytes.Equal(header[:8], png) {
+			return fmt.Errorf("invalid PNG: expected 89 50 4E 47 0D 0A 1A 0A, got %s", hexSnippet(header, 8))
+		}
+
+	case ".webp":
+		if len(header) < 12 ||
+			string(header[0:4]) != "RIFF" ||
+			string(header[8:12]) != "WEBP" {
+			return fmt.Errorf("invalid WebP: RIFF/WEBP container not found, got %s", hexSnippet(header, 12))
+		}
+
+	case ".gif":
+		if len(header) < 6 {
+			return fmt.Errorf("GIF file too small to read signature")
+		}
+		sig := string(header[:6])
+		if sig != "GIF87a" && sig != "GIF89a" {
+			return fmt.Errorf("invalid GIF: expected GIF87a or GIF89a, got %q", sig)
+		}
+
+	case ".dng", ".tiff", ".arw", ".nef", ".cr2", ".orf", ".rw2", ".pef", ".raf":
+		if len(header) < 4 {
+			return fmt.Errorf("%s file too small to read TIFF/RAW header", strings.ToUpper(ext[1:]))
+		}
+		isLE := header[0] == 0x49 && header[1] == 0x49
+		isBE := header[0] == 0x4D && header[1] == 0x4D
+		if !isLE && !isBE {
+			return fmt.Errorf("invalid %s: expected TIFF-based header (II or MM byte-order mark), got %s",
+				strings.ToUpper(ext[1:]), hexSnippet(header, 4))
+		}
+
+	case ".mp4", ".mov":
+		if len(header) < 8 {
+			return fmt.Errorf("%s file too small to read container header", strings.ToUpper(ext[1:]))
+		}
+		validBoxes := map[string]bool{"ftyp": true, "free": true, "mdat": true, "moov": true, "wide": true, "pnot": true}
+		boxType := string(header[4:8])
+		if !validBoxes[boxType] {
+			return fmt.Errorf("invalid %s: expected MP4/QuickTime container (ftyp box), got box type %q",
+				strings.ToUpper(ext[1:]), boxType)
+		}
+
+	case ".mkv", ".webm":
+		if len(header) < 4 ||
+			header[0] != 0x1A || header[1] != 0x45 || header[2] != 0xDF || header[3] != 0xA3 {
+			return fmt.Errorf("invalid %s: EBML header (1A 45 DF A3) not found, got %s",
+				strings.ToUpper(ext[1:]), hexSnippet(header, 4))
+		}
+
+	case ".avi":
+		if len(header) < 12 ||
+			string(header[0:4]) != "RIFF" ||
+			string(header[8:12]) != "AVI " {
+			return fmt.Errorf("invalid AVI: RIFF/AVI container not found, got %s", hexSnippet(header, 12))
+		}
+
+	case ".mp3":
+		hasID3 := len(header) >= 3 && header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33
+		hasMpegSync := len(header) >= 2 && header[0] == 0xFF && (header[1]&0xE0) == 0xE0
+		if !hasID3 && !hasMpegSync {
+			return fmt.Errorf("invalid MP3: no ID3 tag or MPEG sync header, got %s", hexSnippet(header, 4))
+		}
+
+	case ".wav":
+		if len(header) < 12 ||
+			string(header[0:4]) != "RIFF" ||
+			string(header[8:12]) != "WAVE" {
+			return fmt.Errorf("invalid WAV: RIFF/WAVE container not found, got %s", hexSnippet(header, 12))
+		}
+
+	case ".flac":
+		if len(header) < 4 || string(header[:4]) != "fLaC" {
+			return fmt.Errorf("invalid FLAC: \"fLaC\" marker not found, got %s", hexSnippet(header, 4))
+		}
+
+	case ".ogg":
+		if len(header) < 4 || string(header[:4]) != "OggS" {
+			return fmt.Errorf("invalid OGG: \"OggS\" capture pattern not found, got %s", hexSnippet(header, 4))
+		}
+
+	case ".pdf":
+		if len(header) < 4 || string(header[:4]) != "%PDF" {
+			return fmt.Errorf("invalid PDF: \"%%PDF\" header not found, got %s", hexSnippet(header, 4))
+		}
+	}
+
+	return nil
 }
 
 func decodeOriginalImage(data []byte, ext string) (image.Image, string, error) {
