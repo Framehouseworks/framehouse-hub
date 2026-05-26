@@ -1,7 +1,7 @@
 {
   "name": "framehouse-hub-admin",
   "version": "1.0.0",
-  "description": "Ecommerce template for Payload",
+  "description": "Framehouse Hub — digital asset management platform",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -18,7 +18,6 @@
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation pnpm exec tsx ./src/seed/standalone.ts",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
-    "stripe-webhooks": "stripe listen --forward-to localhost:3000/api/stripe/webhooks",
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
@@ -96,6 +95,7 @@
     "husky": "^9.1.7",
     "jsdom": "26.1.0",
     "lint-staged": "^15.2.2",
+    "neonctl": "^2.22.0",
     "playwright": "1.56.1",
     "playwright-core": "1.56.1",
     "postcss": "^8.4.38",

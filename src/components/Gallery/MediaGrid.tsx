@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState, useMemo } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { ForensicDrawer } from './ForensicDrawer'
 import type { Media } from '@/payload-types'
 import { useUpload } from '@/providers/UploadProvider'
@@ -77,31 +77,40 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     }
   }
 
-  const toggleSelection = (id: string | number) => {
+  const toggleSelection = useCallback((id: string | number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
       } else {
         next.add(id)
+        // Entering selection via card checkbox activates global mode
+        setIsSelectionMode(true)
       }
       return next
     })
-  }
+  }, [])
 
-  const handleSelectAll = () => {
-    if (selectedIds.size === localMedia.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(localMedia.map((m) => m.id)))
-    }
-    setIsSelectionMode(true)
-  }
+  // Selects/deselects all items in a specific group atomically.
+  const handleSelectGroup = useCallback((ids: (string | number)[], allSelected: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id))
+      } else {
+        ids.forEach((id) => next.add(id))
+        setIsSelectionMode(true)
+      }
+      return next
+    })
+  }, [])
 
-  const clearSelection = () => {
+  const handleView = useCallback((media: Media) => setSelectedMedia(media), [])
+
+  const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
     setIsSelectionMode(false)
-  }
+  }, [])
 
   // Server already returns the search-filtered set via ?search= URL param.
   // Client only applies status filter on top.
@@ -109,7 +118,33 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
     return localMedia.filter((item) => !statusFilter || item.ingestionStatus === statusFilter)
   }, [localMedia, statusFilter])
 
+  // Scoped to filteredMedia so "Select All" only touches the current view.
+  const handleSelectAll = useCallback(() => {
+    const visibleIds = filteredMedia.map((m) => m.id)
+    const allVisibleSelected = visibleIds.every((id) => selectedIds.has(id))
+    if (allVisibleSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        visibleIds.forEach((id) => next.delete(id))
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        visibleIds.forEach((id) => next.add(id))
+        return next
+      })
+    }
+    setIsSelectionMode(true)
+  }, [filteredMedia, selectedIds])
+
   const groups = useMemo(() => groupMedia(filteredMedia, dateMode), [filteredMedia, dateMode])
+
+  // How many selected IDs are currently visible in the filtered view.
+  const selectedInView = useMemo(
+    () => filteredMedia.filter((m) => selectedIds.has(m.id)).length,
+    [filteredMedia, selectedIds],
+  )
 
   const statusCounts = useMemo(() => {
     const localIds = new Set(localMedia.map((m) => String(m.id)))
@@ -371,9 +406,14 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
             selectedIds={selectedIds}
             isSelectionMode={isSelectionMode}
             onSelect={toggleSelection}
-            onView={(media) => setSelectedMedia(media)}
+            onSelectGroup={handleSelectGroup}
+            onView={handleView}
           />
+        ) : localMedia.length === 0 ? (
+          // No media at all — show the ingest CTA (upload prompt)
+          <EmptyState />
         ) : (
+          // Has media but current filter hides everything
           <EmptyState
             mode="no-results"
             statusFilter={statusFilter}
@@ -401,6 +441,11 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
                     ? 'All Assets'
                     : `${selectedIds.size} Selected`}
                 </span>
+                {selectedInView < selectedIds.size && (
+                  <span className="text-[10px] font-mono tracking-wide text-on-surface/40 mt-0.5">
+                    {selectedInView} visible in view
+                  </span>
+                )}
               </div>
 
               <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
@@ -413,7 +458,9 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
                 >
                   <CheckSquare size={16} />
                   <span>
-                    {selectedIds.size === localMedia.length ? 'Deselect All' : 'Select All'}
+                    {filteredMedia.every((m) => selectedIds.has(m.id))
+                      ? 'Deselect All'
+                      : 'Select All'}
                   </span>
                 </Button>
                 <Button
