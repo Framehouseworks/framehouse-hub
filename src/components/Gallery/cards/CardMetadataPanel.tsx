@@ -13,7 +13,7 @@ interface Props {
   title: string
   isOpen: boolean
   cardSize: CardSize
-  onView?: () => void
+  onView?: (media: Media) => void
   onRemoveTag: (tag: string) => void
 }
 
@@ -144,7 +144,7 @@ export const CardMetadataPanel: React.FC<Props> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                onView?.()
+                onView?.(media)
               }}
               aria-label={`Open ${title}`}
               className={cn(
