@@ -82,14 +82,14 @@ jobs:
           GCS_BUCKET: framehouse-hub-${{ inputs.environment }}
           GCS_PROJECT_ID: framehouse-hub
           NODE_ENV: production
-          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'dev' && 'https://framehouse-hub-dev-588985538639.us-central1.run.app' || 'https://hub.framehouseworks.com' }}
+          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'dev' && 'https://dev.framehouseworks.com' || 'https://hub.framehouseworks.com' }}
 
       - name: Health Check
         run: |
           if [[ "${{ inputs.environment }}" == "dev" ]]; then
-            URL="https://framehouse-hub-dev-588985538639.us-central1.run.app/api/healthz"
+            URL="https://dev.framehouseworks.com/api/healthz"
           else
-            URL="https://hub.framehouseworks.com/api/healthz"
+            URL="https://dev.framehouseworks.com/api/healthz"
           fi
           echo "Checking $URL"
           curl -fsS --retry 5 --retry-delay 5 --retry-connrefused "$URL"

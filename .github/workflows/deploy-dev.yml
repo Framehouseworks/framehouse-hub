@@ -80,7 +80,7 @@ jobs:
       ENV_NAME: dev
       DOCKER_TAG: dev
       GCS_BUCKET: framehouse-hub-dev
-      PUBLIC_URL: https://framehouse-hub-dev-588985538639.us-central1.run.app
+      PUBLIC_URL: https://dev.framehouseworks.com
 
     steps:
       - name: Checkout Repository
@@ -170,4 +170,5 @@ jobs:
             GCS_BUCKET=${{ env.GCS_BUCKET }}
             GCS_PROJECT_ID=framehouse-hub
             NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
+            EXTRA_ALLOWED_ORIGINS=https://framehouse-hub-dev-588985538639.us-central1.run.app
             SEED_SECRET=${{ secrets.SEED_SECRET }}
