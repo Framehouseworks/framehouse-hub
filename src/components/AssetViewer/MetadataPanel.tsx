@@ -22,14 +22,15 @@ import {
   FileType,
   Crosshair,
   Clapperboard,
-  ExternalLink,
 } from 'lucide-react'
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import { AnimatePresence, motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { Media } from '@/payload-types'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
+import { LocationSearch, OsmMiniMap } from '@/components/ui/location-search'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { cn } from '@/utilities/cn'
 
@@ -42,6 +43,8 @@ interface RefinementFormData {
   tags: string[]
   captureDate: string
   locationAddress: string
+  locationLat: number | null
+  locationLng: number | null
   cameraModel: string
   lensModel: string
   iso: number | string
@@ -124,10 +127,6 @@ function formatMediaType(t: string | null | undefined): string {
   return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
-function buildMapsUrl(lat: number, lon: number): string {
-  return `https://www.google.com/maps?q=${lat},${lon}`
-}
-
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '--'
   return new Date(iso).toLocaleDateString('en-GB', {
@@ -136,6 +135,39 @@ function formatDate(iso: string | null | undefined): string {
     year: 'numeric',
   })
 }
+
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return '--'
+  return new Date(iso).toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// ─── Fade Value ─────────────────────────────────────────────────────────────
+// Fades in when mediaId changes. No exit — structure stays, only text refreshes.
+
+const FadeValue: React.FC<{
+  mediaId: string | number
+  children: React.ReactNode
+  className?: string
+  as?: 'span' | 'div' | 'p'
+}> = ({ mediaId, children, className, as: Tag = 'span' }) => (
+  <motion.span
+    key={mediaId}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.2, ease: 'easeOut' }}
+    className={className}
+    // motion.span ignores `as` — render the right tag via asChild pattern
+    style={{ display: Tag === 'span' ? 'inline' : 'block' }}
+  >
+    {children}
+  </motion.span>
+)
 
 // ─── Section Label ──────────────────────────────────────────────────────────
 
@@ -155,14 +187,24 @@ const StatTile: React.FC<{
   label: string
   value: string | number | null | undefined
   wide?: boolean
-}> = ({ label, value, wide }) => (
+  mediaId?: string | number
+}> = ({ label, value, wide, mediaId }) => (
   <div className={cn('bg-black/[0.03] dark:bg-white/[0.03] p-3 rounded-2xl', wide && 'col-span-2')}>
     <span className="text-[8px] font-bold tracking-[0.18em] text-on-surface/25 uppercase block mb-1">
       {label}
     </span>
-    <p className="text-[10px] font-bold font-rubik text-primary break-all leading-snug">
-      {value || '--'}
-    </p>
+    {mediaId !== undefined ? (
+      <FadeValue
+        mediaId={mediaId}
+        className="text-[10px] font-bold font-rubik text-primary break-all leading-snug block"
+      >
+        {value || '--'}
+      </FadeValue>
+    ) : (
+      <p className="text-[10px] font-bold font-rubik text-primary break-all leading-snug">
+        {value || '--'}
+      </p>
+    )}
   </div>
 )
 
@@ -170,6 +212,7 @@ const StatTile: React.FC<{
 
 const PanelContent: React.FC<{
   media: Media
+  mediaId: string | number
   isEditing: boolean
   isSaving: boolean
   setIsEditing: (v: boolean) => void
@@ -181,6 +224,7 @@ const PanelContent: React.FC<{
   onSave: (data: RefinementFormData) => void
 }> = ({
   media,
+  mediaId,
   isEditing,
   isSaving,
   setIsEditing,
@@ -252,26 +296,34 @@ const PanelContent: React.FC<{
                 className="w-full bg-black/[0.04] dark:bg-white/[0.04] rounded-2xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all text-primary"
               />
             ) : (
-              <h2 className="text-base font-semibold tracking-tight text-primary break-words leading-snug">
+              <FadeValue
+                mediaId={mediaId}
+                as="div"
+                className="text-base font-semibold tracking-tight text-primary break-words leading-snug"
+              >
                 {media.title || media.filename || 'Untitled'}
-              </h2>
+              </FadeValue>
             )}
             {/* Original filename — useful archival reference */}
             {!isEditing && media.originalFilename && media.originalFilename !== media.title && (
-              <p
-                className="text-[10px] text-on-surface/35 font-rubik break-all leading-snug"
-                title={media.originalFilename}
+              <FadeValue
+                mediaId={mediaId}
+                as="p"
+                className="text-[10px] text-on-surface/35 font-rubik break-all leading-snug block"
               >
                 {media.originalFilename}
-              </p>
+              </FadeValue>
             )}
             {/* Shoot name */}
             {!isEditing && media.shootName && (
               <div className="flex items-center gap-1.5 pt-0.5">
                 <Clapperboard size={9} className="text-on-surface/30 shrink-0" />
-                <span className="text-[10px] text-on-surface/45 font-medium break-words">
+                <FadeValue
+                  mediaId={mediaId}
+                  className="text-[10px] text-on-surface/45 font-medium break-words"
+                >
                   {media.shootName}
-                </span>
+                </FadeValue>
               </div>
             )}
           </div>
@@ -305,12 +357,13 @@ const PanelContent: React.FC<{
       {/* ── File Stats — 2×2 grid, no truncation ──────────────── */}
       <div className="grid grid-cols-2 gap-2">
         <StatTile
+          mediaId={mediaId}
           label="Resolution"
           value={media.width && media.height ? `${media.width} × ${media.height}` : null}
         />
-        <StatTile label="Format" value={formatMimeType(media.mimeType)} />
-        <StatTile label="File Size" value={formatFileSize(media.filesize)} />
-        <StatTile label="Aspect" value={media.aspectRatio} />
+        <StatTile mediaId={mediaId} label="Format" value={formatMimeType(media.mimeType)} />
+        <StatTile mediaId={mediaId} label="File Size" value={formatFileSize(media.filesize)} />
+        <StatTile mediaId={mediaId} label="Aspect" value={media.aspectRatio} />
       </div>
 
       {/* ── Technical / Optics ────────────────────────────────── */}
@@ -332,15 +385,23 @@ const PanelContent: React.FC<{
             </div>
           ) : (
             <>
-              <p className="text-sm font-semibold leading-snug break-words">
+              <FadeValue
+                mediaId={mediaId}
+                as="p"
+                className="text-sm font-semibold leading-snug break-words block"
+              >
                 {media.technical?.cameraModel || (
                   <span className="text-on-surface/30 font-normal text-xs">Unknown Body</span>
                 )}
-              </p>
+              </FadeValue>
               {media.technical?.lensModel && (
-                <p className="text-[10px] text-on-surface/50 leading-snug break-words">
+                <FadeValue
+                  mediaId={mediaId}
+                  as="p"
+                  className="text-[10px] text-on-surface/50 leading-snug break-words block"
+                >
                   {media.technical.lensModel}
-                </p>
+                </FadeValue>
               )}
             </>
           )}
@@ -395,12 +456,19 @@ const PanelContent: React.FC<{
                   <span className="text-[8px] font-bold tracking-widest text-on-surface/25 uppercase block mb-0.5">
                     {x.label}
                   </span>
-                  <span className="text-[10px] font-bold font-rubik text-primary">{x.value}</span>
+                  <FadeValue
+                    mediaId={mediaId}
+                    className="text-[10px] font-bold font-rubik text-primary"
+                  >
+                    {x.value}
+                  </FadeValue>
                 </div>
               ))}
           </div>
         ) : (
-          <span className="text-[10px] text-on-surface/30 font-rubik">No EXIF data</span>
+          <FadeValue mediaId={mediaId} className="text-[10px] text-on-surface/30 font-rubik">
+            No EXIF data
+          </FadeValue>
         )}
       </div>
 
@@ -477,9 +545,13 @@ const PanelContent: React.FC<{
               className="w-full bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all resize-none"
             />
           ) : (
-            <p className="text-xs text-on-surface/60 leading-relaxed">
+            <FadeValue
+              mediaId={mediaId}
+              as="p"
+              className="text-xs text-on-surface/60 leading-relaxed block"
+            >
               {getPlainTextFromLexical(media.caption)}
-            </p>
+            </FadeValue>
           )}
         </div>
       )}
@@ -487,54 +559,65 @@ const PanelContent: React.FC<{
       {/* ── Timeline & Origin ─────────────────────────────────── */}
       <div className="bg-black/[0.02] dark:bg-white/[0.02] rounded-[20px] p-4 space-y-3">
         {/* Capture date */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
           <SectionLabel icon={<Calendar size={12} />}>Capture</SectionLabel>
           {isEditing ? (
-            <input
-              {...register('captureDate')}
-              type="date"
-              className="bg-black/[0.04] dark:bg-white/[0.04] rounded-xl px-2 py-1 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
+            <DatePicker
+              value={watch('captureDate')}
+              onChange={(iso) => setValue('captureDate', iso ?? '')}
             />
           ) : (
-            <span className="text-[10px] font-bold font-rubik text-primary">
+            <FadeValue mediaId={mediaId} className="text-[10px] font-bold font-rubik text-primary">
               {formatDate(media.captureDate)}
-            </span>
+            </FadeValue>
           )}
         </div>
 
         {/* Location */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <SectionLabel icon={<MapPin size={12} />}>Location</SectionLabel>
-            {hasGps && !isEditing && (
-              <a
-                href={buildMapsUrl(media.location!.latitude!, media.location!.longitude!)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-gallery-gold/70 hover:text-gallery-gold transition-colors"
-                aria-label="Open in Maps"
-              >
-                Maps
-                <ExternalLink size={9} />
-              </a>
-            )}
-          </div>
+          <SectionLabel icon={<MapPin size={12} />}>Location</SectionLabel>
           {isEditing ? (
-            <input
-              {...register('locationAddress')}
-              placeholder="Address…"
-              className="w-full bg-black/[0.04] dark:bg-white/[0.04] rounded-xl px-3 py-1.5 text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
+            <LocationSearch
+              value={watch('locationAddress')}
+              onChange={(addr) => setValue('locationAddress', addr)}
+              onLocationSelect={(result) => {
+                const [lon, lat] = result.geometry.coordinates
+                const name = [
+                  result.properties.name,
+                  result.properties.street,
+                  result.properties.city,
+                  result.properties.state,
+                  result.properties.country,
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+                setValue('locationAddress', name)
+                setValue('locationLat', lat)
+                setValue('locationLng', lon)
+              }}
+              hasExistingGps={hasGps}
             />
           ) : (
             <div className="space-y-0.5">
-              <p className="text-[10px] font-bold text-primary leading-snug break-words">
+              <FadeValue
+                mediaId={mediaId}
+                as="p"
+                className="text-[10px] font-bold text-primary leading-snug break-words block"
+              >
                 {media.location?.address || '--'}
-              </p>
+              </FadeValue>
               {hasGps && (
-                <p className="text-[9px] text-on-surface/30 font-rubik">
+                <FadeValue
+                  mediaId={mediaId}
+                  as="p"
+                  className="text-[9px] text-on-surface/30 font-rubik block"
+                >
                   <Crosshair size={8} className="inline mr-1 opacity-60" />
                   {media.location!.latitude!.toFixed(4)}, {media.location!.longitude!.toFixed(4)}
-                </p>
+                </FadeValue>
+              )}
+              {hasGps && (
+                <OsmMiniMap lat={media.location!.latitude!} lon={media.location!.longitude!} />
               )}
             </div>
           )}
@@ -543,18 +626,24 @@ const PanelContent: React.FC<{
         {/* Ingested */}
         <div className="flex items-center justify-between">
           <SectionLabel>Ingested</SectionLabel>
-          <span className="text-[10px] font-bold font-rubik text-on-surface/40">
-            {formatDate(media.createdAt)}
-          </span>
+          <FadeValue
+            mediaId={mediaId}
+            className="text-[10px] font-bold font-rubik text-on-surface/40"
+          >
+            {formatDateTime(media.createdAt)}
+          </FadeValue>
         </div>
 
         {/* Last updated — only show if different from created */}
         {media.updatedAt && media.updatedAt !== media.createdAt && (
           <div className="flex items-center justify-between">
             <SectionLabel>Updated</SectionLabel>
-            <span className="text-[10px] font-bold font-rubik text-on-surface/30">
-              {formatDate(media.updatedAt)}
-            </span>
+            <FadeValue
+              mediaId={mediaId}
+              className="text-[10px] font-bold font-rubik text-on-surface/30"
+            >
+              {formatDateTime(media.updatedAt)}
+            </FadeValue>
           </div>
         )}
       </div>
@@ -632,8 +721,10 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
       alt: media.alt || '',
       captionText: getPlainTextFromLexical(media.caption),
       tags: media.manualTags?.map((t) => t.tag).filter((t): t is string => !!t) || [],
-      captureDate: media.captureDate ? new Date(media.captureDate).toISOString().split('T')[0] : '',
+      captureDate: media.captureDate ? new Date(media.captureDate).toISOString() : '',
       locationAddress: media.location?.address || '',
+      locationLat: media.location?.latitude ?? null,
+      locationLng: media.location?.longitude ?? null,
       cameraModel: media.technical?.cameraModel || '',
       lensModel: media.technical?.lensModel || '',
       iso: media.technical?.iso ?? '',
@@ -661,7 +752,11 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
           shutterSpeed: data.shutterSpeed,
           focalLength: data.focalLength ? Number(data.focalLength) : null,
         },
-        location: { address: data.locationAddress },
+        location: {
+          address: data.locationAddress,
+          latitude: data.locationLat,
+          longitude: data.locationLng,
+        },
       })
       if (result.success) {
         toast.success('Metadata updated')
@@ -707,6 +802,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
 
   const sharedContentProps = {
     media,
+    mediaId: media.id,
     isEditing,
     isSaving,
     setIsEditing,
@@ -723,7 +819,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     return (
       // Floats as a card: margin creates breathing room from viewport edges.
       // Matches the mobile drawer's glassmorphism + ambient shadow language.
-      <div className="flex flex-col shrink-0 w-80 my-4 mr-4">
+      <div className="flex flex-col shrink-0 w-96 my-4 mr-4">
         <div
           className={cn(
             'relative flex flex-col flex-1 h-full rounded-[24px] overflow-hidden',
@@ -778,16 +874,25 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-8 h-1 rounded-full bg-on-surface/20" />
         </div>
-        {/* Peek content: filename + date */}
+        {/* Peek content: filename + date — fades on asset switch */}
         <div className="flex items-center justify-between px-5">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-primary truncate">
-              {media.title || media.filename || 'Untitled'}
-            </p>
-            <p className="text-[10px] text-on-surface/40 font-rubik">
-              {formatDate(media.captureDate)}
-            </p>
-          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={media.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12, ease: 'easeInOut' }}
+              className="min-w-0 flex-1"
+            >
+              <p className="text-sm font-semibold text-primary truncate">
+                {media.title || media.filename || 'Untitled'}
+              </p>
+              <p className="text-[10px] text-on-surface/40 font-rubik">
+                {formatDate(media.captureDate)}
+              </p>
+            </motion.div>
+          </AnimatePresence>
           <button
             onClick={() => {
               if (drawerOpen) {

@@ -23,7 +23,7 @@ interface AssetViewerProps {
 
 /**
  * Full-viewport cinematic asset viewer.
- * – Desktop: media stage (flex-1) + collapsible metadata panel (320px)
+ * – Desktop: media stage (flex-1) + collapsible metadata panel (384px)
  * – Mobile:  media stage (full) + bottom sheet drawer
  */
 export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onClose }) => {
@@ -142,31 +142,27 @@ export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onCl
             </div>
 
             {/* ── Main content area ──────────────────────────────────── */}
-            <AnimatePresence mode="wait">
-              {currentMedia && (
-                <motion.div
-                  key={currentMedia.id}
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-                  className={
-                    isDesktop
-                      ? // Desktop: side-by-side row (stage + panel)
-                        'absolute inset-0 flex overflow-hidden'
-                      : // Mobile: column — stage above, peek strip below.
-                        // Stage gets flex-1 (viewport minus PEEK_HEIGHT),
-                        // so the image is never obscured in the resting state.
-                        'absolute inset-0 flex flex-col overflow-hidden'
-                  }
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                >
-                  {/* ── Media Stage ─────────────────────────────────── */}
-                  {/* Close button lives here — top-right of the stage area, */}
-                  {/* never inside the metadata panel column. Conventional    */}
-                  {/* placement (top-right of content) on all viewport widths. */}
-                  <div
+            {currentMedia && (
+              // Persistent layout wrapper — never keyed, never exits.
+              // Only the stage (image) animates on asset switch; the
+              // metadata panel stays mounted and cross-fades its content.
+              <div
+                className={
+                  isDesktop
+                    ? 'absolute inset-0 flex overflow-hidden'
+                    : 'absolute inset-0 flex flex-col overflow-hidden'
+                }
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                {/* ── Media Stage — animates on asset switch ───────── */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentMedia.id}
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
                     className={isDesktop ? 'flex-1 min-w-0 relative' : 'flex-1 min-h-0 relative'}
                   >
                     <MediaStage
@@ -190,26 +186,24 @@ export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onCl
                     >
                       <CloseIcon size={18} />
                     </button>
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* ── Desktop: Metadata Panel — persistent, content fades ── */}
+                {isDesktop && <MetadataPanel media={currentMedia} isDesktop={true} />}
+
+                {/* ── Mobile: Peek-strip layout slot — persistent ──────── */}
+                {/* overflow-visible lets the sheet expand upward over stage */}
+                {!isDesktop && (
+                  <div
+                    className="relative shrink-0 overflow-visible"
+                    style={{ height: PEEK_HEIGHT }}
+                  >
+                    <MetadataPanel media={currentMedia} isDesktop={false} />
                   </div>
-
-                  {/* ── Desktop: Metadata Panel (right column) ──────── */}
-                  {isDesktop && <MetadataPanel media={currentMedia} isDesktop={true} />}
-
-                  {/* ── Mobile: Peek-strip layout slot ──────────────── */}
-                  {/* This div reserves exactly PEEK_HEIGHT in the column layout.  */}
-                  {/* overflow-visible lets the sheet expand upward over the stage */}
-                  {/* without affecting the stage's size.                          */}
-                  {!isDesktop && (
-                    <div
-                      className="relative shrink-0 overflow-visible"
-                      style={{ height: PEEK_HEIGHT }}
-                    >
-                      <MetadataPanel media={currentMedia} isDesktop={false} />
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
