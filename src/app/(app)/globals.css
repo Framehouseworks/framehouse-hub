@@ -37,6 +37,12 @@
   --font-size-gallery-label-sm: 0.5625rem;
   --font-size-gallery-label-xs: 0.5rem;
 
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  --animate-shimmer: shimmer 2s linear infinite;
+
   @keyframes accordion-down {
     from {
       height: 0;

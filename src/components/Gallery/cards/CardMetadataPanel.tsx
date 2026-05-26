@@ -6,10 +6,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Camera, Edit3, Tag as TagIcon, X as CloseIcon } from 'lucide-react'
 import React from 'react'
 
+type CardSize = 'xs' | 'sm' | 'md' | 'lg'
+
 interface Props {
   media: Media
   title: string
   isOpen: boolean
+  cardSize: CardSize
   onView?: () => void
   onRemoveTag: (tag: string) => void
 }
@@ -18,6 +21,7 @@ export const CardMetadataPanel: React.FC<Props> = ({
   media,
   title,
   isOpen,
+  cardSize,
   onView,
   onRemoveTag,
 }) => {
@@ -27,7 +31,12 @@ export const CardMetadataPanel: React.FC<Props> = ({
   const tags = (media.manualTags || []) as { tag?: string | null; id?: string | null }[]
   const visibleTags = tags.slice(0, 3)
   const extraCount = tags.length - 3
-  const hasContent = hasTechnical || hasExposure || tags.length > 0
+
+  // Progressively reveal rows based on available card height
+  const showCamera = hasTechnical && cardSize !== 'xs'
+  const showExposure = hasExposure && (cardSize === 'md' || cardSize === 'lg')
+  const showTags = tags.length > 0 && cardSize === 'lg'
+  const hasContent = showCamera || showExposure || showTags
 
   return (
     <AnimatePresence>
@@ -44,7 +53,7 @@ export const CardMetadataPanel: React.FC<Props> = ({
         >
           <div className={cn('px-4 pt-4', hasContent ? 'pb-3 space-y-3' : 'pb-4')}>
             {/* Camera body + lens */}
-            {hasTechnical && (
+            {showCamera && (
               <div className="flex items-center gap-2.5">
                 <Camera size={13} className="text-amber-400/70 flex-shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
@@ -61,7 +70,7 @@ export const CardMetadataPanel: React.FC<Props> = ({
             )}
 
             {/* Exposure row */}
-            {hasExposure && (
+            {showExposure && (
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {tech?.iso && (
                   <span className="flex items-baseline gap-1">
@@ -87,7 +96,7 @@ export const CardMetadataPanel: React.FC<Props> = ({
             )}
 
             {/* Tags */}
-            {tags.length > 0 && (
+            {showTags && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 <TagIcon size={10} className="text-white/30 flex-shrink-0" aria-hidden="true" />
                 {visibleTags.map((tagData, idx) => {
