@@ -57,9 +57,9 @@ async function completeProcessing(doc: { id: number | string; storagePath: strin
   }
 }
 
-// Reaches the worker via the Go binary auto-launched by pnpm dev (scripts/dev-with-worker.sh).
-// In CI, playwright.config.ts auto-spawns the dev server which includes the worker.
-// Locally, run `pnpm dev` in a separate terminal before invoking this spec.
+// Worker is NOT required in CI — DISABLE_WORKER=1 is set in the workflow and
+// completeProcessing() synthesises the callback directly (no Go binary, no cwebp).
+// Locally, run `pnpm dev` (which starts the Go worker) before invoking this spec.
 // Database is seeded via tests/e2e/globalSetup.ts before any tests run.
 test.describe('Media lifecycle (e2e)', () => {
   test('uploads, processes, renders thumbnail, then bulk-deletes', async ({ page }) => {
@@ -90,12 +90,15 @@ test.describe('Media lifecycle (e2e)', () => {
       await page.locator('button:has-text("Ingest New Work")').first().click()
       await page.locator('input[type="file"]').setInputFiles(stagedFixture)
 
-      // 3. IngestionWorkbench → commit. Reading the XHR response body via
-      // Playwright is unreliable for upload responses (Chromium evicts
-      // large-body responses from the inspector cache), so we poll the
-      // /api/media REST API from inside the page instead. Cookies are
-      // attached automatically.
-      await page.locator('button:has-text("Start Archival Ingest")').click()
+      // 3. IngestionWorkbench → commit. Wait for the "Start Archival Ingest" button
+      // to become enabled — setInputFiles triggers async state (file staging,
+      // validation) that gates the button; clicking immediately races that state.
+      // Reading the XHR response body via Playwright is unreliable for upload
+      // responses (Chromium evicts large-body responses from the inspector cache),
+      // so we poll the /api/media REST API from inside the page instead.
+      const ingestBtn = page.locator('button:has-text("Start Archival Ingest")')
+      await expect(ingestBtn).toBeEnabled({ timeout: 15_000 })
+      await ingestBtn.click()
 
       const newDoc = await page.evaluate(async (filename: string) => {
         for (let i = 0; i < 60; i++) {

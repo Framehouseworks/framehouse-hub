@@ -65,7 +65,7 @@ After completion, the seeded system admin is available:
 ```
 Email:    sys.admin@framehouseworks.com
 Password: password123
-URL:      https://framehouse-hub-dev-588985538639.us-central1.run.app/admin
+URL:      https://dev.framehouseworks.com/admin
 ```
 
 ---

@@ -1,7 +1,6 @@
 import { auth } from '@/utilities/auth'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
-import { EmptyState } from './EmptyState'
 import { MediaGrid } from './MediaGrid'
 import { searchMediaByQuery } from '@/lib/searchMedia'
 
@@ -60,13 +59,8 @@ export const Gallery = async ({
 
   const gridKey = `${viewId || 'all'}-${searchParams?.search || 'none'}`
 
-  if (media.length === 0) {
-    // Active search with no matches → "no results" state, not the ingest CTA
-    if (searchQuery) {
-      return <MediaGrid key={gridKey} initialMedia={[]} initialFilters={initialFilters} />
-    }
-    return <EmptyState />
-  }
-
+  // Always mount MediaGrid — even on empty gallery — so the upload queue injection
+  // useEffects are live and cards appear as soon as a file is registered, not only
+  // after the Go worker finishes. MediaGrid handles its own empty/ingest CTA state.
   return <MediaGrid key={gridKey} initialMedia={media} initialFilters={initialFilters} />
 }
