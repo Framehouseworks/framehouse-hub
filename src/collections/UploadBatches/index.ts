@@ -10,6 +10,9 @@ import { ownerOrAdmin } from '@/access/ownerOrAdmin'
 // Smallest viable shape — defer batch-level state (status, failedCount,
 // retry-all) until there's a UI surface to use them. Asset count is
 // derived on demand via payload.count, not stored.
+//
+// FRH-47: afterOperation create hook fires async smart-collection
+// generation for the owning user (idempotent — safe to run on every batch).
 export const UploadBatches: CollectionConfig = {
   slug: 'upload-batches',
   admin: {
@@ -63,5 +66,27 @@ export const UploadBatches: CollectionConfig = {
       },
     },
   ],
+  hooks: {
+    afterOperation: [
+      async ({ operation, result, req }) => {
+        if (operation !== 'create') return result
+        const ownerId =
+          typeof result?.owner === 'object' ? result.owner?.id : result?.owner
+        if (!ownerId) return result
+
+        // Fire async — do NOT await; must not block the response
+        setImmediate(async () => {
+          try {
+            const { generateSmartCollections } = await import('@/lib/autoGenerateCollections')
+            await generateSmartCollections(req.payload, ownerId)
+          } catch (err) {
+            req.payload.logger.error({ err }, 'autoGenerateCollections failed')
+          }
+        })
+
+        return result
+      },
+    ],
+  },
   timestamps: true,
 }
