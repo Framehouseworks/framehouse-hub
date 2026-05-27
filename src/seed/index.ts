@@ -600,9 +600,9 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       type SmartCollectionDef = {
         name: string
         filterQuery: Record<string, unknown>
-        icon: string
+        icon: 'folder' | 'map' | 'tag' | 'sparkles' | 'camera' | null
         isSystemGenerated: boolean
-        generatedFrom: string
+        generatedFrom: 'location' | 'camera' | 'manual' | 'ai_tags' | 'metadata' | 'tags' | 'media_type' | 'date' | null
         sortOrder: number
       }
 
@@ -790,7 +790,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         const items = def.fixtureFilenames
           .map((fn) => mediaByFilename.get(fn))
           .filter(Boolean)
-          .map((doc) => ({ media: doc.id as any, size: 'medium' }))
+          .map((doc) => ({ media: doc.id as any, size: 'medium' as const }))
 
         await payload.create({
           collection: 'portfolios',
@@ -798,8 +798,8 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             name: def.name,
             owner: ownerId as any,
             visibility: 'private',
-            layoutBlocks: items.length > 0 ? [{ blockType: 'grid', items }] : [],
-          },
+            layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as any,
+          } as any,
           context: { disableRevalidate: true },
         })
         payload.logger.info(`  Created portfolio "${def.name}" for ${def.ownerEmail}`)
