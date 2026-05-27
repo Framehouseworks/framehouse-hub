@@ -96,7 +96,7 @@ test.describe('Media lifecycle (e2e)', () => {
       // Reading the XHR response body via Playwright is unreliable for upload
       // responses (Chromium evicts large-body responses from the inspector cache),
       // so we poll the /api/media REST API from inside the page instead.
-      const ingestBtn = page.locator('button:has-text("Start Archival Ingest")')
+      const ingestBtn = page.locator('button:has-text("Start Ingest")')
       await expect(ingestBtn).toBeEnabled({ timeout: 15_000 })
       await ingestBtn.click()
 

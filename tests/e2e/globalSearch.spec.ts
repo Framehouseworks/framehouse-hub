@@ -23,12 +23,13 @@ test.describe('Global Search (FRH-44)', () => {
   test('/ key focuses the search input', async ({ page }) => {
     // CI headless Chromium does not give the document focus after navigation.
     // window.addEventListener('keydown') only fires if the document is the active
-    // focus target. Clicking body (not the input) engages focus without activating
-    // any interactive element, so the '/' shortcut guard (tag !== INPUT) still fires.
+    // focus target. Clicking body engages focus; evaluate() forces it synchronously
+    // so the '/' shortcut guard (tag !== INPUT) still fires reliably in CI.
     await page.locator('body').click()
+    await page.evaluate(() => document.body.focus())
     await page.keyboard.press('/')
     const input = page.locator('header input[type="text"]')
-    await expect(input).toBeFocused()
+    await expect(input).toBeFocused({ timeout: 5_000 })
   })
 
   // Meta+k is macOS-only; ControlOrMeta is cross-platform (Ctrl on Linux CI,
@@ -36,9 +37,10 @@ test.describe('Global Search (FRH-44)', () => {
   test('Cmd+K / Ctrl+K focuses the search input', async ({ page }) => {
     // Same focus requirement as '/' shortcut — see comment above.
     await page.locator('body').click()
+    await page.evaluate(() => document.body.focus())
     await page.keyboard.press('ControlOrMeta+k')
     const input = page.locator('header input[type="text"]')
-    await expect(input).toBeFocused()
+    await expect(input).toBeFocused({ timeout: 5_000 })
   })
 
   test('focusing input shows suggestion dropdown with quick filters', async ({ page }) => {
