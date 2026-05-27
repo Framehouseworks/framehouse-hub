@@ -161,13 +161,36 @@ export async function generateSmartCollections(
     }
   }
 
-  // 5. Camera model collections
+  // 5a. Camera make collections (Sony, Canon, Nikon…)
+  const cameraMakeCounts = allMedia.reduce(
+    (acc, m) => {
+      const make = (m.technical as Record<string, unknown> | null)?.cameraMake as
+        | string
+        | undefined
+      if (make && make.trim()) acc[make.trim()] = (acc[make.trim()] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  for (const [make, count] of Object.entries(cameraMakeCounts)) {
+    if (count >= MIN_ASSETS) {
+      candidates.push({
+        name: make,
+        filterQuery: { 'technical.cameraMake': { equals: make } },
+        generatedFrom: 'metadata',
+        icon: 'camera',
+      })
+    }
+  }
+
+  // 5b. Camera model collections (specific body, e.g. "A7 IV")
   const cameraCounts = allMedia.reduce(
     (acc, m) => {
       const cam = (m.technical as Record<string, unknown> | null)?.cameraModel as
         | string
         | undefined
-      if (cam) acc[cam] = (acc[cam] || 0) + 1
+      if (cam && cam.trim()) acc[cam.trim()] = (acc[cam.trim()] || 0) + 1
       return acc
     },
     {} as Record<string, number>,

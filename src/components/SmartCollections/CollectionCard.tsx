@@ -53,6 +53,10 @@ interface CollectionCardProps {
   onDuplicate?: (id: number) => Promise<void>
   onEditRules?: (id: number) => void
   onManageAssets?: (id: number) => void
+  /** Multi-select mode */
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: number) => void
 }
 
 export function CollectionCard({
@@ -62,6 +66,9 @@ export function CollectionCard({
   onDuplicate,
   onEditRules,
   onManageAssets,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: CollectionCardProps) {
   const router = useRouter()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -76,10 +83,14 @@ export function CollectionCard({
     (e: React.MouseEvent) => {
       const target = e.target as HTMLElement
       if (target.closest('[data-menu-trigger]') || target.closest('[role="menu"]')) return
+      if (selectionMode) {
+        onToggleSelect?.(collection.id)
+        return
+      }
       if (isEmpty) return
       router.push(`/dashboard/library/collections/${collection.id}`)
     },
-    [router, collection.id, isEmpty],
+    [router, collection.id, isEmpty, selectionMode, onToggleSelect],
   )
 
   const handleRename = useCallback(() => {
@@ -167,7 +178,8 @@ export function CollectionCard({
           'transition-all duration-300',
           !collection.isSystemGenerated && 'outline outline-1 outline-[#d5c4af]/15',
           collection.isHidden && 'opacity-70',
-          isEmpty
+          selectionMode && selected && 'ring-2 ring-[#d79922] ring-offset-2',
+          isEmpty && !selectionMode
             ? 'opacity-60 pointer-events-none'
             : 'hover:-translate-y-0.5 hover:shadow-[0px_24px_48px_rgba(26,28,28,0.10)] cursor-pointer',
         )}
@@ -206,6 +218,26 @@ export function CollectionCard({
           )}
           {/* Tonal gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 pointer-events-none" />
+          {/* Selection checkbox — visible in selectionMode or on hover */}
+          {(selectionMode || true) && (
+            <div
+              className={cn(
+                'absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150',
+                'pointer-events-none',
+                selectionMode || 'opacity-0 group-hover:opacity-100',
+                selected
+                  ? 'bg-[#d79922] shadow-[0px_2px_8px_rgba(215,153,34,0.5)]'
+                  : 'bg-white/80 backdrop-blur-[4px]',
+              )}
+              aria-hidden="true"
+            >
+              {selected && (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Card content */}
@@ -257,12 +289,6 @@ export function CollectionCard({
                   className="gap-2 cursor-pointer"
                 >
                   <Settings size={14} /> Edit Rules
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onManageAssets?.(collection.id)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <Layers size={14} /> Manage Assets
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 cursor-pointer">
                   <ImageIcon size={14} /> Set Cover Image

@@ -24,6 +24,7 @@ import * as migration_20260521_140000_add_upload_batches from './20260521_140000
 import * as migration_20260521_190000_add_waitlist from './20260521_190000_add_waitlist'
 import * as migration_20260522_100000_add_media_full_search_idx from './20260522_100000_add_media_full_search_idx'
 import * as migration_20260527_120000_smart_collections_v2 from './20260527_120000_smart_collections_v2'
+import * as migration_20260527_160000_add_camera_make from './20260527_160000_add_camera_make'
 
 export const migrations = [
   {
@@ -155,5 +156,10 @@ export const migrations = [
     up: migration_20260527_120000_smart_collections_v2.up,
     down: migration_20260527_120000_smart_collections_v2.down,
     name: '20260527_120000_smart_collections_v2',
+  },
+  {
+    up: migration_20260527_160000_add_camera_make.up,
+    down: migration_20260527_160000_add_camera_make.down,
+    name: '20260527_160000_add_camera_make',
   },
 ]
