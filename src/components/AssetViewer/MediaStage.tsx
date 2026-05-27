@@ -4,34 +4,16 @@ import React, { useRef, useState, useEffect } from 'react'
 import type { Media } from '@/payload-types'
 import { ProgressiveImage } from './ProgressiveImage'
 import { VideoStub } from './VideoStub'
-import { NavControls } from './NavControls'
-import { ActionBar } from './ActionBar'
 import { useZoom } from './hooks/useZoom'
 import { cn } from '@/utilities/cn'
 
 interface MediaStageProps {
   media: Media
-  canNavigate: boolean
-  currentIndex: number
-  totalCount: number
-  onPrev: () => void
-  onNext: () => void
-  onDeleteRequest: () => void
   onClose: () => void
   hasSidePanel: boolean
 }
 
-export const MediaStage: React.FC<MediaStageProps> = ({
-  media,
-  canNavigate,
-  currentIndex,
-  totalCount,
-  onPrev,
-  onNext,
-  onDeleteRequest,
-  onClose,
-  hasSidePanel,
-}) => {
+export const MediaStage: React.FC<MediaStageProps> = ({ media, onClose, hasSidePanel }) => {
   // ── Size tracking ─────────────────────────────────────────────────────
   // We observe the stage's content-box dimensions so we can compute the
   // image box as explicit pixel values. This means:
@@ -152,24 +134,6 @@ export const MediaStage: React.FC<MediaStageProps> = ({
             {...zoomHandlers}
           />
         )}
-      </div>
-
-      {/* ── Navigation ──────────────────────────────────────────────── */}
-      {canNavigate && (
-        <NavControls
-          onPrev={onPrev}
-          onNext={onNext}
-          currentIndex={currentIndex}
-          totalCount={totalCount}
-        />
-      )}
-
-      {/* ── Action bar ──────────────────────────────────────────────── */}
-      <div
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ActionBar media={media} onDeleteRequest={onDeleteRequest} />
       </div>
     </div>
   )

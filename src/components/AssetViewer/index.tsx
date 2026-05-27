@@ -8,6 +8,8 @@ import { useAssetNavigation } from './hooks/useAssetNavigation'
 import { useViewerKeyboard } from './hooks/useViewerKeyboard'
 import { MediaStage } from './MediaStage'
 import { MetadataPanel, PEEK_HEIGHT } from './MetadataPanel'
+import { NavControls } from './NavControls'
+import { ActionBar } from './ActionBar'
 import { SafetyLockDeleteModal } from '@/components/Gallery/SafetyLockDeleteModal'
 import { deleteMediaAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
@@ -156,38 +158,51 @@ export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onCl
                 onTouchEnd={handleTouchEnd}
               >
                 {/* ── Media Stage — animates on asset switch ───────── */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentMedia.id}
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-                    className={isDesktop ? 'flex-1 min-w-0 relative' : 'flex-1 min-h-0 relative'}
+                <div className={isDesktop ? 'flex-1 min-w-0 relative' : 'flex-1 min-h-0 relative'}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentMedia.id}
+                      initial={{ opacity: 0, scale: 0.97 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                      className="absolute inset-0"
+                    >
+                      <MediaStage media={currentMedia} onClose={onClose} hasSidePanel={isDesktop} />
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* ── Persistent chrome — never animates ────────────── */}
+                  {/* Close button */}
+                  <button
+                    aria-label="Close viewer"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onClose()
+                    }}
+                    className="absolute top-4 right-4 z-30 flex items-center justify-center w-9 h-9 rounded-[18px] bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white/80 hover:text-white transition-all"
                   >
-                    <MediaStage
-                      media={currentMedia}
-                      canNavigate={canNavigate}
-                      currentIndex={currentIndex}
-                      totalCount={totalCount}
+                    <CloseIcon size={18} />
+                  </button>
+
+                  {/* Nav controls */}
+                  {canNavigate && (
+                    <NavControls
                       onPrev={goPrev}
                       onNext={goNext}
-                      onDeleteRequest={() => setIsDeleteOpen(true)}
-                      onClose={onClose}
-                      hasSidePanel={isDesktop}
+                      currentIndex={currentIndex}
+                      totalCount={totalCount}
                     />
-                    <button
-                      aria-label="Close viewer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onClose()
-                      }}
-                      className="absolute top-4 right-4 z-30 flex items-center justify-center w-9 h-9 rounded-[18px] bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white/80 hover:text-white transition-all"
-                    >
-                      <CloseIcon size={18} />
-                    </button>
-                  </motion.div>
-                </AnimatePresence>
+                  )}
+
+                  {/* Action bar */}
+                  <div
+                    className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ActionBar media={currentMedia} onDeleteRequest={() => setIsDeleteOpen(true)} />
+                  </div>
+                </div>
 
                 {/* ── Desktop: Metadata Panel — persistent, content fades ── */}
                 {isDesktop && <MetadataPanel media={currentMedia} isDesktop={true} />}
