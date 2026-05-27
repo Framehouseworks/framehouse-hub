@@ -23,7 +23,14 @@ import {
   Crosshair,
   Clapperboard,
 } from 'lucide-react'
-import { AnimatePresence, motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useTransform,
+  animate,
+  useDragControls,
+} from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -687,30 +694,36 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
 
   // Desktop panel is always expanded — collapse was removed as unnecessary chrome
 
-  // Mobile drawer — derived from real viewport once mounted
-  const OPEN_FRACTION = 0.62
+  // Mobile drawer — three snap points: closed (peek) / mid (~55 vh) / full (~95 vh)
+  type DrawerSnap = 'closed' | 'mid' | 'full'
   const drawerRef = useRef<HTMLDivElement | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const scrollableRef = useRef<HTMLDivElement>(null)
+  const [snap, setSnap] = useState<DrawerSnap>('closed')
 
-  // Compute open height from real viewport. SSR-safe: start with a reasonable
-  // approximation so the initial y value is close to correct.
-  const [openHeight, setOpenHeight] = useState(() =>
-    typeof window !== 'undefined' ? Math.round(window.innerHeight * OPEN_FRACTION) : 380,
+  // Real viewport height — updated on resize/orientation change
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight : 800,
   )
   useEffect(() => {
-    const update = () => setOpenHeight(Math.round(window.innerHeight * OPEN_FRACTION))
+    const update = () => setViewportHeight(window.innerHeight)
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  // closedOffset: how far the sheet is translated downward in the peek state.
-  // y = closedOffset → only PEEK_HEIGHT visible
-  // y = 0            → full openHeight visible (overlays stage intentionally)
-  const closedOffset = openHeight - PEEK_HEIGHT
+  // Snap y positions (sheet anchored at bottom; y=0 → sheet top flush with page top)
+  const drawerHeight = Math.round(viewportHeight * 0.95)
+  const SNAP_FULL = 0 // 95 vh content
+  const SNAP_MID = drawerHeight - Math.round(viewportHeight * 0.55) // 55 vh content
+  const SNAP_CLOSED = drawerHeight - PEEK_HEIGHT // peek only
+
+  // Stable refs so effects/handlers always read the latest values without re-subscribing
+  const snapValuesRef = useRef({ SNAP_FULL, SNAP_MID, SNAP_CLOSED })
+  snapValuesRef.current = { SNAP_FULL, SNAP_MID, SNAP_CLOSED }
+  const snapStateRef = useRef<DrawerSnap>('closed')
 
   // Initialise in the peek (closed) position
-  const y = useMotionValue(closedOffset)
+  const y = useMotionValue(SNAP_CLOSED)
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<RefinementFormData>()
 
@@ -772,33 +785,78 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     }
   }
 
-  // opacity: more opaque when fully open (y=0), slightly translucent at peek (y=closedOffset)
-  const opacity = useTransform(y, [0, closedOffset], [1, 0.82])
+  // opacity: fully opaque at full/mid, slightly translucent at peek
+  const opacity = useTransform(y, [SNAP_FULL, SNAP_CLOSED], [1, 0.82])
 
-  // Sync y when openHeight / closedOffset changes (viewport resize, or first mount correction)
+  // Scroll container height = exactly the visible slice of the drawer above the peek strip.
+  // The motion.div uses translateY, so its bottom sits below the viewport at mid/closed.
+  // Without this, the fixed-height container extends off-screen and content is unreachable.
+  const scrollContainerHeight = useTransform(y, (yVal) =>
+    Math.max(0, drawerHeight - yVal - PEEK_HEIGHT),
+  )
+
+  // Stable snap helper — reads latest snap positions from ref, no re-subscription needed
+  const snapTo = useCallback(
+    (target: DrawerSnap) => {
+      const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+      const yVal = target === 'full' ? f : target === 'mid' ? m : c
+      animate(y, yVal, { type: 'spring', stiffness: 300, damping: 30 })
+      setSnap(target)
+      snapStateRef.current = target
+    },
+    [y],
+  )
+
+  // Re-anchor sheet instantly on viewport resize (rotation, browser-chrome show/hide)
   useEffect(() => {
-    if (!drawerOpen) {
-      animate(y, closedOffset, { duration: 0 }) // instant — no spring on resize
-    }
-  }, [closedOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+    const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+    const yVal = snapStateRef.current === 'full' ? f : snapStateRef.current === 'mid' ? m : c
+    animate(y, yVal, { duration: 0 })
+  }, [SNAP_CLOSED, y])
 
   // Reset to peek whenever the displayed asset changes
   useEffect(() => {
-    animate(y, closedOffset, { type: 'spring', stiffness: 400, damping: 40 })
-    setDrawerOpen(false)
+    snapTo('closed')
   }, [media.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Three-way snap: nearest snap point on drag release
   const handleDragEnd = useCallback(() => {
     const currentY = y.get()
-    // Snap open if dragged more than 40% of the way up from peek
-    if (currentY < closedOffset * 0.6) {
-      animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-      setDrawerOpen(true)
+    const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+    if (currentY <= (f + m) / 2) {
+      snapTo('full')
+    } else if (currentY <= (m + c) / 2) {
+      snapTo('mid')
     } else {
-      animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
-      setDrawerOpen(false)
+      snapTo('closed')
     }
-  }, [closedOffset, y])
+  }, [snapTo, y])
+
+  // Virtual keyboard avoidance:
+  // When the OS keyboard opens, visualViewport.height shrinks. We expand the
+  // drawer to full so the focused field isn't hidden behind the keyboard, then
+  // scroll it into view within the scrollable container.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const handleVVResize = () => {
+      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop
+      if (keyboardHeight > 150) {
+        if (snapStateRef.current !== 'full') snapTo('full')
+        requestAnimationFrame(() => {
+          const el = document.activeElement
+          if (el instanceof HTMLElement && scrollableRef.current?.contains(el)) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
+      }
+    }
+    vv.addEventListener('resize', handleVVResize)
+    return () => vv.removeEventListener('resize', handleVVResize)
+  }, [snapTo])
+
+  // Drag initiated only from the peek strip — scrollable content is untouched
+  const dragControls = useDragControls()
 
   const sharedContentProps = {
     media,
@@ -856,11 +914,13 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     <motion.div
       ref={drawerRef}
       drag="y"
-      dragConstraints={{ top: 0, bottom: closedOffset }}
+      dragControls={dragControls}
+      dragListener={false}
+      dragConstraints={{ top: SNAP_FULL, bottom: SNAP_CLOSED }}
       dragElastic={0.05}
-      style={{ y, height: openHeight }}
+      style={{ y, height: drawerHeight }}
       onDragEnd={handleDragEnd}
-      className="absolute bottom-0 left-0 right-0 z-20 rounded-t-[24px] overflow-hidden touch-none"
+      className="absolute bottom-0 left-0 right-0 z-20 rounded-t-[24px] overflow-hidden"
     >
       {/* Glassmorphism background */}
       <motion.div
@@ -868,8 +928,12 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
         style={{ opacity }}
       />
 
-      {/* Peek strip — always visible, anchors the drag gesture */}
-      <div className="relative z-10 shrink-0" style={{ height: `${PEEK_HEIGHT}px` }}>
+      {/* Peek strip — drag source only; touch-none scoped here so scroll is free below */}
+      <div
+        className="relative z-10 shrink-0"
+        style={{ height: `${PEEK_HEIGHT}px`, touchAction: 'none' }}
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-8 h-1 rounded-full bg-on-surface/20" />
@@ -897,8 +961,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
             {!isEditing && (
               <button
                 onClick={() => {
-                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(true)
+                  snapTo('mid')
                   setIsEditing(true)
                 }}
                 className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-on-surface/40 hover:text-gallery-gold transition-colors"
@@ -908,34 +971,31 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
               </button>
             )}
             <button
-              onClick={() => {
-                if (drawerOpen) {
-                  animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(false)
-                } else {
-                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(true)
-                }
-              }}
+              onClick={() => snapTo(snap === 'closed' ? 'mid' : 'closed')}
               className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-gallery-gold/80"
             >
-              {drawerOpen ? 'Close' : 'Details'}
+              {snap !== 'closed' ? 'Close' : 'Details'}
               <ChevronRight
                 size={11}
-                className={cn('transition-transform duration-200', drawerOpen && 'rotate-90')}
+                className={cn(
+                  'transition-transform duration-200',
+                  snap !== 'closed' && 'rotate-90',
+                )}
               />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Scrollable drawer content — height fills the rest of the sheet above the peek strip */}
-      <div
+      {/* Scrollable drawer content — height tracks the live visible slice via MotionValue.
+          This prevents content from sitting off-screen below the viewport when translated. */}
+      <motion.div
+        ref={scrollableRef}
         className="relative z-10 overflow-y-auto custom-scrollbar"
-        style={{ height: openHeight - PEEK_HEIGHT }}
+        style={{ height: scrollContainerHeight, overscrollBehavior: 'contain' }}
       >
         <PanelContent {...sharedContentProps} />
-      </div>
+      </motion.div>
     </motion.div>
   )
 }
