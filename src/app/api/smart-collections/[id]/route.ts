@@ -32,6 +32,29 @@ async function getAuthedOwner(id: number) {
   return { payload, user, collection }
 }
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id: idStr } = await params
+    const id = Number(idStr)
+    const { payload, collection } = await getAuthedOwner(id)
+    if (!collection) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // depth=1 populates manualIncludes/manualExcludes relationship docs
+    const full = await payload.findByID({
+      collection: 'smart-collections',
+      id,
+      depth: 1,
+    })
+    return NextResponse.json(full)
+  } catch (err) {
+    console.error('[smart-collections GET]', err)
+    return NextResponse.json({ error: 'Fetch failed' }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },

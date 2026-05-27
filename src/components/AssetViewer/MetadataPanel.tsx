@@ -52,6 +52,7 @@ interface RefinementFormData {
   locationAddress: string
   locationLat: number | null
   locationLng: number | null
+  cameraMake: string
   cameraModel: string
   lensModel: string
   iso: number | string
@@ -380,8 +381,13 @@ const PanelContent: React.FC<{
           {isEditing ? (
             <div className="space-y-2">
               <input
+                {...register('cameraMake')}
+                placeholder="Manufacturer (e.g. Sony, Canon)"
+                className="w-full bg-white/60 dark:bg-white/[0.04] rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
+              />
+              <input
                 {...register('cameraModel')}
-                placeholder="Camera body (e.g. Sony A7R V)"
+                placeholder="Camera model (e.g. A7R V)"
                 className="w-full bg-white/60 dark:bg-white/[0.04] rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
               />
               <input
@@ -392,15 +398,27 @@ const PanelContent: React.FC<{
             </div>
           ) : (
             <>
-              <FadeValue
-                mediaId={mediaId}
-                as="p"
-                className="text-sm font-semibold leading-snug break-words block"
-              >
-                {media.technical?.cameraModel || (
-                  <span className="text-on-surface/30 font-normal text-xs">Unknown Body</span>
+              {/* Make + Model row */}
+              <div className="flex flex-col gap-0.5">
+                {(media.technical as { cameraMake?: string } | null)?.cameraMake && (
+                  <FadeValue
+                    mediaId={mediaId}
+                    as="p"
+                    className="text-[9px] font-bold tracking-widest uppercase font-rubik text-gallery-gold/70 block"
+                  >
+                    {(media.technical as { cameraMake?: string }).cameraMake}
+                  </FadeValue>
                 )}
-              </FadeValue>
+                <FadeValue
+                  mediaId={mediaId}
+                  as="p"
+                  className="text-sm font-semibold leading-snug break-words block"
+                >
+                  {media.technical?.cameraModel || (
+                    <span className="text-on-surface/30 font-normal text-xs">Unknown Body</span>
+                  )}
+                </FadeValue>
+              </div>
               {media.technical?.lensModel && (
                 <FadeValue
                   mediaId={mediaId}
@@ -738,6 +756,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
       locationAddress: media.location?.address || '',
       locationLat: media.location?.latitude ?? null,
       locationLng: media.location?.longitude ?? null,
+      cameraMake: (media.technical as { cameraMake?: string } | null)?.cameraMake || '',
       cameraModel: media.technical?.cameraModel || '',
       lensModel: media.technical?.lensModel || '',
       iso: media.technical?.iso ?? '',
@@ -758,6 +777,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
         manualTags: data.tags.map((t) => ({ tag: t })),
         captureDate: data.captureDate ? new Date(data.captureDate).toISOString() : null,
         technical: {
+          cameraMake: data.cameraMake,
           cameraModel: data.cameraModel,
           lensModel: data.lensModel,
           iso: data.iso ? Number(data.iso) : null,

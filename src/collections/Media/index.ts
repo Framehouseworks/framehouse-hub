@@ -228,8 +228,14 @@ export const Media: CollectionConfig = {
       },
       fields: [
         {
+          name: 'cameraMake',
+          type: 'text',
+          admin: { description: 'Camera manufacturer (e.g. Sony, Canon, Nikon).' },
+        },
+        {
           name: 'cameraModel',
           type: 'text',
+          admin: { description: 'Camera model name (e.g. A7 IV, EOS R5).' },
         },
         {
           name: 'lensModel',

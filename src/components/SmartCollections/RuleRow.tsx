@@ -9,6 +9,7 @@ export type RuleAttribute =
   | 'heuristicTag'
   | 'shootName'
   | 'mediaType'
+  | 'cameraMake'
   | 'cameraModel'
   | 'lensModel'
   | 'captureDate'
@@ -39,6 +40,7 @@ const ATTRIBUTE_OPTIONS: { value: RuleAttribute; label: string; group: string }[
   { value: 'fileSize', label: 'File Size', group: 'File' },
   { value: 'captureDate', label: 'Capture Date', group: 'Date' },
   { value: 'shootName', label: 'Shoot Name', group: 'Metadata' },
+  { value: 'cameraMake', label: 'Camera Make', group: 'Metadata' },
   { value: 'cameraModel', label: 'Camera Model', group: 'Metadata' },
   { value: 'lensModel', label: 'Lens Model', group: 'Metadata' },
   { value: 'aspectRatio', label: 'Aspect Ratio', group: 'Metadata' },
@@ -64,6 +66,11 @@ const OPERATORS_BY_ATTRIBUTE: Record<RuleAttribute, { value: RuleOperator; label
   mediaType: [
     { value: 'equals', label: 'is' },
     { value: 'not_equals', label: 'is not' },
+  ],
+  cameraMake: [
+    { value: 'equals', label: 'is' },
+    { value: 'not_equals', label: 'is not' },
+    { value: 'contains', label: 'contains' },
   ],
   cameraModel: [
     { value: 'contains', label: 'contains' },
@@ -94,7 +101,7 @@ const MEDIA_TYPE_OPTIONS = [
 ]
 
 const TAG_ATTRIBUTES = new Set<RuleAttribute>(['tag', 'heuristicTag'])
-const AUTOCOMPLETE_ATTRIBUTES = new Set<RuleAttribute>(['tag', 'heuristicTag', 'shootName', 'cameraModel', 'lensModel'])
+const AUTOCOMPLETE_ATTRIBUTES = new Set<RuleAttribute>(['tag', 'heuristicTag', 'shootName', 'cameraMake', 'cameraModel', 'lensModel'])
 
 /** Styled select control */
 function StyledSelect({
@@ -138,11 +145,14 @@ function TagAutocompleteInput({
   value,
   onChange,
   tagType,
+  field,
   placeholder,
 }: {
   value: string
   onChange: (v: string) => void
   tagType: 'manual' | 'heuristic' | 'all'
+  /** When set, queries the scalar `field=` endpoint instead of tag arrays */
+  field?: string
   placeholder?: string
 }) {
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -162,8 +172,14 @@ function TagAutocompleteInput({
         abortRef.current?.abort()
         abortRef.current = new AbortController()
         try {
+          const params = new URLSearchParams({ q })
+          if (field) {
+            params.set('field', field)
+          } else {
+            params.set('type', tagType)
+          }
           const res = await fetch(
-            `/api/smart-collections/tag-suggestions?q=${encodeURIComponent(q)}&type=${tagType}`,
+            `/api/smart-collections/tag-suggestions?${params.toString()}`,
             { signal: abortRef.current.signal },
           )
           if (!res.ok) return
@@ -175,7 +191,7 @@ function TagAutocompleteInput({
         }
       }, 200)
     },
-    [tagType],
+    [tagType, field],
   )
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -403,15 +419,20 @@ export function RuleRow({ rule, index, onChange, onRemove }: RuleRowProps) {
           <TagAutocompleteInput
             value={rule.value}
             onChange={(v) => onChange(rule.id, { value: v })}
-            tagType={tagType as 'manual' | 'heuristic' | 'all'}
+            tagType={isTagAttribute ? (tagType as 'manual' | 'heuristic' | 'all') : 'all'}
+            field={!isTagAttribute ? rule.attribute : undefined}
             placeholder={
               isTagAttribute
                 ? 'Type to search tags…'
                 : rule.attribute === 'shootName'
                   ? 'e.g. Iceland 2026'
-                  : rule.attribute === 'cameraModel'
-                    ? 'e.g. Sony A7 IV'
-                    : 'Search…'
+                  : rule.attribute === 'cameraMake'
+                    ? 'e.g. Sony'
+                    : rule.attribute === 'cameraModel'
+                      ? 'e.g. A7 IV'
+                      : rule.attribute === 'lensModel'
+                        ? 'e.g. 24-70mm f/2.8'
+                        : 'Search…'
             }
           />
         ) : (
@@ -452,6 +473,7 @@ function ruleToCondition(rule: RuleData): Record<string, unknown> | null {
     heuristicTag: 'heuristicTags.tag',
     shootName: 'shootName',
     mediaType: 'mediaType',
+    cameraMake: 'technical.cameraMake',
     cameraModel: 'technical.cameraModel',
     lensModel: 'technical.lensModel',
     captureDate: 'captureDate',

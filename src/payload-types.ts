@@ -301,6 +301,13 @@ export interface Media {
    */
   captureDate?: string | null;
   technical?: {
+    /**
+     * Camera manufacturer (e.g. Sony, Canon, Nikon).
+     */
+    cameraMake?: string | null;
+    /**
+     * Camera model name (e.g. A7 IV, EOS R5).
+     */
     cameraModel?: string | null;
     lensModel?: string | null;
     iso?: number | null;
@@ -1627,6 +1634,7 @@ export interface MediaSelect<T extends boolean = true> {
   technical?:
     | T
     | {
+        cameraMake?: T;
         cameraModel?: T;
         lensModel?: T;
         iso?: T;

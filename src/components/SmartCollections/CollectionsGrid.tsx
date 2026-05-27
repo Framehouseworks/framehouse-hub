@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Layers, Sparkles, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Layers, Sparkles, Eye, EyeOff, RefreshCw, CheckSquare, X, Trash2, EyeOff as HideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/utilities/cn'
 import { CollectionCard, type CollectionCardData } from './CollectionCard'
@@ -30,6 +30,67 @@ export function CollectionsGrid({
   const [showHidden, setShowHidden] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // ── Multi-select ──────────────────────────────────────────────────────────
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [isBulkWorking, setIsBulkWorking] = useState(false)
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+  }, [])
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  const handleBulkHide = async () => {
+    if (selectedIds.size === 0) return
+    setIsBulkWorking(true)
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          fetch(`/api/smart-collections/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isHidden: true }),
+          }),
+        ),
+      )
+      toast.success(`${selectedIds.size} collection${selectedIds.size > 1 ? 's' : ''} hidden`)
+      exitSelectionMode()
+      router.refresh()
+    } catch {
+      toast.error('Bulk hide failed')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setIsBulkWorking(true)
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          fetch(`/api/smart-collections/${id}`, { method: 'DELETE' }),
+        ),
+      )
+      toast.success(`${selectedIds.size} collection${selectedIds.size > 1 ? 's' : ''} deleted`)
+      exitSelectionMode()
+      router.refresh()
+    } catch {
+      toast.error('Bulk delete failed')
+    } finally {
+      setIsBulkWorking(false)
+    }
+  }
+
+  // ── Single-item actions ───────────────────────────────────────────────────
   const handleEditRules = useCallback((id: number) => {
     setEditorCollectionId(id)
     setEditorOpen(true)
@@ -105,6 +166,7 @@ export function CollectionsGrid({
   }
 
   const visibleHidden = showHidden ? hiddenCollections : []
+  const allCollections = [...collections, ...visibleHidden]
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (collections.length === 0 && hiddenCollections.length === 0) {
@@ -176,6 +238,20 @@ export function CollectionsGrid({
               {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCollections.length})`}
             </button>
           )}
+          {/* Select mode toggle */}
+          <button
+            onClick={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+              selectionMode
+                ? 'bg-[#1a1c1c]/[0.06] text-[#1a1c1c]'
+                : 'text-[#1a1c1c]/40 hover:text-[#1a1c1c] hover:bg-[#f3f3f4]',
+            )}
+            aria-pressed={selectionMode}
+          >
+            <CheckSquare size={13} />
+            {selectionMode ? 'Cancel select' : 'Select'}
+          </button>
         </div>
 
         <button
@@ -185,12 +261,55 @@ export function CollectionsGrid({
             'flex items-center gap-1.5 text-xs font-medium text-[#1a1c1c]/40',
             'hover:text-gallery-gold transition-colors disabled:opacity-40',
           )}
-          title="Scan your media and auto-generate collections from metadata (tags, shoot names, camera models, dates)"
+          title="Scan your media and auto-generate collections from metadata"
         >
           <RefreshCw size={13} className={isGenerating ? 'animate-spin' : ''} />
           {isGenerating ? 'Generating…' : 'Refresh collections'}
         </button>
       </div>
+
+      {/* Bulk action bar */}
+      {selectionMode && (
+        <div
+          className={cn(
+            'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
+            'flex items-center gap-3 px-4 py-3 rounded-[24px]',
+            'bg-white/90 backdrop-blur-[20px] shadow-[0px_8px_32px_rgba(26,28,28,0.18)]',
+            'transition-all duration-200',
+            selectedIds.size === 0 && 'opacity-60',
+          )}
+          role="toolbar"
+          aria-label="Bulk actions"
+        >
+          <span className="text-sm font-medium text-[#1a1c1c] min-w-[80px] text-center">
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Tap to select'}
+          </span>
+          <div className="w-px h-4 bg-[#d5c4af]/40" />
+          <button
+            onClick={handleBulkHide}
+            disabled={selectedIds.size === 0 || isBulkWorking}
+            className="flex items-center gap-1.5 text-sm text-[#1a1c1c]/70 hover:text-[#1a1c1c] disabled:opacity-40 transition-colors px-2 py-1 rounded-[12px] hover:bg-[#f3f3f4]"
+          >
+            <HideIcon size={14} />
+            Hide
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedIds.size === 0 || isBulkWorking}
+            className="flex items-center gap-1.5 text-sm text-[#bb1800] hover:text-[#9a1400] disabled:opacity-40 transition-colors px-2 py-1 rounded-[12px] hover:bg-[#bb1800]/[0.06]"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+          <button
+            onClick={exitSelectionMode}
+            className="ml-1 p-1 rounded-full text-[#1a1c1c]/40 hover:text-[#1a1c1c] hover:bg-[#f3f3f4] transition-colors"
+            aria-label="Exit selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -203,6 +322,9 @@ export function CollectionsGrid({
             onDuplicate={handleDuplicate}
             onEditRules={handleEditRules}
             onManageAssets={handleManageAssets}
+            selectionMode={selectionMode}
+            selected={selectedIds.has(collection.id)}
+            onToggleSelect={toggleSelect}
           />
         ))}
 
@@ -216,11 +338,32 @@ export function CollectionsGrid({
             onDuplicate={handleDuplicate}
             onEditRules={handleEditRules}
             onManageAssets={handleManageAssets}
+            selectionMode={selectionMode}
+            selected={selectedIds.has(collection.id)}
+            onToggleSelect={toggleSelect}
           />
         ))}
 
-        <NewCollectionCard onClick={handleNewCollection} />
+        {!selectionMode && <NewCollectionCard onClick={handleNewCollection} />}
       </div>
+
+      {/* Select-all helper when in selection mode */}
+      {selectionMode && allCollections.length > 0 && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => {
+              if (selectedIds.size === allCollections.length) {
+                setSelectedIds(new Set())
+              } else {
+                setSelectedIds(new Set(allCollections.map((c) => c.id)))
+              }
+            }}
+            className="text-xs text-[#1a1c1c]/50 hover:text-gallery-gold transition-colors"
+          >
+            {selectedIds.size === allCollections.length ? 'Deselect all' : 'Select all'}
+          </button>
+        </div>
+      )}
 
       {/* Editors */}
       <CollectionRuleEditor
@@ -237,12 +380,7 @@ export function CollectionsGrid({
         <ManualOverridesPanel
           open={overridesPanelOpen}
           onOpenChange={setOverridesPanelOpen}
-          includes={[]}
-          excludes={[]}
-          onAddInclude={() => {}}
-          onAddExclude={() => {}}
-          onRemoveInclude={() => {}}
-          onRemoveExclude={() => {}}
+          collectionId={overridesPanelId}
         />
       )}
     </>
