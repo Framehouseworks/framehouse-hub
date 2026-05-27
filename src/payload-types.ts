@@ -1102,6 +1102,31 @@ export interface SmartCollection {
     | null;
   icon?: ('folder' | 'tag' | 'sparkles' | 'camera' | 'map') | null;
   description?: string | null;
+  /**
+   * Auto-generated from asset metadata. Editing strips this flag.
+   */
+  isSystemGenerated?: boolean | null;
+  /**
+   * Hide from default grid (soft hide — never touches assets).
+   */
+  isHidden?: boolean | null;
+  /**
+   * Pin ranking — lower = earlier in grid.
+   */
+  sortOrder?: number | null;
+  generatedFrom?: ('manual' | 'ai_tags' | 'metadata' | 'tags' | 'location' | 'media_type') | null;
+  /**
+   * Explicit cover image override. Falls back to 4-asset mosaic.
+   */
+  coverAsset?: (number | null) | Media;
+  /**
+   * Assets always included regardless of filterQuery. Cap: 500.
+   */
+  manualIncludes?: (number | Media)[] | null;
+  /**
+   * Assets always excluded regardless of filterQuery. Exclusions take priority over inclusions.
+   */
+  manualExcludes?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1726,6 +1751,13 @@ export interface SmartCollectionsSelect<T extends boolean = true> {
   filterQuery?: T;
   icon?: T;
   description?: T;
+  isSystemGenerated?: T;
+  isHidden?: T;
+  sortOrder?: T;
+  generatedFrom?: T;
+  coverAsset?: T;
+  manualIncludes?: T;
+  manualExcludes?: T;
   updatedAt?: T;
   createdAt?: T;
 }
