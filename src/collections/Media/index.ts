@@ -16,6 +16,7 @@ import { cleanupEnclave } from './hooks/cleanupEnclave'
 import { writeOriginalToEnclave } from './hooks/writeOriginalToEnclave'
 import { aliasUrl } from './hooks/aliasUrl'
 import { signCloudUrls } from './hooks/signCloudUrls'
+import { syncShootNameFromSession } from './hooks/syncShootNameFromSession'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -25,7 +26,7 @@ export const Media: CollectionConfig = {
   hooks: {
     beforeOperation: [preventDuplicates],
     beforeValidate: [],
-    beforeChange: [writeOriginalToEnclave, generateAccessionId, extractMetadata],
+    beforeChange: [writeOriginalToEnclave, generateAccessionId, extractMetadata, syncShootNameFromSession],
     // aliasUrl runs first so legacy consumers reading `url` get the
     // canonical originalUrl shape; signCloudUrls then rewrites cloud-mode
     // URLs to v4 signed GET variants (private bucket → browser-fetchable).
@@ -159,6 +160,17 @@ export const Media: CollectionConfig = {
       required: false,
       index: true,
       admin: { readOnly: true, position: 'sidebar' },
+    },
+    {
+      name: 'session',
+      type: 'relationship',
+      relationTo: 'sessions',
+      required: false,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description: 'Creative session this asset belongs to.',
+      },
     },
     {
       name: 'mediaType',

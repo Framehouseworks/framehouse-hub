@@ -35,7 +35,8 @@ interface CollectionsGridProps {
 const GROUP_DEFS: { key: string; label: string; defaultExpanded: boolean }[] = [
   { key: 'media_type', label: 'MEDIA TYPE', defaultExpanded: true },
   { key: 'tags', label: 'BY TAG', defaultExpanded: true },
-  { key: 'metadata', label: 'BY METADATA', defaultExpanded: true },
+  { key: 'camera', label: 'BY CAMERA', defaultExpanded: true },
+  { key: 'date', label: 'BY DATE', defaultExpanded: false },
   { key: 'location', label: 'BY LOCATION', defaultExpanded: false },
   { key: 'manual', label: 'MANUAL', defaultExpanded: true },
 ]

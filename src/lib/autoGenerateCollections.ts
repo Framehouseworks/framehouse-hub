@@ -15,7 +15,7 @@ function hashQuery(query: object): string {
 type CollectionCandidate = {
   name: string
   filterQuery: object
-  generatedFrom: 'media_type' | 'tags' | 'metadata'
+  generatedFrom: 'media_type' | 'tags' | 'camera' | 'date'
   icon: 'folder' | 'tag' | 'sparkles' | 'camera' | 'map'
 }
 
@@ -57,7 +57,6 @@ export async function generateSmartCollections(
     limit: 2000,
     select: {
       mediaType: true,
-      shootName: true,
       manualTags: true,
       heuristicTags: true,
       technical: true,
@@ -97,27 +96,7 @@ export async function generateSmartCollections(
     }
   }
 
-  // 2. Shoot name collections
-  const shootCounts = allMedia.reduce(
-    (acc, m) => {
-      if (m.shootName) acc[m.shootName] = (acc[m.shootName] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-
-  for (const [shoot, count] of Object.entries(shootCounts)) {
-    if (count >= MIN_ASSETS) {
-      candidates.push({
-        name: shoot,
-        filterQuery: { shootName: { equals: shoot } },
-        generatedFrom: 'metadata',
-        icon: 'folder',
-      })
-    }
-  }
-
-  // 3. Manual tag collections
+  // 2. Manual tag collections
   const tagCounts = allMedia.reduce(
     (acc, m) => {
       for (const t of m.manualTags || []) {
@@ -139,7 +118,7 @@ export async function generateSmartCollections(
     }
   }
 
-  // 4. Heuristic tag collections
+  // 3. Heuristic tag collections
   const heuristicCounts = allMedia.reduce(
     (acc, m) => {
       for (const t of m.heuristicTags || []) {
@@ -161,7 +140,7 @@ export async function generateSmartCollections(
     }
   }
 
-  // 5a. Camera make collections (Sony, Canon, Nikon…)
+  // 4a. Camera make collections (Sony, Canon, Nikon…)
   const cameraMakeCounts = allMedia.reduce(
     (acc, m) => {
       const make = (m.technical as Record<string, unknown> | null)?.cameraMake as
@@ -178,13 +157,13 @@ export async function generateSmartCollections(
       candidates.push({
         name: make,
         filterQuery: { 'technical.cameraMake': { equals: make } },
-        generatedFrom: 'metadata',
+        generatedFrom: 'camera',
         icon: 'camera',
       })
     }
   }
 
-  // 5b. Camera model collections (specific body, e.g. "A7 IV")
+  // 4b. Camera model collections (specific body, e.g. "A7 IV")
   const cameraCounts = allMedia.reduce(
     (acc, m) => {
       const cam = (m.technical as Record<string, unknown> | null)?.cameraModel as
@@ -201,13 +180,13 @@ export async function generateSmartCollections(
       candidates.push({
         name: cam,
         filterQuery: { 'technical.cameraModel': { equals: cam } },
-        generatedFrom: 'metadata',
+        generatedFrom: 'camera',
         icon: 'camera',
       })
     }
   }
 
-  // 6. Year-month collections (captureDate)
+  // 5. Year-month collections (captureDate)
   const monthCounts = allMedia.reduce(
     (acc, m) => {
       if (!m.captureDate) return acc
@@ -235,7 +214,7 @@ export async function generateSmartCollections(
             { captureDate: { less_than: end.toISOString() } },
           ],
         },
-        generatedFrom: 'metadata',
+        generatedFrom: 'date',
         icon: 'folder',
       })
     }

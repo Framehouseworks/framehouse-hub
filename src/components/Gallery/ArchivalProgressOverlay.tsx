@@ -12,7 +12,6 @@ import {
   Loader2,
   X,
   RefreshCcw,
-  Cpu,
   ImagePlus,
   ScanSearch,
   PackageCheck,
@@ -22,12 +21,12 @@ import {
 } from 'lucide-react'
 
 const STEP_DISPLAY: Record<string, { label: string; icon: LucideIcon }> = {
-  upload_complete: { label: 'Upload verified', icon: CloudUpload },
-  exif_parsing: { label: 'Parsing EXIF metadata', icon: ScanSearch },
-  generating_webp: { label: 'Generating WebP thumbnails', icon: ImagePlus },
-  registering_assets: { label: 'Finalizing asset', icon: PackageCheck },
-  ready: { label: 'Archival complete', icon: CheckCircle2 },
-  failed: { label: 'Processing failed', icon: AlertCircle },
+  upload_complete: { label: 'Upload complete', icon: CloudUpload },
+  exif_parsing: { label: 'Reading metadata', icon: ScanSearch },
+  generating_webp: { label: 'Generating previews', icon: ImagePlus },
+  registering_assets: { label: 'Finalizing', icon: PackageCheck },
+  ready: { label: 'Done', icon: CheckCircle2 },
+  failed: { label: 'Failed', icon: AlertCircle },
 }
 
 function getProcessingStage(item: UploadItem) {
@@ -68,16 +67,12 @@ export const ArchivalProgressOverlay: React.FC = () => {
   const isFinished = queue.length > 0 && activeItems.length === 0
 
   const headerLabel = isFinished
-    ? 'Archival Complete'
+    ? 'Upload Complete'
     : activeItems.some((i) => i.status === 'processing')
-      ? 'Processing Assets...'
-      : 'Ingesting Archives...'
+      ? 'Processing…'
+      : 'Uploading…'
 
-  const headerIcon = isFinished
-    ? CheckCircle2
-    : activeItems.some((i) => i.status === 'processing')
-      ? Cpu
-      : CloudUpload
+  const headerIcon = isFinished ? CheckCircle2 : CloudUpload
 
   const HeaderIcon = headerIcon
 
@@ -256,26 +251,6 @@ export const ArchivalProgressOverlay: React.FC = () => {
                   </div>
                 )}
 
-                {/* Footer Telemetry */}
-                {!isFinished && (
-                  <div className="px-5 py-3 bg-black/[0.015] dark:bg-white/[0.015]">
-                    <div className="flex justify-between items-center">
-                      <p className="font-rubik text-[8px] text-on-surface/20 uppercase tracking-widest">
-                        {activeItems.some((i) => i.status === 'processing')
-                          ? 'Go Worker Active'
-                          : 'Archival Stream Active'}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="font-rubik text-[9px] text-on-surface/30">
-                          {activeItems.filter((i) => i.status === 'processing').length > 0
-                            ? `${activeItems.filter((i) => i.status === 'processing').length} in pipeline`
-                            : 'SSE Connected'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>

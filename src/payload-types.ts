@@ -73,6 +73,7 @@ export interface Config {
     media: Media;
     portfolios: Portfolio;
     'smart-collections': SmartCollection;
+    sessions: Session;
     'upload-batches': UploadBatch;
     waitlist: Waitlist;
     forms: Form;
@@ -95,6 +96,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
     'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
+    sessions: SessionsSelect<false> | SessionsSelect<true>;
     'upload-batches': UploadBatchesSelect<false> | UploadBatchesSelect<true>;
     waitlist: WaitlistSelect<false> | WaitlistSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -291,6 +293,10 @@ export interface Media {
    */
   shootName?: string | null;
   uploadBatchId?: (number | null) | UploadBatch;
+  /**
+   * Creative session this asset belongs to.
+   */
+  session?: (number | null) | Session;
   mediaType: 'image' | 'raw' | 'video' | 'audio' | 'document' | 'unclassified';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
   processingStep?:
@@ -375,6 +381,46 @@ export interface UploadBatch {
    * Free-form admin note about this ingest session.
    */
   notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sessions".
+ */
+export interface Session {
+  id: number;
+  /**
+   * Creative session name (e.g. "Golden Hour Beach Portraits").
+   */
+  name: string;
+  /**
+   * Primary shoot date.
+   */
+  shootDate?: string | null;
+  /**
+   * Optional notes about the shoot: concept, conditions, client context.
+   */
+  description?: string | null;
+  location?: {
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  /**
+   * Tags pre-applied to all assets ingested under this session.
+   */
+  defaultTags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Hero image shown on the Sessions grid.
+   */
+  coverAsset?: (number | null) | Media;
+  owner: number | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -1121,7 +1167,7 @@ export interface SmartCollection {
    * Pin ranking — lower = earlier in grid.
    */
   sortOrder?: number | null;
-  generatedFrom?: ('manual' | 'ai_tags' | 'metadata' | 'tags' | 'location' | 'media_type') | null;
+  generatedFrom?: ('manual' | 'ai_tags' | 'metadata' | 'tags' | 'location' | 'media_type' | 'camera' | 'date') | null;
   /**
    * Explicit cover image override. Falls back to 4-asset mosaic.
    */
@@ -1217,6 +1263,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'smart-collections';
         value: number | SmartCollection;
+      } | null)
+    | ({
+        relationTo: 'sessions';
+        value: number | Session;
       } | null)
     | ({
         relationTo: 'upload-batches';
@@ -1627,6 +1677,7 @@ export interface MediaSelect<T extends boolean = true> {
   archivalSequence?: T;
   shootName?: T;
   uploadBatchId?: T;
+  session?: T;
   mediaType?: T;
   ingestionStatus?: T;
   processingStep?: T;
@@ -1766,6 +1817,32 @@ export interface SmartCollectionsSelect<T extends boolean = true> {
   coverAsset?: T;
   manualIncludes?: T;
   manualExcludes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sessions_select".
+ */
+export interface SessionsSelect<T extends boolean = true> {
+  name?: T;
+  shootDate?: T;
+  description?: T;
+  location?:
+    | T
+    | {
+        address?: T;
+        latitude?: T;
+        longitude?: T;
+      };
+  defaultTags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  coverAsset?: T;
+  owner?: T;
   updatedAt?: T;
   createdAt?: T;
 }
