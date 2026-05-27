@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, MoreHorizontal, Settings } from 'lucide-react'
 import {
@@ -15,15 +15,30 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/utilities/cn'
 import { CollectionRuleEditor } from './CollectionRuleEditor'
 import type { CollectionCardData } from './CollectionCard'
+import { summariseFilter } from './CollectionCard'
 import { toast } from 'sonner'
 
 interface CollectionDetailHeaderProps {
   collection: CollectionCardData & { assetCount: number; updatedAt?: string }
 }
 
+const RECENT_KEY = 'fh_recent_collections'
+
 export function CollectionDetailHeader({ collection }: CollectionDetailHeaderProps) {
   const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
+
+  // Track this collection as recently viewed
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY)
+      const ids: number[] = raw ? (JSON.parse(raw) as number[]) : []
+      const updated = [collection.id, ...ids.filter((id) => id !== collection.id)].slice(0, 8)
+      localStorage.setItem(RECENT_KEY, JSON.stringify(updated))
+    } catch {
+      // ignore
+    }
+  }, [collection.id])
 
   const handleSaveRules = async (filterQuery: Record<string, unknown>) => {
     const res = await fetch(`/api/smart-collections/${collection.id}`, {
@@ -60,7 +75,7 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-[#1a1c1c]">{collection.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="font-rubik text-[10px] uppercase tracking-widest text-[#1a1c1c]/40">
                 {collection.assetCount.toLocaleString()} ASSETS
               </span>
@@ -78,6 +93,18 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
                 </Badge>
               )}
             </div>
+            {/* Rule summary */}
+            {(() => {
+              const summary = summariseFilter(collection.filterQuery)
+              const label = summary
+                ? `Matches: ${summary}`
+                : collection.generatedFrom === 'manual' || !collection.filterQuery
+                  ? 'Manually curated'
+                  : null
+              return label ? (
+                <p className="text-xs text-[#1a1c1c]/40 mt-1">{label}</p>
+              ) : null
+            })()}
           </div>
 
           {/* Actions */}

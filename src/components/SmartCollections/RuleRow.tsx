@@ -33,7 +33,7 @@ export interface RuleData {
   valueTo?: string
 }
 
-const ATTRIBUTE_OPTIONS: { value: RuleAttribute; label: string; group: string }[] = [
+export const ATTRIBUTE_OPTIONS: { value: RuleAttribute; label: string; group: string }[] = [
   { value: 'tag', label: 'Tag', group: 'Tags' },
   { value: 'heuristicTag', label: 'Auto-extracted Tag', group: 'Tags' },
   { value: 'mediaType', label: 'Media Type', group: 'File' },
