@@ -1,6 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
+import { LocationSearch, OsmMiniMap } from '@/components/ui/location-search'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/utilities/cn'
 import type { Media } from '@/payload-types'
@@ -40,6 +42,8 @@ interface RefinementFormData {
   tags: string[]
   captureDate: string
   locationAddress: string
+  locationLat: number | null
+  locationLng: number | null
   cameraModel: string
   lensModel: string
   iso: number | string
@@ -119,10 +123,10 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
         alt: media.alt || '',
         captionText: getPlainTextFromLexical(media.caption),
         tags: media.manualTags?.map((t) => t.tag).filter((t): t is string => !!t) || [],
-        captureDate: media.captureDate
-          ? new Date(media.captureDate).toISOString().split('T')[0]
-          : '',
+        captureDate: media.captureDate ? new Date(media.captureDate).toISOString() : '',
         locationAddress: media.location?.address || '',
+        locationLat: media.location?.latitude ?? null,
+        locationLng: media.location?.longitude ?? null,
         cameraModel: media.technical?.cameraModel || '',
         lensModel: media.technical?.lensModel || '',
         iso: media.technical?.iso || '',
@@ -219,6 +223,8 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
         },
         location: {
           address: data.locationAddress,
+          latitude: data.locationLat,
+          longitude: data.locationLng,
         },
       })
 
@@ -512,10 +518,10 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
                     <span className="uppercase tracking-wider font-bold text-[9px]">Captured</span>
                   </div>
                   {isEditing ? (
-                    <input
-                      {...register('captureDate')}
-                      type="date"
-                      className="bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] rounded-lg px-3 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all"
+                    <DatePicker
+                      value={watch('captureDate')}
+                      onChange={(iso) => setValue('captureDate', iso ?? '')}
+                      inputClassName="text-[11px]"
                     />
                   ) : activeMedia.captureDate ? (
                     <span className="font-medium text-primary">
@@ -550,15 +556,44 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({ media, isOpe
                     <span className="uppercase tracking-wider font-bold text-[9px]">Location</span>
                   </div>
                   {isEditing ? (
-                    <input
-                      {...register('locationAddress')}
-                      placeholder="Enter location address..."
-                      className="w-full bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all"
+                    <LocationSearch
+                      value={watch('locationAddress')}
+                      onChange={(addr) => setValue('locationAddress', addr)}
+                      onLocationSelect={(result) => {
+                        const [lon, lat] = result.geometry.coordinates
+                        const name = [
+                          result.properties.name,
+                          result.properties.street,
+                          result.properties.city,
+                          result.properties.state,
+                          result.properties.country,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')
+                        setValue('locationAddress', name)
+                        setValue('locationLat', lat)
+                        setValue('locationLng', lon)
+                      }}
+                      hasExistingGps={
+                        typeof activeMedia.location?.latitude === 'number' &&
+                        typeof activeMedia.location?.longitude === 'number'
+                      }
+                      placeholder="Search location…"
+                      inputClassName="text-xs py-3 px-4"
                     />
                   ) : activeMedia.location?.address ? (
-                    <p className="text-xs text-on-surface/60 italic px-4 py-3 rounded-2xl bg-gallery-surface/50 dark:bg-white/[0.02] border border-black/[0.02] dark:border-white/[0.02]">
-                      {activeMedia.location.address}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-on-surface/60 italic px-4 py-3 rounded-2xl bg-gallery-surface/50 dark:bg-white/[0.02]">
+                        {activeMedia.location.address}
+                      </p>
+                      {typeof activeMedia.location.latitude === 'number' &&
+                        typeof activeMedia.location.longitude === 'number' && (
+                          <OsmMiniMap
+                            lat={activeMedia.location.latitude}
+                            lon={activeMedia.location.longitude}
+                          />
+                        )}
+                    </div>
                   ) : (
                     <p className="text-xs text-on-surface/20 italic px-4">No location recorded.</p>
                   )}
