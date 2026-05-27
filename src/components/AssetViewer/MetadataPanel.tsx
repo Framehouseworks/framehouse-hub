@@ -15,11 +15,8 @@ import {
   Edit3,
   ArrowRight,
   RotateCcw,
-  Plus,
-  X as CloseIcon,
   ChevronRight,
   ShieldCheck,
-  FileType,
   Crosshair,
   Clapperboard,
 } from 'lucide-react'
@@ -40,6 +37,9 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { LocationSearch, OsmMiniMap } from '@/components/ui/location-search'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { cn } from '@/utilities/cn'
+import { getPlainTextFromLexical, convertTextToLexical } from '@/lib/lexical-utils'
+import { TagInput } from '@/components/ui/tag-input'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +59,7 @@ interface RefinementFormData {
   aperture: number | string
   shutterSpeed: string
   focalLength: number | string
+  sessionId?: number
 }
 
 interface MetadataPanelProps {
@@ -68,54 +69,6 @@ interface MetadataPanelProps {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function getPlainTextFromLexical(lexicalJson: unknown): string {
-  interface LexicalNode {
-    children?: LexicalNode[]
-    text?: string
-  }
-  try {
-    if (!lexicalJson || typeof lexicalJson !== 'object') return ''
-    const root = (lexicalJson as { root?: LexicalNode }).root
-    const firstChild = root?.children?.[0]
-    const firstTextNode = firstChild?.children?.[0]
-    return firstTextNode?.text || ''
-  } catch {
-    return ''
-  }
-}
-
-function convertTextToLexical(text: string) {
-  return {
-    root: {
-      type: 'root',
-      format: 'left' as const,
-      indent: 0,
-      version: 1,
-      direction: 'ltr' as const,
-      children: [
-        {
-          type: 'paragraph',
-          format: 'left' as const,
-          indent: 0,
-          version: 1,
-          direction: 'ltr' as const,
-          children: [
-            {
-              type: 'text',
-              text,
-              format: 0,
-              style: '',
-              detail: 0,
-              mode: 'normal' as const,
-              version: 1,
-            },
-          ],
-        },
-      ],
-    },
-  }
-}
 
 function formatFileSize(bytes: number | null | undefined): string {
   if (!bytes) return '--'
@@ -229,7 +182,7 @@ const PanelContent: React.FC<{
   reset: ReturnType<typeof useForm<RefinementFormData>>['reset']
   watch: ReturnType<typeof useForm<RefinementFormData>>['watch']
   setValue: ReturnType<typeof useForm<RefinementFormData>>['setValue']
-  onSave: (data: RefinementFormData) => void
+  onSave: (data: RefinementFormData, sessionId?: number) => void
 }> = ({
   media,
   mediaId,
@@ -244,23 +197,30 @@ const PanelContent: React.FC<{
   onSave,
 }) => {
   const currentTags = watch('tags') || []
-  const [newTagInput, setNewTagInput] = useState('')
+  const [sessionOptions, setSessionOptions] = useState<ComboboxOption[]>([])
+  const [sessionId, setSessionId] = useState<number | undefined>(
+    typeof media.session === 'object' && media.session !== null
+      ? (media.session as { id: number }).id
+      : typeof media.session === 'number'
+        ? media.session
+        : undefined,
+  )
+  const [sessionName, setSessionName] = useState<string>(
+    typeof media.session === 'object' && media.session !== null
+      ? ((media.session as { name?: string }).name ?? '')
+      : media.shootName ?? '',
+  )
 
-  const handleAddTag = () => {
-    const tag = newTagInput.trim().toLowerCase()
-    if (tag && !currentTags.includes(tag)) {
-      setValue('tags', [...currentTags, tag], { shouldDirty: true })
-    }
-    setNewTagInput('')
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setValue(
-      'tags',
-      currentTags.filter((t) => t !== tagToRemove),
-      { shouldDirty: true },
-    )
-  }
+  useEffect(() => {
+    if (!isEditing) return
+    fetch('/api/sessions?limit=50&depth=0&sort=-createdAt', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        const docs: { id: number; name: string }[] = data?.docs ?? []
+        setSessionOptions(docs.map((s) => ({ value: String(s.id), label: s.name })))
+      })
+      .catch(() => {})
+  }, [isEditing])
 
   const hasExif =
     media.technical?.iso ||
@@ -322,16 +282,52 @@ const PanelContent: React.FC<{
                 {media.originalFilename}
               </FadeValue>
             )}
-            {/* Shoot name */}
-            {!isEditing && media.shootName && (
+            {/* Session link — view mode */}
+            {!isEditing && (media.shootName || sessionName) && (
               <div className="flex items-center gap-1.5 pt-0.5">
                 <Clapperboard size={9} className="text-on-surface/30 shrink-0" />
-                <FadeValue
-                  mediaId={mediaId}
-                  className="text-[10px] text-on-surface/45 font-medium break-words"
-                >
-                  {media.shootName}
+                <FadeValue mediaId={mediaId} className="text-[10px] text-on-surface/45 font-medium break-words">
+                  {sessionName || media.shootName}
                 </FadeValue>
+              </div>
+            )}
+            {/* Session combobox — edit mode */}
+            {isEditing && (
+              <div className="pt-1 space-y-1">
+                <label className="text-[9px] font-bold tracking-widest text-on-surface/30 uppercase font-rubik flex items-center gap-1">
+                  <Clapperboard size={9} />
+                  Session
+                </label>
+                <Combobox
+                  options={sessionOptions}
+                  value={sessionId ? String(sessionId) : undefined}
+                  onChange={async (value, isNew) => {
+                    if (isNew) {
+                      try {
+                        const res = await fetch('/api/sessions', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ name: value }),
+                        })
+                        if (!res.ok) throw new Error()
+                        const data = await res.json()
+                        const s = data?.doc ?? data
+                        setSessionOptions((prev) => [{ value: String(s.id), label: s.name }, ...prev])
+                        setSessionId(s.id)
+                        setSessionName(s.name)
+                      } catch { /* non-fatal */ }
+                    } else {
+                      const opt = sessionOptions.find((o) => o.value === value)
+                      setSessionId(Number(value))
+                      setSessionName(opt?.label ?? '')
+                    }
+                  }}
+                  placeholder="Assign to session…"
+                  allowCreate
+                  createLabel={(v) => `Create "${v}"`}
+                  aria-label="Session"
+                />
               </div>
             )}
           </div>
@@ -500,48 +496,28 @@ const PanelContent: React.FC<{
       {/* ── Tags ──────────────────────────────────────────────── */}
       <div className="space-y-2.5">
         <SectionLabel icon={<TagIcon size={12} />}>Tags</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {(isEditing
-            ? currentTags
-            : ((media.manualTags || []).map((t) => t.tag).filter(Boolean) as string[])
-          ).map((tag, i) => (
-            <div
-              key={i}
-              className="h-6 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.04] text-[10px] font-medium flex items-center gap-1.5 text-on-surface/70"
-            >
-              {tag}
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  className="text-on-surface/30 hover:text-red-500 transition-colors"
-                >
-                  <CloseIcon size={9} />
-                </button>
-              )}
-            </div>
-          ))}
-          {isEditing && (
-            <div className="flex items-center gap-2 w-full mt-1">
-              <input
-                value={newTagInput}
-                onChange={(e) => setNewTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                placeholder="Add tag…"
-                className="flex-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-xl px-3 h-7 text-[10px] focus:outline-none focus:ring-1 focus:ring-gallery-gold/50"
-              />
-              <Button
-                type="button"
-                onClick={handleAddTag}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 rounded-xl border border-dashed border-on-surface/20 p-0"
+        {isEditing ? (
+          <TagInput
+            tags={currentTags}
+            onChange={(tags) => setValue('tags', tags, { shouldDirty: true })}
+            placeholder="Add tag…"
+            maxTags={20}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {((media.manualTags || []).map((t) => t.tag).filter(Boolean) as string[]).map((tag, i) => (
+              <div
+                key={i}
+                className="h-6 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.04] text-[10px] font-medium flex items-center text-on-surface/70"
               >
-                <Plus size={11} />
-              </Button>
-            </div>
-          )}
-        </div>
+                {tag}
+              </div>
+            ))}
+            {(media.manualTags?.length ?? 0) === 0 && (
+              <span className="text-[10px] text-on-surface/30 font-rubik">No tags</span>
+            )}
+          </div>
+        )}
 
         {/* Heuristic / system tags */}
         {(media.heuristicTags?.length ?? 0) > 0 && !isEditing && (
@@ -549,7 +525,7 @@ const PanelContent: React.FC<{
             {media.heuristicTags!.map((t, i) => (
               <div
                 key={i}
-                className="h-6 px-3 rounded-xl bg-gallery-gold/[0.05] border border-gallery-gold/10 text-[10px] font-medium text-gallery-gold/50 flex items-center italic"
+                className="h-6 px-3 rounded-xl bg-gallery-gold/[0.05] text-[10px] font-medium text-gallery-gold/50 flex items-center italic"
               >
                 {t.tag}
               </div>
@@ -678,7 +654,7 @@ const PanelContent: React.FC<{
         <div className="space-y-2 pt-1">
           <Button
             className="w-full h-11 rounded-2xl bg-gallery-gold text-white hover:bg-gallery-gold/90 shadow-lg shadow-gallery-gold/20 font-rubik text-[9px] font-bold uppercase tracking-[0.2em] transition-all"
-            onClick={handleSubmit(onSave)}
+            onClick={handleSubmit((data) => onSave(data, sessionId))}
             disabled={isSaving}
           >
             {isSaving ? 'Saving…' : 'Commit Changes'}
@@ -767,7 +743,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     setIsEditing(false)
   }, [media.id, reset]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onSave = async (data: RefinementFormData) => {
+  const onSave = async (data: RefinementFormData, sessionId?: number) => {
     setIsSaving(true)
     try {
       const result = await updateMediaAction(media.id, {
@@ -790,6 +766,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
           latitude: data.locationLat,
           longitude: data.locationLng,
         },
+        ...(sessionId ? { session: sessionId } : {}),
       })
       if (result.success) {
         toast.success('Metadata updated')

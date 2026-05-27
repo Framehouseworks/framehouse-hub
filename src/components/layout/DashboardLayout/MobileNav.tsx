@@ -3,14 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Archive, Search, Plus, FolderRoot, User } from 'lucide-react'
+import { Archive, Search, Plus, Clapperboard, User } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 
 const mobileItems = [
   { icon: Archive, href: '/dashboard', label: 'Home' },
   { icon: Search, href: '/dashboard/search', label: 'Search' },
   { icon: Plus, href: '/dashboard/upload', label: 'Upload', primary: true },
-  { icon: FolderRoot, href: '/dashboard/collections', label: 'Folders' },
+  { icon: Clapperboard, href: '/dashboard/library/sessions', label: 'Sessions' },
   { icon: User, href: '/account', label: 'Profile' },
 ]
 

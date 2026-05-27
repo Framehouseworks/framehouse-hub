@@ -97,6 +97,8 @@ export const SmartCollections: CollectionConfig = {
         { label: 'Tags', value: 'tags' },
         { label: 'Location', value: 'location' },
         { label: 'Media Type', value: 'media_type' },
+        { label: 'Camera', value: 'camera' },
+        { label: 'Date', value: 'date' },
       ],
       admin: {
         position: 'sidebar',
