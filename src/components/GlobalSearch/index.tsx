@@ -79,7 +79,14 @@ export const GlobalSearch: React.FC = () => {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') navigate(inputValue)
+    if (e.key === 'Enter') {
+      // Read from the DOM element directly rather than React state `inputValue`.
+      // Playwright's fill() dispatches a single synthetic input event; in production
+      // React 19 with automatic batching the state update may not be committed
+      // before the Enter keydown fires, causing navigate('') → /dashboard with no
+      // search param. e.currentTarget.value is always the live DOM value.
+      navigate(e.currentTarget.value)
+    }
     if (e.key === 'Escape') {
       setShowDropdown(false)
       inputRef.current?.blur()
