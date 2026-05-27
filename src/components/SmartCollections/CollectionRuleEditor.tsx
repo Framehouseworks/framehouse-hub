@@ -5,9 +5,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Plus, Sparkles, Info } from 'lucide-react'
+import { Plus, Sparkles, Info, X } from 'lucide-react'
 import { cn } from '@/utilities/cn'
-import { RuleRow, type RuleData, rulesToFilterQuery } from './RuleRow'
+import { RuleRow, type RuleData, type RuleAttribute, type RuleOperator, ATTRIBUTE_OPTIONS, rulesToFilterQuery } from './RuleRow'
 import { PreviewStrip } from './PreviewStrip'
 import { toast } from 'sonner'
 
@@ -31,6 +31,94 @@ function makeRule(): RuleData {
   }
 }
 
+// ─── Simple mode helpers ──────────────────────────────────────────────────────
+
+const SIMPLE_DEFAULT_OPERATOR: Record<RuleAttribute, RuleOperator> = {
+  tag: 'contains',
+  heuristicTag: 'contains',
+  shootName: 'contains',
+  mediaType: 'equals',
+  cameraMake: 'contains',
+  cameraModel: 'contains',
+  lensModel: 'contains',
+  captureDate: 'greater_than',
+  fileSize: 'greater_than',
+  aspectRatio: 'equals',
+}
+
+const ADVANCED_ONLY_OPERATORS: RuleOperator[] = [
+  'not_equals',
+  'starts_with',
+  'less_than',
+  'between',
+]
+
+function canUseSimpleMode(rules: RuleData[]): boolean {
+  return rules.every((r) => !ADVANCED_ONLY_OPERATORS.includes(r.operator))
+}
+
+interface SimpleRuleRowProps {
+  rule: RuleData
+  index: number
+  onChange: (id: string, updates: Partial<RuleData>) => void
+  onRemove: (id: string) => void
+}
+
+function SimpleRuleRow({ rule, index, onChange, onRemove }: SimpleRuleRowProps) {
+  return (
+    <div
+      className="flex items-center gap-2 bg-[#f3f3f4] dark:bg-white/[0.06] rounded-[16px] px-3 py-2.5"
+      aria-label={`Rule ${index + 1}: ${rule.attribute} ${rule.value}`}
+    >
+      {/* Attribute select */}
+      <select
+        value={rule.attribute}
+        onChange={(e) => {
+          const attr = e.target.value as RuleAttribute
+          onChange(rule.id, { attribute: attr, operator: SIMPLE_DEFAULT_OPERATOR[attr] })
+        }}
+        aria-label="Rule attribute"
+        className="bg-transparent text-sm text-[#1a1c1c] dark:text-white font-medium outline-none cursor-pointer flex-shrink-0 max-w-[120px]"
+      >
+        {ATTRIBUTE_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
+      <span className="text-[#1a1c1c]/30 text-xs flex-shrink-0" aria-hidden>
+        ›
+      </span>
+
+      {/* Value input */}
+      <input
+        type={rule.attribute === 'captureDate' ? 'date' : 'text'}
+        value={rule.value}
+        onChange={(e) => onChange(rule.id, { value: e.target.value })}
+        placeholder={
+          rule.attribute === 'mediaType'
+            ? 'image / video / raw'
+            : rule.attribute === 'captureDate'
+              ? 'YYYY-MM-DD'
+              : 'Enter value…'
+        }
+        aria-label="Rule value"
+        className="flex-1 bg-transparent text-sm text-[#1a1c1c] dark:text-white placeholder:text-[#1a1c1c]/30 outline-none min-w-0"
+      />
+
+      {/* Remove */}
+      <button
+        onClick={() => onRemove(rule.id)}
+        aria-label={`Remove rule ${index + 1}`}
+        className="flex-shrink-0 text-[#1a1c1c]/30 hover:text-[#1a1c1c] dark:hover:text-white transition-colors p-0.5"
+      >
+        <X size={13} />
+      </button>
+    </div>
+  )
+}
+
 export function CollectionRuleEditor({
   open,
   onOpenChange,
@@ -46,6 +134,7 @@ export function CollectionRuleEditor({
   const [logic, setLogic] = useState<'and' | 'or'>(initialLogic)
   const [isSaving, setIsSaving] = useState(false)
   const [name, setName] = useState(collectionName || '')
+  const [simpleMode, setSimpleMode] = useState(() => canUseSimpleMode(initialRules ?? [makeRule()]))
   const nameId = useId()
 
   const filterQuery = rulesToFilterQuery(rules, logic)
@@ -108,55 +197,95 @@ export function CollectionRuleEditor({
         </div>
       )}
 
-      {/* Logic + rules section */}
+      {/* Rules section */}
       <div className="flex flex-col gap-3">
-        {/* Section header with logic toggle */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-xs font-medium text-[#1a1c1c]/50 uppercase tracking-wider">
-            Include assets matching
-          </span>
-          <div className="flex items-center gap-0.5 p-0.5 bg-[#f3f3f4] dark:bg-white/[0.06] rounded-full">
-            {(['and', 'or'] as const).map((l) => (
-              <button
-                key={l}
-                onClick={() => setLogic(l)}
-                className={cn(
-                  'px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide transition-all',
-                  logic === l
-                    ? 'bg-white dark:bg-white/20 shadow-sm text-gallery-gold'
-                    : 'text-[#1a1c1c]/40 hover:text-[#1a1c1c] dark:text-white/40 dark:hover:text-white',
-                )}
-              >
-                {l === 'and' ? 'ALL rules' : 'ANY rule'}
-              </button>
-            ))}
+        {/* Simple mode header */}
+        {simpleMode ? (
+          <p className="text-sm text-[#1a1c1c]/60 dark:text-white/50">
+            This view includes assets that match:
+          </p>
+        ) : (
+          /* Advanced mode: header with logic toggle */
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-xs font-medium text-[#1a1c1c]/50 uppercase tracking-wider">
+              Include assets matching
+            </span>
+            <div className="flex items-center gap-0.5 p-0.5 bg-[#f3f3f4] dark:bg-white/[0.06] rounded-full">
+              {(['and', 'or'] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLogic(l)}
+                  className={cn(
+                    'px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide transition-all',
+                    logic === l
+                      ? 'bg-white dark:bg-white/20 shadow-sm text-gallery-gold'
+                      : 'text-[#1a1c1c]/40 hover:text-[#1a1c1c] dark:text-white/40 dark:hover:text-white',
+                  )}
+                >
+                  {l === 'and' ? 'ALL rules' : 'ANY rule'}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Rules list */}
         <div className="flex flex-col gap-2">
-          {rules.map((rule, i) => (
-            <RuleRow
-              key={rule.id}
-              rule={rule}
-              index={i}
-              onChange={handleChangeRule}
-              onRemove={handleRemoveRule}
-            />
-          ))}
+          {rules.map((rule, i) =>
+            simpleMode ? (
+              <SimpleRuleRow
+                key={rule.id}
+                rule={rule}
+                index={i}
+                onChange={handleChangeRule}
+                onRemove={handleRemoveRule}
+              />
+            ) : (
+              <RuleRow
+                key={rule.id}
+                rule={rule}
+                index={i}
+                onChange={handleChangeRule}
+                onRemove={handleRemoveRule}
+              />
+            ),
+          )}
         </div>
 
-        {/* Add rule */}
-        <button
-          onClick={handleAddRule}
-          className={cn(
-            'flex items-center gap-2 text-gallery-gold text-sm font-semibold',
-            'hover:opacity-70 transition-opacity w-fit mt-1',
+        {/* Add rule + mode toggle */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleAddRule}
+            className={cn(
+              'flex items-center gap-2 text-gallery-gold text-sm font-semibold',
+              'hover:opacity-70 transition-opacity',
+            )}
+          >
+            <Plus size={14} />
+            {simpleMode ? 'Add a rule' : 'Add another rule'}
+          </button>
+          {simpleMode ? (
+            <button
+              onClick={() => setSimpleMode(false)}
+              className="text-xs text-[#1a1c1c]/40 hover:text-[#1a1c1c] dark:hover:text-white transition-colors"
+            >
+              Advanced ›
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (canUseSimpleMode(rules)) {
+                  setSimpleMode(true)
+                } else {
+                  toast.error('Switch to simple mode by removing advanced operators first')
+                }
+              }}
+              className="text-xs text-[#1a1c1c]/40 hover:text-[#1a1c1c] dark:hover:text-white transition-colors"
+            >
+              ‹ Simple
+            </button>
           )}
-        >
-          <Plus size={14} />
-          Add another rule
-        </button>
+        </div>
       </div>
 
       {/* Tag hint — only when a tag attribute is selected */}

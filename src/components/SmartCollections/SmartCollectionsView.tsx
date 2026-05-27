@@ -65,6 +65,14 @@ async function enrichCollections(
           }
         : null
 
+      const rawFilterQuery = (col.filterQuery ?? {}) as Record<string, unknown>
+      const hasManualIncludes = Array.isArray(col.manualIncludes)
+        ? col.manualIncludes.length > 0
+        : false
+      const hasManualExcludes = Array.isArray(col.manualExcludes)
+        ? col.manualExcludes.length > 0
+        : false
+
       return {
         id: col.id,
         name: col.name,
@@ -75,6 +83,9 @@ async function enrichCollections(
         assetCount,
         thumbnails,
         coverAsset,
+        filterQuery: Object.keys(rawFilterQuery).length > 0 ? rawFilterQuery : null,
+        hasManualOverrides: hasManualIncludes || hasManualExcludes,
+        updatedAt: col.updatedAt,
       } satisfies CollectionCardData
     }),
   )

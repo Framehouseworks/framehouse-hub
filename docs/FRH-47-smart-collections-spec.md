@@ -8,6 +8,46 @@
 
 Creators with hundreds of thousands of assets cannot manually maintain folders at scale. A single drone photo from Iceland belongs simultaneously in "Drone Videos," "Iceland 2026," and "Black & White." Smart Collections solve this with query-driven views — not copies — while the UI makes the "no storage duplication" guarantee feel obvious, not technical.
 
+The current flat grid of collections creates: low information hierarchy, weak semantic scanning, unclear system intelligence, and visual overload. The experience should optimise for **retrieval confidence**, not cataloguing exhaustion.
+
+---
+
+## 1.5 Core UX Principles
+
+### Collections Are Views, Not Containers
+
+This distinction must be reinforced at every layer — naming, iconography, microcopy, and interactions.
+
+**Language guide (mandatory):**
+
+| ❌ Avoid | ✅ Use instead |
+|---|---|
+| Move to Collection | Appears in |
+| Store in | Matches |
+| Duplicate | Grouped by |
+| Directory | Filtered by |
+| Remove from folder | Hide from this view |
+| Add to Collection | Include in view |
+
+### Three Collection Types (MVP)
+
+| Type | Icon | Meaning |
+|---|---|---|
+| **Rule-based** | `Filter` icon (funnel) | Auto-maintained by `filterQuery` logic |
+| **Manual** | `Bookmark` icon (pin) | Explicitly curated by user |
+| **Hybrid** | `SlidersHorizontal` icon | Rule-based with manual inclusions/exclusions |
+
+These must be visually distinct at all times — card, detail header, and empty state. Users lose mental model clarity without this distinction.
+
+### Retrieval over Organisation
+
+Collections are intelligent shortcuts into content, not filing systems. The page hierarchy must optimise for:
+1. **Recognition** — what did I recently use?
+2. **Discovery** — what groupings exist that I haven't explored?
+3. **Continuation** — pick up where I left off
+
+NOT: browsing every collection with equal visual weight.
+
 ---
 
 ## 2. Scope
@@ -122,17 +162,21 @@ Triggered when an `UploadBatch` status transitions to `ready` (not per-asset, to
 flowchart TD
     DashboardPage --> LibraryTabs
     LibraryTabs -->|tab: collections| SmartCollectionsView
-    SmartCollectionsView --> CollectionsGrid
-    SmartCollectionsView --> NewCollectionCard
-    CollectionsGrid --> CollectionCard
+    SmartCollectionsView --> CollectionsSearchBar
+    SmartCollectionsView --> RecentSection["Section A: RecentCollectionsStrip"]
+    SmartCollectionsView --> GroupedSections["Section B: CollectionGroupSection × N"]
+    GroupedSections --> CollectionCard
+    GroupedSections --> NewCollectionCard
     CollectionCard -->|click| CollectionDetailView
-    CollectionDetailView --> MediaGrid["MediaGrid (existing, where-injected)"]
     CollectionDetailView --> CollectionDetailHeader
+    CollectionDetailView --> AutoMatchedSection["AutoMatchedSection → MediaGrid (existing)"]
+    CollectionDetailView --> ManuallyAddedSection["ManuallyAddedSection → MediaGrid (existing)"]
     CollectionDetailHeader --> CollectionRuleEditor
     CollectionCard -->|⋯ menu| CollectionContextMenu
     CollectionContextMenu --> CollectionRuleEditor
     CollectionContextMenu --> ManualOverridesPanel
-    CollectionRuleEditor --> RuleRow
+    CollectionRuleEditor --> SimpleRuleRow
+    CollectionRuleEditor --> AdvancedRuleRow["AdvancedRuleRow (advanced mode)"]
     CollectionRuleEditor --> PreviewStrip
     ManualOverridesPanel --> AssetPickerModal["AssetPickerModal (existing)"]
 ```
@@ -141,12 +185,15 @@ New files (all under `src/components/SmartCollections/`):
 
 | File | Type | Notes |
 |---|---|---|
-| `SmartCollectionsView.tsx` | Server Component | Fetches collections list, renders grid |
-| `CollectionsGrid.tsx` | Client Component | Handles layout, empty state, loading |
-| `CollectionCard.tsx` | Client Component | Card UI, context menu, hover states |
-| `CollectionDetailHeader.tsx` | Client Component | Back nav, name, count, action buttons |
-| `CollectionRuleEditor.tsx` | Client Component | Rule builder modal/sheet |
-| `RuleRow.tsx` | Client Component | Single rule: attribute + operator + value |
+| `SmartCollectionsView.tsx` | Server Component | Fetches collections list, renders page |
+| `CollectionsSearchBar.tsx` | Client Component | Client-side filter across all sections |
+| `RecentCollectionsStrip.tsx` | Client Component | Horizontal scroll strip, `localStorage`-backed |
+| `CollectionGroupSection.tsx` | Client Component | Collapsible section by `generatedFrom` category |
+| `CollectionCard.tsx` | Client Component | Card UI: type icon, rule summary, context menu |
+| `CollectionDetailHeader.tsx` | Client Component | Back nav, name, rule summary, action buttons |
+| `CollectionRuleEditor.tsx` | Client Component | Rule builder modal/sheet (simple + advanced) |
+| `SimpleRuleRow.tsx` | Client Component | Attribute › value chip, no operator dropdown |
+| `AdvancedRuleRow.tsx` | Client Component | Full attribute / operator / value controls |
 | `ManualOverridesPanel.tsx` | Client Component | Include/exclude slide-over |
 | `PreviewStrip.tsx` | Client Component | Debounced count + 4-thumbnail preview |
 
@@ -158,27 +205,78 @@ New files (all under `src/components/SmartCollections/`):
 
 Collections live as a tab within the dashboard library view. Tab indicator uses `gallery-gold` underline on active.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Library                                                     │
-│                                                             │
-│  All Assets    Collections ✦    Batches                     │
-│               ──────────────                                │
-│                                                             │
-│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌─────────────┐ │
-│  │      │  │      │  │      │  │      │  │  +  New     │ │
-│  │ Bird │  │Icelnd│  │Drone │  │ B&W  │  │  Collection │ │
-│  │ 847  │  │  312 │  │  56  │  │  201 │  │             │ │
-│  └──────┘  └──────┘  └──────┘  └──────┘  └─────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
-
 - "✦" tab badge (Rubik Mono One, `gallery-gold`) appears when new auto-generated collections are available; clears on tab visit
 - Tabs use existing `CategoryTabs` component pattern as precedent
 
-### 7.2 Mobile Tab Layout
+### 7.2 Page Structure — Three Sections
 
-On mobile (< 640px) the tab bar scrolls horizontally (`overflow-x-auto`, `snap-x`). Collections grid collapses to 1 column. The "+ New" card is full-width.
+The collections page replaces the flat grid with a three-tier retrieval-first hierarchy:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Library                                                     │
+│  All Assets    Collections ✦    Batches                     │
+│               ──────────────                                │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  🔍  Search collections...                           │   │  ← Search bar (always visible)
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  RECENT  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·   │  ← Section A
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                  │
+│  │ Bird │  │Icelnd│  │Drone │  │ B&W  │                  │
+│  └──────┘  └──────┘  └──────┘  └──────┘                  │
+│                                                             │
+│  BY MEDIA TYPE  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  │  ← Section B (grouped)
+│  ┌──────┐  ┌──────┐  ┌──────┐  + New Collection          │
+│  │Photos│  │ RAW  │  │Videos│                             │
+│  └──────┘  └──────┘  └──────┘                             │
+│                                                             │
+│  BY SHOOT  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · │
+│  ┌──────┐  ┌──────┐                                        │
+│  │Icelnd│  │Tokyo │                                        │
+│  └──────┘  └──────┘                                        │
+│                                                             │
+│  BY CAMERA  ·  ·  ·  ·  ·  (collapsed by default)  ›     │
+│  MANUAL  ·  ·  ·  ·  ·  ·  (collapsed by default)  ›     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Section A — Recent & Active
+
+Top horizontal scroll strip (4 cards wide on desktop, 2 on mobile). Shows:
+- **Recently Viewed** collections (last 4, from `localStorage`)
+- **Recently Updated** (sorted by Payload `updatedAt` desc)
+
+No section header on the very first visit (hidden until user has ≥ 2 collections they've opened).
+
+#### Section B — Grouped by Category
+
+Collections are automatically bucketed by `generatedFrom` value and rendered as collapsible sections.
+
+| Section Header | `generatedFrom` values included | Default state |
+|---|---|---|
+| `BY MEDIA TYPE` | `media_type` | Expanded |
+| `BY SHOOT` | `metadata` (shoot name) | Expanded if ≥ 1 |
+| `BY TAG` | `tags` | Expanded if ≥ 1 |
+| `BY CAMERA` | `metadata` (camera model) | Collapsed |
+| `MANUAL` | `manual` | Expanded if ≥ 1 |
+
+Section headers: `text-[10px] tracking-widest font-medium text-on-surface/40` + expand/collapse chevron. Collapsed sections show a single-line count chip: `"4 collections"`.
+
+A **`+ New Collection`** card appears at the end of the `MANUAL` section (or appended after all sections if no manual collections exist).
+
+#### Search Bar
+
+Always-visible `<input>` at top of the Collections tab. Filters across all sections in real-time (client-side, no API call) — matching on collection `name` and `description`. Matching sections remain visible; non-matching sections collapse. If no collections match: show "No collections matching '…'" with a "+ Create one" text link.
+
+### 7.3 Mobile Layout
+
+On mobile (< 640px):
+- Section A renders as horizontal scroll strip (`overflow-x-auto snap-x`)
+- Section B group headers are full-width, tappable expand/collapse
+- Grid within each section collapses to 1 column
+- Search bar remains sticky at top of scroll area
 
 ---
 
@@ -194,10 +292,20 @@ On mobile (< 640px) the tab bar scrolls horizontally (`overflow-x-auto`, `snap-x
 │  │   (or single cover image)  │  │     tonal gradient overlay bottom
 │  └────────────────────────────┘  │
 │                                  │
-│  Bird Photography          ⋯    │  ← Inter 600 text-sm + DropdownMenu
-│  847 ASSETS  ·  AUTO            │  ← Rubik Mono One text-[10px] uppercase
+│  🔵 Bird Photography       ⋯    │  ← type icon + Inter 600 text-sm + DropdownMenu
+│  847 ASSETS                      │  ← Rubik Mono One text-[10px] uppercase
+│  Tag = bird photography          │  ← rule summary, text-[10px] text-on-surface/40
 └──────────────────────────────────┘
 ```
+
+**Rule summary line** (new): single-line human-readable rule summary rendered below the asset count. Max 1 line, truncated with ellipsis. Examples:
+- `Tag = bird photography` → for a single tag filter
+- `Media Type = Video + RAW` → multiple values on same field
+- `Shoot = Iceland 2026 · Camera = Sony A7` → two rules joined with `·`
+- `3 rules active` → fallback when >2 rules (too long to summarise)
+- Manual collections show: `Manually curated · 12 items` (no rule summary needed)
+
+This builds retrieval confidence — users immediately understand why the collection exists without opening it.
 
 **Tailwind classes (canonical):**
 ```
@@ -216,13 +324,20 @@ transition-all duration-300
 
 **Overlay gradient** on cover (bottom): `from-transparent to-black/20` — adds depth without competing with content.
 
-**Badges (bottom of card, below name):**
+**Type icon (prefix to collection name):**
+
+| Type | Icon | Token colour |
+|---|---|---|
+| Rule-based (`filterQuery` only) | `Filter` (funnel, 12px) | `text-gallery-gold` |
+| Manual (`manual` generatedFrom, no filterQuery) | `Bookmark` (pin, 12px) | `text-on-surface/40` |
+| Hybrid (filterQuery + manual overrides) | `SlidersHorizontal` (12px) | `text-gallery-gold/70` |
+
+**Badges (bottom of card, below asset count):**
 
 | Badge | Condition | Style |
 |---|---|---|
 | `AUTO` | `isSystemGenerated = true` | `bg-gallery-gold/10 text-gallery-gold`, Rubik Mono One 9px |
 | `HIDDEN` | `isHidden = true` (management view only) | `bg-surface_container text-on-surface/40` |
-| Source label | `generatedFrom` value | `bg-surface_container text-on-surface/30` — e.g. `TAGS`, `LOCATION` |
 
 **Ghost border:** `outline outline-1 outline-[#d5c4af]/15` applied only when `isSystemGenerated = false` (user-created) to give slight structure.
 
@@ -240,15 +355,17 @@ transition-all duration-300
 
 Trigger: `<DropdownMenu>` on `⋯` icon-button. Icon-button uses `rounded-full p-1.5 hover:bg-surface_container` to avoid border.
 
-| Item | Condition | Outcome |
-|---|---|---|
-| Edit Rules | Always | Opens `CollectionRuleEditor` |
-| Manage Assets | Always | Opens `ManualOverridesPanel` |
-| Set Cover Image | Always | Opens asset picker for `coverAsset` |
-| Rename | Always | Inline focus on card title (contentEditable) |
-| Duplicate | Always | Clone doc + " (Copy)" |
-| Hide | `isHidden = false` | Sets `isHidden = true` |
-| Delete | Always | Confirmation `<Dialog>` — states explicitly "Assets are never deleted" |
+| Item | Condition | Label copy | Outcome |
+|---|---|---|---|
+| Edit Rules | Rule-based / Hybrid | "Edit Rules" | Opens `CollectionRuleEditor` |
+| Manage Assets | Always | "Include / Exclude Assets" | Opens `ManualOverridesPanel` |
+| Set Cover Image | Always | "Set Cover Image" | Opens asset picker for `coverAsset` |
+| Rename | Always | "Rename" | Inline focus on card title (contentEditable) |
+| Duplicate | Always | "Duplicate View" | Clone doc + " (Copy)" |
+| Hide | `isHidden = false` | "Hide from Library" | Sets `isHidden = true` |
+| Delete | Always | "Delete View" | Confirmation `<Dialog>` — states explicitly "Assets are never deleted" |
+
+Note the label "Duplicate **View**" (not "Duplicate") and "Delete **View**" — reinforces Collections-as-views mental model.
 
 ---
 
@@ -281,14 +398,39 @@ Route: `/dashboard/library/collections/[id]`
 ┌──────────────────────────────────────────────────────────────┐
 │  ← Collections                                               │  ← text-xs text-on-surface/40
 │                                                              │
-│  Bird Photography                   [Edit Rules]  [⋯]       │  ← text-xl Inter 600
+│  🔵 Bird Photography                [Edit Rules]  [⋯]       │  ← type icon + text-xl Inter 600
 │  847 ASSETS  ·  UPDATED 2 MIN AGO                           │  ← Rubik Mono One text-[10px]
+│                                                              │
+│  Updates automatically from:                                 │  ← rule summary prose, visible on
+│  Tag = bird photography · Media Type = Image                 │    rule-based / hybrid only
 └──────────────────────────────────────────────────────────────┘
 ```
 
-- `[Edit Rules]` → opens `CollectionRuleEditor` in modal (desktop) / bottom sheet (mobile)
+- Rule summary prose (new): renders immediately below the count line for rule-based/hybrid collections. Uses `text-xs text-on-surface/40`. Manual collections show "Manually curated" instead.
+- `[Edit Rules]` → opens `CollectionRuleEditor` in modal (desktop) / bottom sheet (mobile). Label is `"Edit Rules"` for rule-based, `"Manage View"` for manual.
 - `[⋯]` → same context menu as CollectionCard
 - Back link uses `router.back()` with `← Collections` label — no hardcoded href
+
+### Asset Grid — Separated Sections
+
+The detail grid is split into distinct sections, not a single merged feed:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  AUTOMATICALLY MATCHED  (832 assets)               [filter]  │  ← section header
+│  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ...                         │
+│  └───┘ └───┘ └───┘ └───┘ └───┘                              │
+│                                                              │
+│  MANUALLY ADDED  (15 assets)                                 │  ← only shown if manualIncludes ≥ 1
+│  ┌───┐ ┌───┐ ┌───┐ ...                                       │
+│  └───┘ └───┘ └───┘                                           │
+│  + Include Assets                                            │  ← opens ManualOverridesPanel
+└──────────────────────────────────────────────────────────────┘
+```
+
+Section headers: `text-[10px] tracking-widest font-medium text-on-surface/40` (same pattern as Section B group headers on the collections list page).
+
+Manual-only collections omit the "AUTOMATICALLY MATCHED" section entirely and show only "YOUR CURATED ASSETS".
 
 ### Effective Query (passed to `MediaGrid`)
 
@@ -304,7 +446,7 @@ const effectiveQuery = {
 
 `MediaGrid` receives `where={effectiveQuery}` — existing component, zero changes needed.
 
-**Mobile:** Header stacks vertically. `[Edit Rules]` becomes a full-width button below the title. `[⋯]` collapses to the existing mobile nav pattern.
+**Mobile:** Header stacks vertically. `[Edit Rules]` becomes a full-width button below the rule summary. `[⋯]` collapses to the existing mobile nav pattern. Asset sections stack with the same headers.
 
 ---
 
@@ -313,28 +455,57 @@ const effectiveQuery = {
 Desktop: `<Dialog>` centred, 640px max-width, `rounded-[24px]`, glassmorphism backdrop.  
 Mobile: `<Sheet>` side = `"bottom"`, full-width, `rounded-t-[24px]`, drag handle at top.
 
-### Layout
+### Progressive Disclosure — Simple Mode (Default)
+
+The editor opens in Simple Mode by default. Simple Mode hides ALL/ANY logic and shows rules as human-readable prose.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  ┄┄┄ (drag handle — mobile only)                            │
 │  Edit Rules: Bird Photography                    [× Close]  │
 │  ─────────────────────────────────────────────────────────  │
-│  Include assets matching  [ALL ▾]  of the following:        │
+│                                                             │
+│  This view includes assets that match:                      │  ← prose framing
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │  [Tag ▾]  [contains ▾]  [bird photography ______]  × │  │  ← RuleRow
+│  │  Tag  ›  bird photography                         [×]│  │  ← Simple RuleRow
 │  └──────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │  [Media Type ▾]  [is ▾]  [Image ▾]              ×   │  │
+│  │  Media Type  ›  Image                             [×]│  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                             │
-│  + Add Rule                                                 │
+│  + Add a rule                                               │
+│                                                 [Advanced ›]│  ← text link, right-aligned
 │                                                             │
 │  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
 │  [PreviewStrip: ▪▪▪▪  847 assets match]                    │
 │                                                             │
 │  [Cancel]                              [Save Rules →]       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Simple RuleRow renders as `[attribute label] › [value chip]`. No operator dropdown in simple mode — each attribute has an implied default operator (Tag = `contains`, Media Type = `is`, Date = `after`). The `[×]` removes the rule.
+
+### Advanced Mode (opt-in)
+
+Toggled via the `[Advanced ›]` text link. Replaces simple row rendering with full attribute/operator/value controls. A `[Simple ‹]` link returns to simple mode (rules are preserved; if rules use operators not representable in simple mode, the editor stays locked in advanced).
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ┄┄┄                                                        │
+│  Edit Rules: Bird Photography              [× Close]        │
+│  ─────────────────────────────────────────────────────────  │
+│  Include assets matching  [ALL ▾]  of the following:        │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  [Tag ▾]  [contains ▾]  [bird photography ______]  × │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  [Media Type ▾]  [is ▾]  [Image ▾]              ×   │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  + Add Rule                                    [Simple ‹]   │
+│  ...                                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -409,13 +580,13 @@ Mobile: `<Sheet>` side = `"bottom"`, full-height (80vh), drag handle.
 
 ## 13. Responsiveness
 
-| Breakpoint | Grid cols | CollectionCard | Rule Editor | Overrides Panel |
+| Breakpoint | Grid cols (per section) | Section A | Rule Editor | Overrides Panel |
 |---|---|---|---|---|
-| Mobile `< 480px` | 1 col | Full width, landscape thumbnail left | Bottom sheet, full-screen | Bottom sheet, 80vh |
-| Mobile `480–639px` | 2 col | Standard | Bottom sheet | Bottom sheet |
-| Tablet `640–1023px` | 2–3 col | Standard | Bottom sheet | Right sheet, 100% |
-| Desktop `1024–1279px` | 3 col | Standard | Centred Dialog 640px | Right sheet, 480px |
-| Wide `≥ 1280px` | 4 col | Standard | Centred Dialog 640px | Right sheet, 480px |
+| Mobile `< 480px` | 1 col | 2-card horizontal scroll | Bottom sheet, full-screen | Bottom sheet, 80vh |
+| Mobile `480–639px` | 2 col | 3-card horizontal scroll | Bottom sheet | Bottom sheet |
+| Tablet `640–1023px` | 2–3 col | 4-card scroll | Bottom sheet | Right sheet, 100% |
+| Desktop `1024–1279px` | 3 col | 4-card strip (no scroll) | Centred Dialog 640px | Right sheet, 480px |
+| Wide `≥ 1280px` | 4 col | 4-card strip (no scroll) | Centred Dialog 640px | Right sheet, 480px |
 
 **Horizontal scroll for Collections tab on mobile:** `overflow-x-auto scroll-smooth snap-x snap-mandatory`. Each card: `snap-start`.
 
@@ -469,12 +640,14 @@ Mobile: `<Sheet>` side = `"bottom"`, full-height (80vh), drag handle.
 
 | State | UI Treatment |
 |---|---|
-| No collections (first visit) | Single full-width card with gallery icon, "Your first Smart Collection will appear here automatically after you upload assets." + primary CTA "Create Collection" — gradient button |
-| 0 matching assets in collection | Cover area shows camera icon on `surface_container`, `opacity-60` card, "No assets match current rules" sub-label, "Edit Rules" text-link in `gallery-gold` |
+| No collections (first visit) | No sections rendered. Full-width card with gallery icon: "Your first views will appear here automatically after you upload assets." + gradient CTA "Create a View" |
+| Collections exist but all sections empty after search | Inline: "No collections matching '…'" + `+ Create one` text link in `gallery-gold` |
+| 0 matching assets in collection (detail view) | "AUTOMATICALLY MATCHED" section shows camera icon placeholder: "No assets currently match these rules." + "Edit Rules" text-link |
 | Preview endpoint error | Inline banner in PreviewStrip: `bg-[#ff7f67]/10 rounded-[12px] px-3 py-2 text-xs` — "Preview unavailable — check rules" |
 | Count stale (>24h unchecked) | `text-on-surface/30` sub-label on count: "Last checked X days ago" — no hard error |
 | Rule conflict (same asset in includes + excludes) | Inline warning in `ManualOverridesPanel`: `bg-[#d79922]/10` notice, "Exclusions take priority." |
-| Delete confirmation | `<Dialog>` with `rounded-[24px]`, body explicitly states: **"This removes the collection only. Your assets are never deleted."** Confirm button uses `tertiary` bg (`#bb1800`) per design system "Delete/Alert" convention. |
+| System-generated collection being edited (strips AUTO badge) | Inline notice inside `CollectionRuleEditor` header: `bg-surface_container rounded-[12px] px-3 py-2 text-xs`: "Editing this view removes the AUTO label. It will be yours to manage." |
+| Delete confirmation | `<Dialog>` with `rounded-[24px]`, body: **"This removes the view only. Your assets are never deleted."** Confirm button uses `tertiary` bg (`#bb1800`). |
 
 ---
 

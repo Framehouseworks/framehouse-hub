@@ -13,6 +13,9 @@ import {
   Settings,
   Image as ImageIcon,
   Layers,
+  Filter,
+  Bookmark,
+  SlidersHorizontal,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -44,6 +47,62 @@ export interface CollectionCardData {
   thumbnails?: string[]
   coverAsset?: { url?: string; thumbnailUrl?: string } | null
   sortOrder?: number
+  filterQuery?: Record<string, unknown> | null
+  hasManualOverrides?: boolean
+  updatedAt?: string
+}
+
+// ─── Payload field → human label ────────────────────────────────────────────
+const PAYLOAD_FIELD_LABELS: Record<string, string> = {
+  'manualTags.tag': 'Tag',
+  'heuristicTags.tag': 'Auto-tag',
+  shootName: 'Shoot',
+  mediaType: 'Type',
+  'technical.cameraMake': 'Make',
+  'technical.cameraModel': 'Camera',
+  'technical.lensModel': 'Lens',
+  captureDate: 'Date',
+  filesize: 'Size',
+  width: 'Ratio',
+}
+
+function extractClauseLabel(clause: Record<string, unknown>): string | null {
+  if (clause.and || clause.or) return null
+  const entries = Object.entries(clause)
+  if (!entries.length) return null
+  const [field, ops] = entries[0]
+  if (typeof ops !== 'object' || !ops) return null
+  const label = PAYLOAD_FIELD_LABELS[field] ?? (field.split('.').pop() ?? field)
+  const val = Object.values(ops as Record<string, unknown>)[0]
+  if (typeof val === 'string' || typeof val === 'number') {
+    const s = String(val)
+    return `${label} = ${s.length > 18 ? s.slice(0, 16) + '…' : s}`
+  }
+  return label
+}
+
+export function summariseFilter(fq: Record<string, unknown> | null | undefined): string | null {
+  if (!fq || Object.keys(fq).length === 0) return null
+  const clauses =
+    (fq.and as unknown[] | undefined) ?? (fq.or as unknown[] | undefined)
+  if (clauses) {
+    const labels = clauses
+      .map((c) => extractClauseLabel(c as Record<string, unknown>))
+      .filter(Boolean) as string[]
+    if (!labels.length) return null
+    if (labels.length > 2) return `${labels.length} rules active`
+    return labels.join(' · ')
+  }
+  return extractClauseLabel(fq)
+}
+
+function CollectionTypeIcon({ col }: { col: CollectionCardData }) {
+  const hasFilter = col.filterQuery && Object.keys(col.filterQuery).length > 0
+  if (!hasFilter)
+    return <Bookmark size={11} className="text-[#1a1c1c]/40 flex-shrink-0 mt-px" aria-label="Manual view" />
+  if (col.hasManualOverrides)
+    return <SlidersHorizontal size={11} className="text-gallery-gold/70 flex-shrink-0 mt-px" aria-label="Hybrid view" />
+  return <Filter size={11} className="text-gallery-gold flex-shrink-0 mt-px" aria-label="Rule-based view" />
 }
 
 interface CollectionCardProps {
@@ -243,29 +302,32 @@ export function CollectionCard({
         {/* Card content */}
         <div className="px-2 pt-3 pb-2 flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span
-              ref={nameRef}
-              contentEditable={isRenaming}
-              suppressContentEditableWarning
-              onBlur={handleNameBlur}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  nameRef.current?.blur()
-                }
-                if (e.key === 'Escape') {
-                  setIsRenaming(false)
-                  if (nameRef.current) nameRef.current.textContent = collection.name
-                }
-              }}
-              className={cn(
-                'text-sm font-semibold text-[#1a1c1c] truncate transition-colors duration-200 min-w-0',
-                !isEmpty && 'group-hover:text-gallery-gold',
-                isRenaming && 'outline-none border-b border-gallery-gold/50',
-              )}
-            >
-              {collection.name}
-            </span>
+            <div className="flex items-start gap-1.5 min-w-0">
+              <CollectionTypeIcon col={collection} />
+              <span
+                ref={nameRef}
+                contentEditable={isRenaming}
+                suppressContentEditableWarning
+                onBlur={handleNameBlur}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    nameRef.current?.blur()
+                  }
+                  if (e.key === 'Escape') {
+                    setIsRenaming(false)
+                    if (nameRef.current) nameRef.current.textContent = collection.name
+                  }
+                }}
+                className={cn(
+                  'text-sm font-semibold text-[#1a1c1c] truncate transition-colors duration-200 min-w-0',
+                  !isEmpty && 'group-hover:text-gallery-gold',
+                  isRenaming && 'outline-none border-b border-gallery-gold/50',
+                )}
+              >
+                {collection.name}
+              </span>
+            </div>
 
             {/* Context menu */}
             <DropdownMenu>
@@ -290,6 +352,12 @@ export function CollectionCard({
                 >
                   <Settings size={14} /> Edit Rules
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onManageAssets?.(collection.id)}
+                  className="gap-2 cursor-pointer"
+                >
+                  <SlidersHorizontal size={14} /> Include / Exclude Assets
+                </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 cursor-pointer">
                   <ImageIcon size={14} /> Set Cover Image
                 </DropdownMenuItem>
@@ -300,7 +368,7 @@ export function CollectionCard({
                   onClick={() => onDuplicate?.(collection.id)}
                   className="gap-2 cursor-pointer"
                 >
-                  <Copy size={14} /> Duplicate
+                  <Copy size={14} /> Duplicate View
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -309,11 +377,11 @@ export function CollectionCard({
                 >
                   {collection.isHidden ? (
                     <>
-                      <Eye size={14} /> Show
+                      <Eye size={14} /> Show in Library
                     </>
                   ) : (
                     <>
-                      <EyeOff size={14} /> Hide
+                      <EyeOff size={14} /> Hide from Library
                     </>
                   )}
                 </DropdownMenuItem>
@@ -321,7 +389,7 @@ export function CollectionCard({
                   onClick={() => setShowDeleteDialog(true)}
                   className="gap-2 cursor-pointer text-red-500 focus:text-red-500"
                 >
-                  <Trash2 size={14} /> Delete
+                  <Trash2 size={14} /> Delete View
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -349,12 +417,17 @@ export function CollectionCard({
                 HIDDEN
               </Badge>
             )}
-            {collection.generatedFrom && collection.generatedFrom !== 'manual' && (
-              <Badge className="bg-[#eeeeee] text-[#1a1c1c]/30 border-0 font-rubik text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm">
-                {collection.generatedFrom.replace('_', ' ')}
-              </Badge>
-            )}
           </div>
+          {/* Rule summary */}
+          {(() => {
+            const summary = summariseFilter(collection.filterQuery)
+            const label = summary ?? (collection.generatedFrom === 'manual' ? 'Manually curated' : null)
+            return label ? (
+              <p className="text-[10px] text-[#1a1c1c]/35 truncate leading-tight" aria-label={`Rules: ${label}`}>
+                {label}
+              </p>
+            ) : null
+          })()}
         </div>
       </div>
 
@@ -362,9 +435,9 @@ export function CollectionCard({
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="rounded-[24px] max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Collection</DialogTitle>
+            <DialogTitle>Delete View</DialogTitle>
             <DialogDescription>
-              This removes the collection only.{' '}
+              This removes the view only.{' '}
               <strong>Your assets are never deleted.</strong>
             </DialogDescription>
           </DialogHeader>

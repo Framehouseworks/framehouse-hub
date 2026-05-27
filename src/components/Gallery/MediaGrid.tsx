@@ -185,7 +185,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
   const handleClearFilters = () => {
     setStatusFilter(null)
-    router.push('/dashboard')
+    router.push('/dashboard/library')
   }
 
   // Collection context: save rule edits
