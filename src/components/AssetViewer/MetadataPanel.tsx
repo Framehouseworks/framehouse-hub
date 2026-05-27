@@ -893,24 +893,39 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
               </p>
             </motion.div>
           </AnimatePresence>
-          <button
-            onClick={() => {
-              if (drawerOpen) {
-                animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
-                setDrawerOpen(false)
-              } else {
-                animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-                setDrawerOpen(true)
-              }
-            }}
-            className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-gallery-gold/80 shrink-0 ml-4"
-          >
-            {drawerOpen ? 'Close' : 'Details'}
-            <ChevronRight
-              size={11}
-              className={cn('transition-transform duration-200', drawerOpen && 'rotate-90')}
-            />
-          </button>
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            {!isEditing && (
+              <button
+                onClick={() => {
+                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
+                  setDrawerOpen(true)
+                  setIsEditing(true)
+                }}
+                className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-on-surface/40 hover:text-gallery-gold transition-colors"
+              >
+                <Edit3 size={11} />
+                Edit
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (drawerOpen) {
+                  animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
+                  setDrawerOpen(false)
+                } else {
+                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
+                  setDrawerOpen(true)
+                }
+              }}
+              className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-gallery-gold/80"
+            >
+              {drawerOpen ? 'Close' : 'Details'}
+              <ChevronRight
+                size={11}
+                className={cn('transition-transform duration-200', drawerOpen && 'rotate-90')}
+              />
+            </button>
+          </div>
         </div>
       </div>
 
