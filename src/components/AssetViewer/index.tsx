@@ -77,21 +77,6 @@ export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onCl
     }
   }, [!!media]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mobile swipe-to-navigate ──────────────────────────────────────────────
-  const swipeStartX = useRef<number | null>(null)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    swipeStartX.current = e.touches[0].clientX
-  }
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (swipeStartX.current === null) return
-    const dx = e.changedTouches[0].clientX - swipeStartX.current
-    if (Math.abs(dx) > 50 && canNavigate) {
-      if (dx < 0) goNext()
-      else goPrev()
-    }
-    swipeStartX.current = null
-  }
-
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleConfirmDelete = useCallback(async () => {
     if (!currentMedia) return
@@ -154,8 +139,6 @@ export const AssetViewer: React.FC<AssetViewerProps> = ({ media, mediaList, onCl
                     ? 'absolute inset-0 flex overflow-hidden'
                     : 'absolute inset-0 flex flex-col overflow-hidden'
                 }
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
               >
                 {/* ── Media Stage — animates on asset switch ───────── */}
                 <div className={isDesktop ? 'flex-1 min-w-0 relative' : 'flex-1 min-h-0 relative'}>
