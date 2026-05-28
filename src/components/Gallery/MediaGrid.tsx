@@ -5,7 +5,7 @@ import { AssetViewer } from '@/components/AssetViewer'
 import type { Media } from '@/payload-types'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
-import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon, Save } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon, Save, ChevronLeft, Settings, PinOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
@@ -17,6 +17,20 @@ import { bulkDeleteMediaAction, createSmartCollectionAction } from '@/app/(dashb
 import { toast } from 'sonner'
 import { TimelineStream } from './TimelineStream'
 import { groupMedia, type DateMode } from '@/lib/groupMedia'
+import { CollectionRuleEditor } from '@/components/SmartCollections/CollectionRuleEditor'
+import { MediaPickerModal } from '@/components/SmartCollections/MediaPickerModal'
+
+/** When provided, MediaGrid renders in collection-context mode:
+ *  - No "Creative Archive" header or status filter bar
+ *  - Collection header with back nav, Edit Rules, Add Assets
+ *  - Selection toolbar includes Remove from Collection action
+ */
+export interface CollectionContext {
+  id: number
+  name: string
+  isSystemGenerated?: boolean
+  manualIncludeIds: number[]
+}
 
 interface MediaGridProps {
   initialMedia: Media[]
@@ -24,9 +38,10 @@ interface MediaGridProps {
     search?: string
     status?: string
   }
+  collectionContext?: CollectionContext
 }
 
-export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters }) => {
+export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters, collectionContext }) => {
   const { queue, openPicker, hydrateServerProcessing } = useUpload()
   const router = useRouter()
   const [localMedia, setLocalMedia] = useState<Media[]>(initialMedia)
@@ -50,6 +65,10 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
   const [isSafetyLockOpen, setIsSafetyLockOpen] = useState(false)
   const [isSaveViewOpen, setIsSaveViewOpen] = useState(false)
+
+  // Collection-context modals
+  const [isRuleEditorOpen, setIsRuleEditorOpen] = useState(false)
+  const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false)
 
   const handleBulkDeleteTrigger = () => {
     if (selectedIds.size === 0) return
@@ -166,7 +185,49 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
   const handleClearFilters = () => {
     setStatusFilter(null)
-    router.push('/dashboard')
+    router.push('/dashboard/library')
+  }
+
+  // Collection context: save rule edits
+  const handleCollectionSaveRules = async (filterQuery: Record<string, unknown>) => {
+    if (!collectionContext) return
+    const res = await fetch(`/api/smart-collections/${collectionContext.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filterQuery, isSystemGenerated: false }),
+    })
+    if (!res.ok) throw new Error('Update failed')
+    toast.success('Rules updated')
+    router.refresh()
+  }
+
+  // Collection context: pin selected assets
+  const handleAddToCollection = async (pickedIds: number[]) => {
+    if (!collectionContext || pickedIds.length === 0) return
+    const merged = Array.from(new Set([...collectionContext.manualIncludeIds, ...pickedIds]))
+    const res = await fetch(`/api/smart-collections/${collectionContext.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manualIncludes: merged }),
+    })
+    if (!res.ok) { toast.error('Failed to add assets'); return }
+    toast.success(`${pickedIds.length} asset${pickedIds.length > 1 ? 's' : ''} added`)
+    router.refresh()
+  }
+
+  // Collection context: exclude selected assets
+  const handleRemoveFromCollection = async () => {
+    if (!collectionContext || selectedIds.size === 0) return
+    const toExclude = Array.from(selectedIds).map(Number)
+    const res = await fetch(`/api/smart-collections/${collectionContext.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manualExcludes: toExclude }),
+    })
+    if (!res.ok) { toast.error('Failed to remove assets'); return }
+    toast.success(`${toExclude.length} asset${toExclude.length > 1 ? 's' : ''} removed from collection`)
+    clearSelection()
+    router.refresh()
   }
 
   const handleSaveViewAction = async (data: { name: string; icon: string }) => {
@@ -282,120 +343,210 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
 
   return (
     <>
-      {/* 1. Integrated Gallery Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-primary">Creative Archive</h1>
-          <p className="text-sm text-on-surface/40 font-varela mt-1">
-            Your centralized stage for high-resolution creative work and visual metadata.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              if (isSelectionMode) clearSelection()
-              else setIsSelectionMode(true)
-            }}
-            className={cn(
-              'h-10 px-4 rounded-xl gap-2 font-medium transition-all',
-              isSelectionMode
-                ? 'bg-gallery-gold/10 text-gallery-gold'
-                : 'text-on-surface/40 hover:text-primary',
-            )}
+      {collectionContext ? (
+        /* ── Collection header ──────────────────────────────────────────── */
+        <div className="flex flex-col gap-4 mb-6">
+          {/* Back nav */}
+          <button
+            onClick={() => router.push('/dashboard/library')}
+            className="flex items-center gap-1 text-xs text-[#1a1c1c]/40 hover:text-[#1a1c1c] transition-colors w-fit"
           >
-            <CheckSquare size={16} />
-            <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
-          </Button>
+            <ChevronLeft size={14} /> Collections
+          </button>
 
-          <Button
-            variant="gallery"
-            className="h-10 px-6 rounded-full gap-2 shadow-sm"
-            onClick={openPicker}
-          >
-            <Plus size={18} />
-            <span>Ingest New Work</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. Discovery Bar */}
-      <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
-        {/* Status filters */}
-        <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
-          {(['ready', 'processing', 'failed'] as const).map((status) => {
-            const count = statusCounts[status]
-            return (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(statusFilter === status ? null : status)}
-                className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
-                  statusFilter === status
-                    ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
-                    : 'text-on-surface/30 hover:text-on-surface/60',
-                )}
-              >
-                {status}
-                {count > 0 && (
-                  <span
-                    className={cn(
-                      'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-bold leading-none',
-                      statusFilter === status
-                        ? 'bg-gallery-gold/20 text-gallery-gold'
-                        : status === 'failed'
-                          ? 'bg-red-500/20 text-red-400'
-                          : status === 'processing'
-                            ? 'bg-amber-400/20 text-amber-400'
-                            : 'bg-on-surface/10 text-on-surface/50',
-                    )}
-                  >
-                    {count}
+          {/* Title + actions row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-primary">
+                {collectionContext.name}
+              </h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="font-rubik text-[10px] uppercase tracking-widest text-on-surface/40">
+                  {filteredMedia.length.toLocaleString()} ASSETS
+                </span>
+                {collectionContext.isSystemGenerated && (
+                  <span className="font-rubik text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-gallery-gold/10 text-gallery-gold">
+                    AUTO
                   </span>
                 )}
-              </button>
-            )
-          })}
-        </div>
+              </div>
+            </div>
 
-        {/* Date mode toggle */}
-        <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
-          {(['capture', 'ingest'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setDateMode(mode)}
-              className={cn(
-                'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
-                dateMode === mode
-                  ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
-                  : 'text-on-surface/30 hover:text-on-surface/60',
-              )}
-            >
-              {mode === 'capture' ? 'Capture Date' : 'Upload Date'}
-            </button>
-          ))}
-        </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Date mode */}
+              <div className="flex items-center gap-1 p-0.5 bg-black/[0.03] rounded-2xl">
+                {(['capture', 'ingest'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setDateMode(mode)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                      dateMode === mode
+                        ? 'bg-white text-gallery-gold shadow-sm'
+                        : 'text-on-surface/30 hover:text-on-surface/60',
+                    )}
+                  >
+                    {mode === 'capture' ? 'Capture' : 'Upload'}
+                  </button>
+                ))}
+              </div>
 
-        {(initialFilters?.search || statusFilter) && (
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              variant="outline"
-              onClick={() => setIsSaveViewOpen(true)}
-              className="h-12 px-6 rounded-2xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 flex items-center gap-2 font-semibold"
-              title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${initialFilters?.search && statusFilter ? ' + ' : ''}${initialFilters?.search ? `Search='${initialFilters.search}'` : ''}`}
-            >
-              <Save size={16} />
-              <span>Save View</span>
-            </Button>
-            <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface/30 font-varela pr-2">
-              {statusFilter ? `Status:${statusFilter}` : ''}
-              {initialFilters?.search && statusFilter ? ' + ' : ''}
-              {initialFilters?.search ? `Query:${initialFilters.search}` : ''}
-            </span>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (isSelectionMode) clearSelection()
+                  else setIsSelectionMode(true)
+                }}
+                className={cn(
+                  'h-9 px-3 rounded-xl gap-2 font-medium text-sm transition-all',
+                  isSelectionMode
+                    ? 'bg-gallery-gold/10 text-gallery-gold'
+                    : 'text-on-surface/40 hover:text-primary',
+                )}
+              >
+                <CheckSquare size={14} />
+                <span className="hidden sm:inline">{isSelectionMode ? 'Cancel' : 'Select'}</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsRuleEditorOpen(true)}
+                className="h-9 px-3 rounded-xl gap-2 text-sm border-[#d5c4af]/30 hover:border-gallery-gold/30 hover:text-gallery-gold"
+              >
+                <Settings size={14} />
+                <span className="hidden sm:inline">Edit Rules</span>
+              </Button>
+
+              <Button
+                variant="gallery"
+                onClick={() => setIsAssetPickerOpen(true)}
+                className="h-9 px-4 rounded-xl gap-2 text-sm"
+              >
+                <Plus size={14} />
+                Add Assets
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* ── Library header ─────────────────────────────────────────────── */
+        <>
+          {/* 1. Integrated Gallery Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-primary">Creative Archive</h1>
+              <p className="text-sm text-on-surface/40 font-varela mt-1">
+                Your centralized stage for high-resolution creative work and visual metadata.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (isSelectionMode) clearSelection()
+                  else setIsSelectionMode(true)
+                }}
+                className={cn(
+                  'h-10 px-4 rounded-xl gap-2 font-medium transition-all',
+                  isSelectionMode
+                    ? 'bg-gallery-gold/10 text-gallery-gold'
+                    : 'text-on-surface/40 hover:text-primary',
+                )}
+              >
+                <CheckSquare size={16} />
+                <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
+              </Button>
+
+              <Button
+                variant="gallery"
+                className="h-10 px-6 rounded-full gap-2 shadow-sm"
+                onClick={openPicker}
+              >
+                <Plus size={18} />
+                <span>Ingest New Work</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* 2. Discovery Bar */}
+          <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+            {/* Status filters */}
+            <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+              {(['ready', 'processing', 'failed'] as const).map((status) => {
+                const count = statusCounts[status]
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                      statusFilter === status
+                        ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
+                        : 'text-on-surface/30 hover:text-on-surface/60',
+                    )}
+                  >
+                    {status}
+                    {count > 0 && (
+                      <span
+                        className={cn(
+                          'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-bold leading-none',
+                          statusFilter === status
+                            ? 'bg-gallery-gold/20 text-gallery-gold'
+                            : status === 'failed'
+                              ? 'bg-red-500/20 text-red-400'
+                              : status === 'processing'
+                                ? 'bg-amber-400/20 text-amber-400'
+                                : 'bg-on-surface/10 text-on-surface/50',
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Date mode toggle */}
+            <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+              {(['capture', 'ingest'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setDateMode(mode)}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                    dateMode === mode
+                      ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
+                      : 'text-on-surface/30 hover:text-on-surface/60',
+                  )}
+                >
+                  {mode === 'capture' ? 'Capture Date' : 'Upload Date'}
+                </button>
+              ))}
+            </div>
+
+            {(initialFilters?.search || statusFilter) && (
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSaveViewOpen(true)}
+                  className="h-12 px-6 rounded-2xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 flex items-center gap-2 font-semibold"
+                  title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${initialFilters?.search && statusFilter ? ' + ' : ''}${initialFilters?.search ? `Search='${initialFilters.search}'` : ''}`}
+                >
+                  <Save size={16} />
+                  <span>Save View</span>
+                </Button>
+                <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface/30 font-varela pr-2">
+                  {statusFilter ? `Status:${statusFilter}` : ''}
+                  {initialFilters?.search && statusFilter ? ' + ' : ''}
+                  {initialFilters?.search ? `Query:${initialFilters.search}` : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* 3. Timeline Stream */}
       <div className="flex-1 min-h-[600px]">
@@ -471,14 +622,25 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
                   <Edit3 size={16} />
                   <span>Batch Edit</span>
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={handleBulkDeleteTrigger}
-                  className="h-11 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10 px-4"
-                >
-                  <Trash2 size={16} />
-                  <span>Delete</span>
-                </Button>
+                {collectionContext ? (
+                  <Button
+                    variant="ghost"
+                    onClick={handleRemoveFromCollection}
+                    className="h-11 rounded-2xl gap-2 text-[#bb1800] hover:bg-red-500/10 px-4"
+                  >
+                    <PinOff size={16} />
+                    <span>Remove from Collection</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={handleBulkDeleteTrigger}
+                    className="h-11 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10 px-4"
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete</span>
+                  </Button>
+                )}
               </div>
 
               <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
@@ -523,6 +685,26 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
         onClose={() => setIsSaveViewOpen(false)}
         onSave={handleSaveViewAction}
       />
+
+      {/* Collection context modals */}
+      {collectionContext && (
+        <>
+          <CollectionRuleEditor
+            open={isRuleEditorOpen}
+            onOpenChange={setIsRuleEditorOpen}
+            collectionId={collectionContext.id}
+            collectionName={collectionContext.name}
+            onSave={handleCollectionSaveRules}
+          />
+          <MediaPickerModal
+            open={isAssetPickerOpen}
+            onOpenChange={setIsAssetPickerOpen}
+            mode="include"
+            alreadySelected={collectionContext.manualIncludeIds}
+            onConfirm={handleAddToCollection}
+          />
+        </>
+      )}
     </>
   )
 }

@@ -130,7 +130,7 @@ export const MediaStage: React.FC<MediaStageProps> = ({ media, onClose, hasSideP
           <div
             ref={containerRef}
             className="absolute inset-0"
-            style={{ cursor: isZoomed ? 'grab' : 'zoom-in' }}
+            style={{ cursor: isZoomed ? 'grab' : 'zoom-in', touchAction: 'none' }}
             {...zoomHandlers}
           />
         )}

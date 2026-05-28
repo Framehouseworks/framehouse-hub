@@ -15,7 +15,7 @@ test.describe('Global Search (FRH-44)', () => {
       page.locator('button[type="submit"]').click(),
     ])
     // Wait for the header search input to be present before each test.
-    // /dashboard holds an open SSE connection (/api/media/status-stream)
+    // /dashboard/library holds an open SSE connection (/api/media/status-stream)
     // so waitUntil: 'networkidle' is never satisfied — use explicit element wait.
     await expect(page.locator('header input[type="text"]')).toBeVisible()
   })
@@ -23,12 +23,13 @@ test.describe('Global Search (FRH-44)', () => {
   test('/ key focuses the search input', async ({ page }) => {
     // CI headless Chromium does not give the document focus after navigation.
     // window.addEventListener('keydown') only fires if the document is the active
-    // focus target. Clicking body (not the input) engages focus without activating
-    // any interactive element, so the '/' shortcut guard (tag !== INPUT) still fires.
+    // focus target. Clicking body engages focus; evaluate() forces it synchronously
+    // so the '/' shortcut guard (tag !== INPUT) still fires reliably in CI.
     await page.locator('body').click()
+    await page.evaluate(() => document.body.focus())
     await page.keyboard.press('/')
     const input = page.locator('header input[type="text"]')
-    await expect(input).toBeFocused()
+    await expect(input).toBeFocused({ timeout: 5_000 })
   })
 
   // Meta+k is macOS-only; ControlOrMeta is cross-platform (Ctrl on Linux CI,
@@ -36,9 +37,10 @@ test.describe('Global Search (FRH-44)', () => {
   test('Cmd+K / Ctrl+K focuses the search input', async ({ page }) => {
     // Same focus requirement as '/' shortcut — see comment above.
     await page.locator('body').click()
+    await page.evaluate(() => document.body.focus())
     await page.keyboard.press('ControlOrMeta+k')
     const input = page.locator('header input[type="text"]')
-    await expect(input).toBeFocused()
+    await expect(input).toBeFocused({ timeout: 5_000 })
   })
 
   test('focusing input shows suggestion dropdown with quick filters', async ({ page }) => {
@@ -48,30 +50,37 @@ test.describe('Global Search (FRH-44)', () => {
     }
   })
 
-  test('Enter routes to /dashboard?search=<query>', async ({ page }) => {
+  test('Enter routes to /dashboard/library?search=<query>', async ({ page }) => {
     const input = page.locator('header input[type="text"]')
     // pressSequentially triggers per-keystroke React synthetic events — consistent
     // with other search tests and guards against any React batching edge cases.
     await input.click()
     await input.pressSequentially('iceland')
     await input.press('Enter')
-    await expect(page).toHaveURL(/\/dashboard\?search=iceland/)
+    await expect(page).toHaveURL(/\/dashboard\/library\?search=iceland/)
   })
 
-  test('clicking quick filter chip sets ?search= and navigates to /dashboard', async ({ page }) => {
+  test('clicking quick filter chip sets ?search= and navigates to /dashboard/library', async ({
+    page,
+  }) => {
     await page.locator('header input[type="text"]').click()
     // Ensure the dropdown has rendered before attempting the chip click.
     // input.click() triggers onFocus → setShowDropdown(true) → React re-render;
     // in a production build the button may not be in the DOM when Promise.all starts.
     const rawChip = page.locator('button:has-text("RAW")').first()
     await expect(rawChip).toBeVisible()
-    await Promise.all([page.waitForURL('**/dashboard?search=raw**'), rawChip.click()])
-    await expect(page).toHaveURL(/\/dashboard\?search=raw/)
+    await Promise.all([
+      page.waitForURL('**/dashboard/library?search=raw**'),
+      rawChip.click(),
+    ])
+    await expect(page).toHaveURL(/\/dashboard\/library\?search=raw/)
   })
 
-  // Use 'load' (not 'networkidle') — /dashboard holds a persistent SSE
+  // Use 'load' (not 'networkidle') — /dashboard/library holds a persistent SSE
   // connection that prevents networkidle from ever firing in CI.
-  test('search input stays pre-filled on /dashboard after navigation', async ({ page }) => {
+  // /dashboard?search=canyon redirects (server-side) to /dashboard/library?search=canyon,
+  // preserving the search param so the header input stays pre-filled.
+  test('search input stays pre-filled after navigation with search param', async ({ page }) => {
     await page.goto(`${baseURL}/dashboard?search=canyon`, { waitUntil: 'load' })
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeVisible()
@@ -84,13 +93,15 @@ test.describe('Global Search (FRH-44)', () => {
   // events — eliminates any residual state batching race on the Enter handler.
   // The component fix (e.currentTarget.value in handleKeyDown) is the primary guard;
   // pressSequentially is belt-and-suspenders for CI robustness.
-  test('searching from another dashboard route redirects to /dashboard', async ({ page }) => {
+  test('searching from another dashboard route redirects to /dashboard/library', async ({
+    page,
+  }) => {
     await page.goto(`${baseURL}/account`, { waitUntil: 'load' })
     const input = page.locator('header input[type="text"]')
     await expect(input).toBeVisible()
     await input.click()
     await input.pressSequentially('portrait')
     await input.press('Enter')
-    await expect(page).toHaveURL(/\/dashboard\?search=portrait/)
+    await expect(page).toHaveURL(/\/dashboard\/library\?search=portrait/)
   })
 })
