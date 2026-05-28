@@ -65,7 +65,11 @@ export const GlobalSearch: React.FC = () => {
       setShowDropdown(false)
       inputRef.current?.blur()
       startTransition(() => {
-        router.push(query ? `/dashboard?search=${encodeURIComponent(query)}` : '/dashboard')
+        router.push(
+          query
+            ? `/dashboard/library?search=${encodeURIComponent(query)}`
+            : '/dashboard/library',
+        )
       })
     },
     [router],
@@ -74,7 +78,7 @@ export const GlobalSearch: React.FC = () => {
   const handleClear = () => {
     setInputValue('')
     setSuggestions([])
-    startTransition(() => router.push('/dashboard'))
+    startTransition(() => router.push('/dashboard/library'))
     inputRef.current?.focus()
   }
 

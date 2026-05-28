@@ -90,14 +90,19 @@ test.describe('Media lifecycle (e2e)', () => {
       await page.locator('button:has-text("Ingest New Work")').first().click()
       await page.locator('input[type="file"]').setInputFiles(stagedFixture)
 
-      // 3. IngestionWorkbench → commit. Wait for the "Start Archival Ingest" button
-      // to become enabled — setInputFiles triggers async state (file staging,
-      // validation) that gates the button; clicking immediately races that state.
-      // Reading the XHR response body via Playwright is unreliable for upload
-      // responses (Chromium evicts large-body responses from the inspector cache),
-      // so we poll the /api/media REST API from inside the page instead.
-      const ingestBtn = page.locator('button:has-text("Start Archival Ingest")')
+      // 3. IngestionWorkbench → commit. Wait for button to be enabled (async
+      // file staging/validation gates it), then select a session (required
+      // since FRH-47) and commit. The seed creates 'Seed: Main Portfolio' for
+      // the creative user so the combobox always has at least one option.
+      const ingestBtn = page.locator('button:has-text("Start Ingest")')
       await expect(ingestBtn).toBeEnabled({ timeout: 15_000 })
+
+      // Open session combobox and pick the first available option.
+      await page.locator('input[aria-label="Session"]').click()
+      const firstSessionOption = page.locator('[role="listbox"] [role="option"]').first()
+      await firstSessionOption.waitFor({ state: 'visible', timeout: 10_000 })
+      await firstSessionOption.click()
+
       await ingestBtn.click()
 
       const newDoc = await page.evaluate(async (filename: string) => {
