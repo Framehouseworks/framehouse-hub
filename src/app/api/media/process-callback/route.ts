@@ -3,6 +3,30 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { processingEvents } from '@/lib/processing-events'
 import { cleanupFailedStorage } from '@/lib/cleanup-failed-storage'
+import { buildHeuristicTags, mergeHeuristicTags } from '@/lib/heuristicTags'
+
+// Per-user debounce for generateSmartCollections: only fire once per 45s
+// regardless of how many assets complete in that window. Module-level map
+// is sufficient — Cloud Run effectively single-process under free-tier load.
+const generateDebounce = new Map<string, ReturnType<typeof setTimeout>>()
+
+function scheduleGenerate(payload: Awaited<ReturnType<typeof import('payload').getPayload>>, ownerId: string | number) {
+  const key = String(ownerId)
+  const existing = generateDebounce.get(key)
+  if (existing) clearTimeout(existing)
+
+  const timer = setTimeout(async () => {
+    generateDebounce.delete(key)
+    try {
+      const { generateSmartCollections } = await import('@/lib/autoGenerateCollections')
+      await generateSmartCollections(payload, ownerId)
+    } catch (err) {
+      console.error('[process-callback] generateSmartCollections error:', err)
+    }
+  }, 45_000) // wait 45s after last ready asset before generating
+
+  generateDebounce.set(key, timer)
+}
 
 export async function POST(req: Request) {
   try {
@@ -115,8 +139,25 @@ export async function POST(req: Request) {
       }
 
       if (technical) {
+        // Separate make from model if worker sends a combined cameraModel string
+        let cameraMake: string = technical.cameraMake || ''
+        let cameraModel: string = technical.cameraModel || ''
+        if (!cameraMake && cameraModel) {
+          // Heuristic: first token of "Sony ILCE-7M4" is the make
+          const parts = cameraModel.split(/\s+/)
+          if (parts.length > 1) {
+            cameraMake = parts[0]
+            cameraModel = parts.slice(1).join(' ')
+          }
+        }
+        // Strip make prefix from model when redundant (e.g. "Sony ILCE-7M4" → "ILCE-7M4")
+        if (cameraMake && cameraModel.toLowerCase().startsWith(cameraMake.toLowerCase())) {
+          cameraModel = cameraModel.slice(cameraMake.length).trim()
+        }
+
         updateData.technical = {
-          cameraModel: technical.cameraModel || '',
+          cameraMake: cameraMake || '',
+          cameraModel: cameraModel || '',
           lensModel: technical.lensModel || '',
           iso: Number(technical.iso) || undefined,
           aperture: Number(technical.aperture) || undefined,
@@ -144,6 +185,19 @@ export async function POST(req: Request) {
       if (thumbnails) {
         updateData.thumbnailUrl = thumbnails.small || ''
         updateData.proxyUrl = thumbnails.medium || ''
+      }
+
+      // Temporal heuristic tags — only computable once captureDate is known.
+      // Merges with filename-based tags set during extractMetadata (async mode).
+      const captureDate = (updateData.captureDate as string | undefined) || mediaDoc.captureDate
+      if (captureDate) {
+        const temporalTags = buildHeuristicTags({ captureDate })
+        if (temporalTags.length > 0) {
+          updateData.heuristicTags = mergeHeuristicTags(
+            mediaDoc.heuristicTags as { tag?: string; id?: string }[] | null,
+            temporalTags,
+          )
+        }
       }
     } else {
       updateData.errorMessage = errorMessage || 'Failed asynchronously during worker processing'
@@ -177,6 +231,12 @@ export async function POST(req: Request) {
           err instanceof Error ? err.message : String(err),
         )
       })
+    }
+
+    // Schedule smart-collection generation once asset is ready.
+    if (status === 'ready') {
+      const ownerId = typeof mediaDoc.owner === 'object' ? mediaDoc.owner?.id : mediaDoc.owner
+      if (ownerId) scheduleGenerate(payload, ownerId)
     }
 
     processingEvents.emitStatusChange({

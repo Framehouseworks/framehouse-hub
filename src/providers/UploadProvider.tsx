@@ -50,7 +50,8 @@ export interface UploadItem {
   metadata?: {
     tags?: string[]
     title?: string
-    location?: string
+    location?: { address?: string; latitude?: number; longitude?: number }
+    sessionId?: number
     shootName?: string
     uploadBatchId?: number
   }
@@ -66,15 +67,17 @@ interface UploadContextType {
     metadata?: {
       tags?: string[]
       title?: string
-      location?: string
+      location?: { address?: string; latitude?: number; longitude?: number }
+      sessionId?: number
       shootName?: string
       uploadBatchId?: number
     },
   ) => void
   commitStagedFiles: (metadata?: {
     title?: string
-    location?: string
+    location?: { address?: string; latitude?: number; longitude?: number }
     tags?: string[]
+    sessionId?: number
     shootName?: string
   }) => void
   clearQueue: () => void
@@ -161,8 +164,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       files: File[],
       metadata?: {
         title?: string
-        location?: string
+        location?: { address?: string; latitude?: number; longitude?: number }
         tags?: string[]
+        sessionId?: number
         shootName?: string
         uploadBatchId?: number
       },
@@ -213,8 +217,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const commitStagedFiles = useCallback(
     async (metadata?: {
       title?: string
-      location?: string
+      location?: { address?: string; latitude?: number; longitude?: number }
       tags?: string[]
+      sessionId?: number
       shootName?: string
     }) => {
       if (stagedFiles.length === 0) return
@@ -371,7 +376,16 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           title: nextItem.metadata?.title || '',
           shootName: nextItem.metadata?.shootName || '',
           manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
-          location: { address: nextItem.metadata?.location || '' },
+          location: {
+            address: nextItem.metadata?.location?.address || '',
+            ...(nextItem.metadata?.location?.latitude != null
+              ? { latitude: nextItem.metadata.location.latitude }
+              : {}),
+            ...(nextItem.metadata?.location?.longitude != null
+              ? { longitude: nextItem.metadata.location.longitude }
+              : {}),
+          },
+          ...(nextItem.metadata?.sessionId ? { sessionId: nextItem.metadata.sessionId } : {}),
           ...(nextItem.metadata?.uploadBatchId
             ? { uploadBatchId: nextItem.metadata.uploadBatchId }
             : {}),
@@ -477,8 +491,15 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             shootName: nextItem.metadata?.shootName || '',
             manualTags: nextItem.metadata?.tags?.map((t) => ({ tag: t })) || [],
             location: {
-              address: nextItem.metadata?.location || '',
+              address: nextItem.metadata?.location?.address || '',
+              ...(nextItem.metadata?.location?.latitude != null
+                ? { latitude: nextItem.metadata.location.latitude }
+                : {}),
+              ...(nextItem.metadata?.location?.longitude != null
+                ? { longitude: nextItem.metadata.location.longitude }
+                : {}),
             },
+            ...(nextItem.metadata?.sessionId ? { sessionId: nextItem.metadata.sessionId } : {}),
             ...(nextItem.metadata?.uploadBatchId
               ? { uploadBatchId: nextItem.metadata.uploadBatchId }
               : {}),

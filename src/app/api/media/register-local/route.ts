@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
 //   POST /api/media/register-local
 //   Content-Type: <file mime>
 //   X-Filename: <original filename>
-//   X-Upload-Meta: base64(JSON: {title?, shootName?, manualTags?, location?})
+//   X-Upload-Meta: base64(JSON: {title?, sessionId?, shootName?, manualTags?, location?: {address?, latitude?, longitude?}, uploadBatchId?})
 //   body: raw file bytes
 //
 // The writeOriginalToEnclave beforeChange hook still owns the disk
@@ -55,9 +55,10 @@ export async function POST(req: Request) {
 
     let meta: {
       title?: string
+      sessionId?: number | string
       shootName?: string
       manualTags?: { tag: string }[]
-      location?: { address?: string }
+      location?: { address?: string; latitude?: number; longitude?: number }
       uploadBatchId?: number | string
     } = {}
     const metaRaw = req.headers.get('x-upload-meta')
@@ -101,9 +102,14 @@ export async function POST(req: Request) {
         alt: meta.title || filename,
         mediaType: domainCategoryToMediaType(domainCategory),
         owner: user.id,
+        ...(meta.sessionId ? { session: Number(meta.sessionId) } : {}),
         shootName: meta.shootName || '',
         manualTags: meta.manualTags || [],
-        location: { address: meta.location?.address || '' },
+        location: {
+          address: meta.location?.address || '',
+          ...(meta.location?.latitude != null ? { latitude: meta.location.latitude } : {}),
+          ...(meta.location?.longitude != null ? { longitude: meta.location.longitude } : {}),
+        },
         ...(meta.uploadBatchId ? { uploadBatchId: Number(meta.uploadBatchId) } : {}),
       },
       file: {

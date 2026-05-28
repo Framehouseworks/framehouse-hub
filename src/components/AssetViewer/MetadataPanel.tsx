@@ -15,15 +15,19 @@ import {
   Edit3,
   ArrowRight,
   RotateCcw,
-  Plus,
-  X as CloseIcon,
   ChevronRight,
   ShieldCheck,
-  FileType,
   Crosshair,
   Clapperboard,
 } from 'lucide-react'
-import { AnimatePresence, motion, useMotionValue, useTransform, animate } from 'framer-motion'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useTransform,
+  animate,
+  useDragControls,
+} from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -33,6 +37,9 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { LocationSearch, OsmMiniMap } from '@/components/ui/location-search'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { cn } from '@/utilities/cn'
+import { getPlainTextFromLexical, convertTextToLexical } from '@/lib/lexical-utils'
+import { TagInput } from '@/components/ui/tag-input'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -45,12 +52,14 @@ interface RefinementFormData {
   locationAddress: string
   locationLat: number | null
   locationLng: number | null
+  cameraMake: string
   cameraModel: string
   lensModel: string
   iso: number | string
   aperture: number | string
   shutterSpeed: string
   focalLength: number | string
+  sessionId?: number
 }
 
 interface MetadataPanelProps {
@@ -60,54 +69,6 @@ interface MetadataPanelProps {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function getPlainTextFromLexical(lexicalJson: unknown): string {
-  interface LexicalNode {
-    children?: LexicalNode[]
-    text?: string
-  }
-  try {
-    if (!lexicalJson || typeof lexicalJson !== 'object') return ''
-    const root = (lexicalJson as { root?: LexicalNode }).root
-    const firstChild = root?.children?.[0]
-    const firstTextNode = firstChild?.children?.[0]
-    return firstTextNode?.text || ''
-  } catch {
-    return ''
-  }
-}
-
-function convertTextToLexical(text: string) {
-  return {
-    root: {
-      type: 'root',
-      format: 'left' as const,
-      indent: 0,
-      version: 1,
-      direction: 'ltr' as const,
-      children: [
-        {
-          type: 'paragraph',
-          format: 'left' as const,
-          indent: 0,
-          version: 1,
-          direction: 'ltr' as const,
-          children: [
-            {
-              type: 'text',
-              text,
-              format: 0,
-              style: '',
-              detail: 0,
-              mode: 'normal' as const,
-              version: 1,
-            },
-          ],
-        },
-      ],
-    },
-  }
-}
 
 function formatFileSize(bytes: number | null | undefined): string {
   if (!bytes) return '--'
@@ -221,7 +182,7 @@ const PanelContent: React.FC<{
   reset: ReturnType<typeof useForm<RefinementFormData>>['reset']
   watch: ReturnType<typeof useForm<RefinementFormData>>['watch']
   setValue: ReturnType<typeof useForm<RefinementFormData>>['setValue']
-  onSave: (data: RefinementFormData) => void
+  onSave: (data: RefinementFormData, sessionId?: number) => void
 }> = ({
   media,
   mediaId,
@@ -236,23 +197,30 @@ const PanelContent: React.FC<{
   onSave,
 }) => {
   const currentTags = watch('tags') || []
-  const [newTagInput, setNewTagInput] = useState('')
+  const [sessionOptions, setSessionOptions] = useState<ComboboxOption[]>([])
+  const [sessionId, setSessionId] = useState<number | undefined>(
+    typeof media.session === 'object' && media.session !== null
+      ? (media.session as { id: number }).id
+      : typeof media.session === 'number'
+        ? media.session
+        : undefined,
+  )
+  const [sessionName, setSessionName] = useState<string>(
+    typeof media.session === 'object' && media.session !== null
+      ? ((media.session as { name?: string }).name ?? '')
+      : media.shootName ?? '',
+  )
 
-  const handleAddTag = () => {
-    const tag = newTagInput.trim().toLowerCase()
-    if (tag && !currentTags.includes(tag)) {
-      setValue('tags', [...currentTags, tag], { shouldDirty: true })
-    }
-    setNewTagInput('')
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setValue(
-      'tags',
-      currentTags.filter((t) => t !== tagToRemove),
-      { shouldDirty: true },
-    )
-  }
+  useEffect(() => {
+    if (!isEditing) return
+    fetch('/api/sessions?limit=50&depth=0&sort=-createdAt', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        const docs: { id: number; name: string }[] = data?.docs ?? []
+        setSessionOptions(docs.map((s) => ({ value: String(s.id), label: s.name })))
+      })
+      .catch(() => {})
+  }, [isEditing])
 
   const hasExif =
     media.technical?.iso ||
@@ -314,16 +282,52 @@ const PanelContent: React.FC<{
                 {media.originalFilename}
               </FadeValue>
             )}
-            {/* Shoot name */}
-            {!isEditing && media.shootName && (
+            {/* Session link — view mode */}
+            {!isEditing && (media.shootName || sessionName) && (
               <div className="flex items-center gap-1.5 pt-0.5">
                 <Clapperboard size={9} className="text-on-surface/30 shrink-0" />
-                <FadeValue
-                  mediaId={mediaId}
-                  className="text-[10px] text-on-surface/45 font-medium break-words"
-                >
-                  {media.shootName}
+                <FadeValue mediaId={mediaId} className="text-[10px] text-on-surface/45 font-medium break-words">
+                  {sessionName || media.shootName}
                 </FadeValue>
+              </div>
+            )}
+            {/* Session combobox — edit mode */}
+            {isEditing && (
+              <div className="pt-1 space-y-1">
+                <label className="text-[9px] font-bold tracking-widest text-on-surface/30 uppercase font-rubik flex items-center gap-1">
+                  <Clapperboard size={9} />
+                  Session
+                </label>
+                <Combobox
+                  options={sessionOptions}
+                  value={sessionId ? String(sessionId) : undefined}
+                  onChange={async (value, isNew) => {
+                    if (isNew) {
+                      try {
+                        const res = await fetch('/api/sessions', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ name: value }),
+                        })
+                        if (!res.ok) throw new Error()
+                        const data = await res.json()
+                        const s = data?.doc ?? data
+                        setSessionOptions((prev) => [{ value: String(s.id), label: s.name }, ...prev])
+                        setSessionId(s.id)
+                        setSessionName(s.name)
+                      } catch { /* non-fatal */ }
+                    } else {
+                      const opt = sessionOptions.find((o) => o.value === value)
+                      setSessionId(Number(value))
+                      setSessionName(opt?.label ?? '')
+                    }
+                  }}
+                  placeholder="Assign to session…"
+                  allowCreate
+                  createLabel={(v) => `Create "${v}"`}
+                  aria-label="Session"
+                />
               </div>
             )}
           </div>
@@ -373,8 +377,13 @@ const PanelContent: React.FC<{
           {isEditing ? (
             <div className="space-y-2">
               <input
+                {...register('cameraMake')}
+                placeholder="Manufacturer (e.g. Sony, Canon)"
+                className="w-full bg-white/60 dark:bg-white/[0.04] rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
+              />
+              <input
                 {...register('cameraModel')}
-                placeholder="Camera body (e.g. Sony A7R V)"
+                placeholder="Camera model (e.g. A7R V)"
                 className="w-full bg-white/60 dark:bg-white/[0.04] rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 text-primary"
               />
               <input
@@ -385,15 +394,27 @@ const PanelContent: React.FC<{
             </div>
           ) : (
             <>
-              <FadeValue
-                mediaId={mediaId}
-                as="p"
-                className="text-sm font-semibold leading-snug break-words block"
-              >
-                {media.technical?.cameraModel || (
-                  <span className="text-on-surface/30 font-normal text-xs">Unknown Body</span>
+              {/* Make + Model row */}
+              <div className="flex flex-col gap-0.5">
+                {(media.technical as { cameraMake?: string } | null)?.cameraMake && (
+                  <FadeValue
+                    mediaId={mediaId}
+                    as="p"
+                    className="text-[9px] font-bold tracking-widest uppercase font-rubik text-gallery-gold/70 block"
+                  >
+                    {(media.technical as { cameraMake?: string }).cameraMake}
+                  </FadeValue>
                 )}
-              </FadeValue>
+                <FadeValue
+                  mediaId={mediaId}
+                  as="p"
+                  className="text-sm font-semibold leading-snug break-words block"
+                >
+                  {media.technical?.cameraModel || (
+                    <span className="text-on-surface/30 font-normal text-xs">Unknown Body</span>
+                  )}
+                </FadeValue>
+              </div>
               {media.technical?.lensModel && (
                 <FadeValue
                   mediaId={mediaId}
@@ -475,48 +496,28 @@ const PanelContent: React.FC<{
       {/* ── Tags ──────────────────────────────────────────────── */}
       <div className="space-y-2.5">
         <SectionLabel icon={<TagIcon size={12} />}>Tags</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {(isEditing
-            ? currentTags
-            : ((media.manualTags || []).map((t) => t.tag).filter(Boolean) as string[])
-          ).map((tag, i) => (
-            <div
-              key={i}
-              className="h-6 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.04] text-[10px] font-medium flex items-center gap-1.5 text-on-surface/70"
-            >
-              {tag}
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  className="text-on-surface/30 hover:text-red-500 transition-colors"
-                >
-                  <CloseIcon size={9} />
-                </button>
-              )}
-            </div>
-          ))}
-          {isEditing && (
-            <div className="flex items-center gap-2 w-full mt-1">
-              <input
-                value={newTagInput}
-                onChange={(e) => setNewTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                placeholder="Add tag…"
-                className="flex-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-xl px-3 h-7 text-[10px] focus:outline-none focus:ring-1 focus:ring-gallery-gold/50"
-              />
-              <Button
-                type="button"
-                onClick={handleAddTag}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 rounded-xl border border-dashed border-on-surface/20 p-0"
+        {isEditing ? (
+          <TagInput
+            tags={currentTags}
+            onChange={(tags) => setValue('tags', tags, { shouldDirty: true })}
+            placeholder="Add tag…"
+            maxTags={20}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {((media.manualTags || []).map((t) => t.tag).filter(Boolean) as string[]).map((tag, i) => (
+              <div
+                key={i}
+                className="h-6 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.04] text-[10px] font-medium flex items-center text-on-surface/70"
               >
-                <Plus size={11} />
-              </Button>
-            </div>
-          )}
-        </div>
+                {tag}
+              </div>
+            ))}
+            {(media.manualTags?.length ?? 0) === 0 && (
+              <span className="text-[10px] text-on-surface/30 font-rubik">No tags</span>
+            )}
+          </div>
+        )}
 
         {/* Heuristic / system tags */}
         {(media.heuristicTags?.length ?? 0) > 0 && !isEditing && (
@@ -524,7 +525,7 @@ const PanelContent: React.FC<{
             {media.heuristicTags!.map((t, i) => (
               <div
                 key={i}
-                className="h-6 px-3 rounded-xl bg-gallery-gold/[0.05] border border-gallery-gold/10 text-[10px] font-medium text-gallery-gold/50 flex items-center italic"
+                className="h-6 px-3 rounded-xl bg-gallery-gold/[0.05] text-[10px] font-medium text-gallery-gold/50 flex items-center italic"
               >
                 {t.tag}
               </div>
@@ -653,7 +654,7 @@ const PanelContent: React.FC<{
         <div className="space-y-2 pt-1">
           <Button
             className="w-full h-11 rounded-2xl bg-gallery-gold text-white hover:bg-gallery-gold/90 shadow-lg shadow-gallery-gold/20 font-rubik text-[9px] font-bold uppercase tracking-[0.2em] transition-all"
-            onClick={handleSubmit(onSave)}
+            onClick={handleSubmit((data) => onSave(data, sessionId))}
             disabled={isSaving}
           >
             {isSaving ? 'Saving…' : 'Commit Changes'}
@@ -687,30 +688,36 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
 
   // Desktop panel is always expanded — collapse was removed as unnecessary chrome
 
-  // Mobile drawer — derived from real viewport once mounted
-  const OPEN_FRACTION = 0.62
+  // Mobile drawer — three snap points: closed (peek) / mid (~55 vh) / full (~95 vh)
+  type DrawerSnap = 'closed' | 'mid' | 'full'
   const drawerRef = useRef<HTMLDivElement | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const scrollableRef = useRef<HTMLDivElement>(null)
+  const [snap, setSnap] = useState<DrawerSnap>('closed')
 
-  // Compute open height from real viewport. SSR-safe: start with a reasonable
-  // approximation so the initial y value is close to correct.
-  const [openHeight, setOpenHeight] = useState(() =>
-    typeof window !== 'undefined' ? Math.round(window.innerHeight * OPEN_FRACTION) : 380,
+  // Real viewport height — updated on resize/orientation change
+  const [viewportHeight, setViewportHeight] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight : 800,
   )
   useEffect(() => {
-    const update = () => setOpenHeight(Math.round(window.innerHeight * OPEN_FRACTION))
+    const update = () => setViewportHeight(window.innerHeight)
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  // closedOffset: how far the sheet is translated downward in the peek state.
-  // y = closedOffset → only PEEK_HEIGHT visible
-  // y = 0            → full openHeight visible (overlays stage intentionally)
-  const closedOffset = openHeight - PEEK_HEIGHT
+  // Snap y positions (sheet anchored at bottom; y=0 → sheet top flush with page top)
+  const drawerHeight = Math.round(viewportHeight * 0.95)
+  const SNAP_FULL = 0 // 95 vh content
+  const SNAP_MID = drawerHeight - Math.round(viewportHeight * 0.55) // 55 vh content
+  const SNAP_CLOSED = drawerHeight - PEEK_HEIGHT // peek only
+
+  // Stable refs so effects/handlers always read the latest values without re-subscribing
+  const snapValuesRef = useRef({ SNAP_FULL, SNAP_MID, SNAP_CLOSED })
+  snapValuesRef.current = { SNAP_FULL, SNAP_MID, SNAP_CLOSED }
+  const snapStateRef = useRef<DrawerSnap>('closed')
 
   // Initialise in the peek (closed) position
-  const y = useMotionValue(closedOffset)
+  const y = useMotionValue(SNAP_CLOSED)
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<RefinementFormData>()
 
@@ -725,6 +732,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
       locationAddress: media.location?.address || '',
       locationLat: media.location?.latitude ?? null,
       locationLng: media.location?.longitude ?? null,
+      cameraMake: (media.technical as { cameraMake?: string } | null)?.cameraMake || '',
       cameraModel: media.technical?.cameraModel || '',
       lensModel: media.technical?.lensModel || '',
       iso: media.technical?.iso ?? '',
@@ -735,7 +743,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     setIsEditing(false)
   }, [media.id, reset]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onSave = async (data: RefinementFormData) => {
+  const onSave = async (data: RefinementFormData, sessionId?: number) => {
     setIsSaving(true)
     try {
       const result = await updateMediaAction(media.id, {
@@ -745,6 +753,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
         manualTags: data.tags.map((t) => ({ tag: t })),
         captureDate: data.captureDate ? new Date(data.captureDate).toISOString() : null,
         technical: {
+          cameraMake: data.cameraMake,
           cameraModel: data.cameraModel,
           lensModel: data.lensModel,
           iso: data.iso ? Number(data.iso) : null,
@@ -757,6 +766,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
           latitude: data.locationLat,
           longitude: data.locationLng,
         },
+        ...(sessionId ? { session: sessionId } : {}),
       })
       if (result.success) {
         toast.success('Metadata updated')
@@ -772,33 +782,78 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     }
   }
 
-  // opacity: more opaque when fully open (y=0), slightly translucent at peek (y=closedOffset)
-  const opacity = useTransform(y, [0, closedOffset], [1, 0.82])
+  // opacity: fully opaque at full/mid, slightly translucent at peek
+  const opacity = useTransform(y, [SNAP_FULL, SNAP_CLOSED], [1, 0.82])
 
-  // Sync y when openHeight / closedOffset changes (viewport resize, or first mount correction)
+  // Scroll container height = exactly the visible slice of the drawer above the peek strip.
+  // The motion.div uses translateY, so its bottom sits below the viewport at mid/closed.
+  // Without this, the fixed-height container extends off-screen and content is unreachable.
+  const scrollContainerHeight = useTransform(y, (yVal) =>
+    Math.max(0, drawerHeight - yVal - PEEK_HEIGHT),
+  )
+
+  // Stable snap helper — reads latest snap positions from ref, no re-subscription needed
+  const snapTo = useCallback(
+    (target: DrawerSnap) => {
+      const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+      const yVal = target === 'full' ? f : target === 'mid' ? m : c
+      animate(y, yVal, { type: 'spring', stiffness: 300, damping: 30 })
+      setSnap(target)
+      snapStateRef.current = target
+    },
+    [y],
+  )
+
+  // Re-anchor sheet instantly on viewport resize (rotation, browser-chrome show/hide)
   useEffect(() => {
-    if (!drawerOpen) {
-      animate(y, closedOffset, { duration: 0 }) // instant — no spring on resize
-    }
-  }, [closedOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+    const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+    const yVal = snapStateRef.current === 'full' ? f : snapStateRef.current === 'mid' ? m : c
+    animate(y, yVal, { duration: 0 })
+  }, [SNAP_CLOSED, y])
 
   // Reset to peek whenever the displayed asset changes
   useEffect(() => {
-    animate(y, closedOffset, { type: 'spring', stiffness: 400, damping: 40 })
-    setDrawerOpen(false)
+    snapTo('closed')
   }, [media.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Three-way snap: nearest snap point on drag release
   const handleDragEnd = useCallback(() => {
     const currentY = y.get()
-    // Snap open if dragged more than 40% of the way up from peek
-    if (currentY < closedOffset * 0.6) {
-      animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-      setDrawerOpen(true)
+    const { SNAP_FULL: f, SNAP_MID: m, SNAP_CLOSED: c } = snapValuesRef.current
+    if (currentY <= (f + m) / 2) {
+      snapTo('full')
+    } else if (currentY <= (m + c) / 2) {
+      snapTo('mid')
     } else {
-      animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
-      setDrawerOpen(false)
+      snapTo('closed')
     }
-  }, [closedOffset, y])
+  }, [snapTo, y])
+
+  // Virtual keyboard avoidance:
+  // When the OS keyboard opens, visualViewport.height shrinks. We expand the
+  // drawer to full so the focused field isn't hidden behind the keyboard, then
+  // scroll it into view within the scrollable container.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const handleVVResize = () => {
+      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop
+      if (keyboardHeight > 150) {
+        if (snapStateRef.current !== 'full') snapTo('full')
+        requestAnimationFrame(() => {
+          const el = document.activeElement
+          if (el instanceof HTMLElement && scrollableRef.current?.contains(el)) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        })
+      }
+    }
+    vv.addEventListener('resize', handleVVResize)
+    return () => vv.removeEventListener('resize', handleVVResize)
+  }, [snapTo])
+
+  // Drag initiated only from the peek strip — scrollable content is untouched
+  const dragControls = useDragControls()
 
   const sharedContentProps = {
     media,
@@ -856,11 +911,13 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     <motion.div
       ref={drawerRef}
       drag="y"
-      dragConstraints={{ top: 0, bottom: closedOffset }}
+      dragControls={dragControls}
+      dragListener={false}
+      dragConstraints={{ top: SNAP_FULL, bottom: SNAP_CLOSED }}
       dragElastic={0.05}
-      style={{ y, height: openHeight }}
+      style={{ y, height: drawerHeight }}
       onDragEnd={handleDragEnd}
-      className="absolute bottom-0 left-0 right-0 z-20 rounded-t-[24px] overflow-hidden touch-none"
+      className="absolute bottom-0 left-0 right-0 z-20 rounded-t-[24px] overflow-hidden"
     >
       {/* Glassmorphism background */}
       <motion.div
@@ -868,8 +925,12 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
         style={{ opacity }}
       />
 
-      {/* Peek strip — always visible, anchors the drag gesture */}
-      <div className="relative z-10 shrink-0" style={{ height: `${PEEK_HEIGHT}px` }}>
+      {/* Peek strip — drag source only; touch-none scoped here so scroll is free below */}
+      <div
+        className="relative z-10 shrink-0"
+        style={{ height: `${PEEK_HEIGHT}px`, touchAction: 'none' }}
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-8 h-1 rounded-full bg-on-surface/20" />
@@ -897,8 +958,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
             {!isEditing && (
               <button
                 onClick={() => {
-                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(true)
+                  snapTo('mid')
                   setIsEditing(true)
                 }}
                 className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-on-surface/40 hover:text-gallery-gold transition-colors"
@@ -908,34 +968,31 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
               </button>
             )}
             <button
-              onClick={() => {
-                if (drawerOpen) {
-                  animate(y, closedOffset, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(false)
-                } else {
-                  animate(y, 0, { type: 'spring', stiffness: 300, damping: 30 })
-                  setDrawerOpen(true)
-                }
-              }}
+              onClick={() => snapTo(snap === 'closed' ? 'mid' : 'closed')}
               className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest font-rubik text-gallery-gold/80"
             >
-              {drawerOpen ? 'Close' : 'Details'}
+              {snap !== 'closed' ? 'Close' : 'Details'}
               <ChevronRight
                 size={11}
-                className={cn('transition-transform duration-200', drawerOpen && 'rotate-90')}
+                className={cn(
+                  'transition-transform duration-200',
+                  snap !== 'closed' && 'rotate-90',
+                )}
               />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Scrollable drawer content — height fills the rest of the sheet above the peek strip */}
-      <div
+      {/* Scrollable drawer content — height tracks the live visible slice via MotionValue.
+          This prevents content from sitting off-screen below the viewport when translated. */}
+      <motion.div
+        ref={scrollableRef}
         className="relative z-10 overflow-y-auto custom-scrollbar"
-        style={{ height: openHeight - PEEK_HEIGHT }}
+        style={{ height: scrollContainerHeight, overscrollBehavior: 'contain' }}
       >
         <PanelContent {...sharedContentProps} />
-      </div>
+      </motion.div>
     </motion.div>
   )
 }
