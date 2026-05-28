@@ -1,268 +1,334 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useUpload } from '@/providers/UploadProvider'
-import { useForm } from 'react-hook-form'
-import { CloudUpload, MapPin, Image as ImageIcon } from 'lucide-react'
+import { CloudUpload, Image as ImageIcon, Clapperboard, MapPin, Tag } from 'lucide-react'
 import NextImage from 'next/image'
+import { LocationSearch, type PhotonResult } from '@/components/ui/location-search'
+import { TagInput } from '@/components/ui/tag-input'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
 
-interface IngestionWorkbenchFormData {
-  shootName: string
-  locationAddress: string
+interface SessionOption {
+  id: number
+  name: string
+}
+
+// ─── Field label ────────────────────────────────────────────────────────────
+function FieldLabel({
+  icon: Icon,
+  children,
+  required,
+}: {
+  icon: React.ElementType
+  children: React.ReactNode
+  required?: boolean
+}) {
+  return (
+    <div className="flex items-center gap-1.5 mb-2">
+      <Icon className="h-3 w-3 text-on-surface/30 flex-shrink-0" />
+      <span className="font-space-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-[0.18em]">
+        {children}
+      </span>
+      {required && <span className="text-[#ff7f67] text-[10px] leading-none">*</span>}
+    </div>
+  )
 }
 
 export const IngestionWorkbench: React.FC = () => {
   const { stagedFiles, isWorkbenchOpen, closeWorkbench, commitStagedFiles } = useUpload()
 
-  const { register, handleSubmit } = useForm<IngestionWorkbenchFormData>({
-    defaultValues: {
-      shootName: '',
-      locationAddress: '',
-    },
-  })
+  const [sessionOptions, setSessionOptions] = useState<ComboboxOption[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>()
+  const [selectedSessionName, setSelectedSessionName] = useState('')
+  const [sessionError, setSessionError] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [locationAddress, setLocationAddress] = useState('')
+  const [locationLat, setLocationLat] = useState<number | undefined>()
+  const [locationLng, setLocationLng] = useState<number | undefined>()
+
+  useEffect(() => {
+    if (!isWorkbenchOpen) return
+    fetch('/api/sessions?limit=50&depth=0&sort=-createdAt', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        const docs: SessionOption[] = data?.docs ?? []
+        setSessionOptions(docs.map((s) => ({ value: String(s.id), label: s.name })))
+      })
+      .catch(() => {})
+  }, [isWorkbenchOpen])
 
   const totalSize = useMemo(() => {
-    const bytes = stagedFiles.reduce((acc, file) => acc + file.size, 0)
-    if (bytes === 0) return '0 Bytes'
+    const bytes = stagedFiles.reduce((acc, f) => acc + f.size, 0)
+    if (bytes === 0) return '0 B'
     const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+    const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }, [stagedFiles])
-
-  const estimatedTime = useMemo(() => {
-    const bytes = stagedFiles.reduce((acc, file) => acc + file.size, 0)
-    if (bytes === 0) return '0s'
-
-    // Determine environment-specific throughput
-    // Local development: 100MB/s (Fast SSD to Local Server)
-    // Cloud (Free Tier): 5MB/s (Conservative S3/Vercel Throughput)
-    const isLocal =
-      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    const mbps = isLocal ? 100 : 5
-    const totalSeconds = bytes / (mbps * 1024 * 1024)
-
-    if (totalSeconds < 60) return `${Math.ceil(totalSeconds)}S`
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = Math.ceil(totalSeconds % 60)
-    return `${minutes}M ${seconds}S`
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
   }, [stagedFiles])
 
   const formatDistribution = useMemo(() => {
     const counts: Record<string, number> = {}
-    stagedFiles.forEach((file) => {
-      const ext = (file.name.split('.').pop() || 'unknown').toUpperCase()
+    stagedFiles.forEach((f) => {
+      const ext = (f.name.split('.').pop() || 'unknown').toUpperCase()
       counts[ext] = (counts[ext] || 0) + 1
     })
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6)
   }, [stagedFiles])
 
-  // Bento Previews (First 3)
-  const previews = useMemo(() => {
-    return stagedFiles.slice(0, 3).map((file) => URL.createObjectURL(file))
-  }, [stagedFiles])
+  const previews = useMemo(
+    () => stagedFiles.slice(0, 4).map((f) => URL.createObjectURL(f)),
+    [stagedFiles],
+  )
 
-  const onIngest = (data: IngestionWorkbenchFormData) => {
-    // Heuristic tags from filenames
-    const allParts = stagedFiles.flatMap((f) => f.name.split(/[._\-\s]+/))
-    const heuristicTags = Array.from(
-      new Set(allParts.filter((p) => p.length > 3 && !/^\d+$/.test(p)).map((p) => p.toUpperCase())),
-    ).slice(0, 5)
+  const handleLocationSelect = useCallback((result: PhotonResult) => {
+    const [lon, lat] = result.geometry.coordinates
+    setLocationLat(lat)
+    setLocationLng(lon)
+  }, [])
 
-    // Add Shoot Name as a primary tag for batch grouping
-    if (data.shootName) {
-      heuristicTags.unshift(data.shootName.toUpperCase().replace(/\s+/g, '_'))
+  const handleSessionChange = useCallback(
+    async (value: string, isNew?: boolean) => {
+      setSessionError('')
+      if (isNew) {
+        try {
+          const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name: value }),
+          })
+          if (!res.ok) throw new Error()
+          const data = await res.json()
+          const s = data?.doc ?? data
+          const opt: ComboboxOption = { value: String(s.id), label: s.name }
+          setSessionOptions((prev) => [opt, ...prev])
+          setSelectedSessionId(s.id)
+          setSelectedSessionName(s.name)
+        } catch {
+          setSessionError('Could not create session — try again.')
+        }
+      } else {
+        const opt = sessionOptions.find((o) => o.value === value)
+        setSelectedSessionId(Number(value))
+        setSelectedSessionName(opt?.label ?? '')
+      }
+    },
+    [sessionOptions],
+  )
+
+  const onIngest = () => {
+    if (!selectedSessionId) {
+      setSessionError('Choose or create a session to continue.')
+      return
     }
-
     commitStagedFiles({
-      location: data.locationAddress,
-      tags: heuristicTags,
-      shootName: data.shootName,
-      // We don't overwrite title here to keep individual filenames as baseline
+      sessionId: selectedSessionId,
+      shootName: selectedSessionName,
+      tags,
+      location: locationAddress
+        ? { address: locationAddress, latitude: locationLat, longitude: locationLng }
+        : undefined,
     })
+    setSelectedSessionId(undefined)
+    setSelectedSessionName('')
+    setTags([])
+    setLocationAddress('')
+    setLocationLat(undefined)
+    setLocationLng(undefined)
+    setSessionError('')
   }
 
   return (
     <Dialog open={isWorkbenchOpen} onOpenChange={closeWorkbench}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden bg-white dark:bg-[#0a0c10] border-none rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] outline-none">
-        {/* Modal Header */}
-        <div className="px-12 pt-12 pb-8">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="font-inter text-3xl font-semibold text-primary tracking-tight mb-1">
-                {stagedFiles.length} Archives Ready to Ingest
-              </h1>
-              <p className="font-space-mono text-[10px] font-bold text-on-surface/30 uppercase tracking-[0.2em]">
-                Staging Area: Commit to Source-of-Truth
-              </p>
+      <DialogContent className="w-full max-w-4xl max-h-[95dvh] p-0 overflow-hidden bg-white dark:bg-[#0d0f14] border-none rounded-[28px] sm:rounded-[32px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.25)] outline-none flex flex-col">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-6 flex items-start justify-between gap-4 flex-shrink-0">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 mb-3">
+              <div className="h-1 w-5 rounded-full bg-gallery-gold/60" />
+              <span className="font-space-mono text-[9px] font-bold text-gallery-gold/60 uppercase tracking-[0.25em]">
+                Ingest Queue
+              </span>
             </div>
-            <div className="bg-[#ff7f67]/10 px-4 py-2 rounded-xl border border-[#ff7f67]/20">
-              <p className="font-rubik text-[14px] text-[#901000]">{totalSize}</p>
-            </div>
+            <h1 className="font-inter text-2xl sm:text-3xl font-semibold text-primary tracking-tight leading-tight">
+              {stagedFiles.length}{' '}
+              {stagedFiles.length === 1 ? 'file' : 'files'} ready
+            </h1>
+            <p className="mt-1 font-inter text-sm text-on-surface/40">
+              Add session details before committing to your archive.
+            </p>
+          </div>
+
+          {/* Size badge — tonal, no border */}
+          <div className="flex-shrink-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-2xl px-4 py-2.5 text-right">
+            <p className="font-rubik text-xs text-on-surface/40 uppercase tracking-wider">Total</p>
+            <p className="font-rubik text-base font-bold text-on-surface/70 tabular-nums">
+              {totalSize}
+            </p>
           </div>
         </div>
 
-        {/* Modal Body: Asymmetric Layout */}
-        <div className="flex-1 px-12 pb-12 grid grid-cols-12 gap-8">
-          {/* Left: Visual Summary / Bento (7 cols) */}
-          <div className="col-span-7 space-y-8">
-            <div className="grid grid-cols-3 gap-6 h-[300px]">
-              {previews.length > 0 ? (
-                <>
-                  <div className="col-span-2 row-span-2 relative rounded-[24px] overflow-hidden bg-black/[0.03]">
-                    <NextImage
-                      src={previews[0]}
-                      fill
-                      className="object-cover"
-                      alt="Primary Staged"
-                      unoptimized
-                    />
-                    <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20">
-                      <p className="font-space-mono text-[10px] font-bold text-primary truncate max-w-[150px]">
-                        {stagedFiles[0].name}
-                      </p>
-                    </div>
-                  </div>
-                  {previews[1] && (
-                    <div className="aspect-square relative rounded-[16px] overflow-hidden bg-black/[0.03]">
-                      <NextImage
-                        src={previews[1]}
-                        fill
-                        className="object-cover"
-                        alt="Staged 2"
-                        unoptimized
-                      />
-                    </div>
-                  )}
-                  {previews[2] && (
-                    <div className="aspect-square relative rounded-[16px] overflow-hidden bg-black/[0.03]">
-                      <NextImage
-                        src={previews[2]}
-                        fill
-                        className="object-cover"
-                        alt="Staged 3"
-                        unoptimized
-                      />
-                      {stagedFiles.length > 3 && (
-                        <div className="absolute inset-0 bg-primary/40 backdrop-blur-[2px] flex items-center justify-center z-10">
-                          <span className="font-rubik text-white text-xl">
-                            +{stagedFiles.length - 3}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="col-span-3 aspect-video bg-black/[0.03] rounded-[24px] flex items-center justify-center border-2 border-dashed border-black/[0.05]">
-                  <ImageIcon className="text-on-surface/20" size={48} />
-                </div>
-              )}
-            </div>
+        {/* ── Body — scrollable ───────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 sm:px-10 pb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
 
-            {/* Technical Specs Table */}
-            <div className="bg-black/[0.02] dark:bg-white/[0.02] p-8 rounded-[24px] border border-black/[0.03] dark:border-white/[0.03]">
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <p className="font-space-mono text-[10px] font-bold tracking-widest text-on-surface/30 uppercase mb-3">
-                    Format Distribution
+            {/* Left — preview bento + format badges */}
+            <div className="lg:col-span-7 space-y-4">
+              {/* Preview grid */}
+              <div
+                className={`grid gap-3 rounded-[24px] overflow-hidden ${
+                  previews.length >= 3
+                    ? 'grid-cols-3 h-[200px] sm:h-[240px]'
+                    : 'grid-cols-1 h-[160px] sm:h-[200px]'
+                }`}
+              >
+                {previews.length > 0 ? (
+                  previews.map((src, idx) => {
+                    const isFirst = idx === 0
+                    const isLast = idx === previews.length - 1 && idx > 0
+                    const remaining = stagedFiles.length - previews.length
+                    return (
+                      <div
+                        key={idx}
+                        className={`relative overflow-hidden rounded-[20px] bg-black/[0.04] dark:bg-white/[0.04] ${
+                          isFirst && previews.length >= 3 ? 'col-span-2 row-span-2' : ''
+                        }`}
+                      >
+                        <NextImage
+                          src={src}
+                          fill
+                          className="object-cover"
+                          alt={`Preview ${idx + 1}`}
+                          unoptimized
+                        />
+                        {isFirst && (
+                          <div className="absolute bottom-3 left-3 bg-white/80 dark:bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl">
+                            <p className="font-space-mono text-[9px] font-bold text-primary truncate max-w-[120px] sm:max-w-[160px]">
+                              {stagedFiles[0].name}
+                            </p>
+                          </div>
+                        )}
+                        {isLast && remaining > 0 && (
+                          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center rounded-[20px]">
+                            <span className="font-rubik text-white text-lg font-bold">
+                              +{remaining}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="col-span-3 h-full bg-black/[0.03] dark:bg-white/[0.03] rounded-[24px] flex flex-col items-center justify-center gap-3">
+                    <ImageIcon className="text-on-surface/15" size={40} />
+                    <span className="font-space-mono text-[9px] text-on-surface/25 uppercase tracking-widest">
+                      No previews
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Format distribution — tonal card, no border */}
+              {formatDistribution.length > 0 && (
+                <div className="bg-black/[0.02] dark:bg-white/[0.03] rounded-[20px] p-4 sm:p-5">
+                  <p className="font-space-mono text-[9px] font-bold tracking-[0.2em] text-on-surface/30 uppercase mb-3">
+                    Formats
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {formatDistribution.map(([ext, count]) => (
                       <div
                         key={ext}
-                        className="bg-white dark:bg-white/5 px-3 py-1.5 rounded-lg border border-black/[0.05] shadow-sm"
+                        className="bg-white dark:bg-white/[0.06] rounded-xl px-3 py-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
                       >
-                        <p className="font-rubik text-[9px] text-primary">
-                          .{ext} <span className="opacity-40 ml-1">({count})</span>
-                        </p>
+                        <span className="font-rubik text-[9px] font-bold text-on-surface/60">
+                          .{ext}
+                        </span>
+                        <span className="font-rubik text-[9px] text-on-surface/30 ml-1.5">
+                          {count}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div>
-                  <p className="font-space-mono text-[10px] font-bold tracking-widest text-on-surface/30 uppercase mb-3">
-                    Ingestion Estimate
-                  </p>
-                  <p className="font-rubik text-[14px] text-primary">
-                    {estimatedTime}{' '}
-                    <span className="text-[10px] font-normal text-on-surface/30 uppercase">
-                      @ Net Throughput
-                    </span>
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
-          </div>
 
-          {/* Right: Metadata & Action (5 cols) */}
-          <div className="col-span-5 flex flex-col justify-between">
-            <div className="space-y-8">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="font-space-mono text-[11px] font-bold text-on-surface/40 uppercase tracking-wider ml-1">
-                    Archival Shoot Identity
-                  </label>
-                  <input
-                    {...register('shootName')}
-                    placeholder="e.g. Wildlife Expedition 2024"
-                    className="w-full bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] px-6 py-5 rounded-[20px] font-inter text-sm text-primary focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all placeholder:text-on-surface/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="font-space-mono text-[11px] font-bold text-on-surface/40 uppercase tracking-wider ml-1">
-                    Primary Location
-                  </label>
-                  <div className="relative">
-                    <input
-                      {...register('locationAddress')}
-                      placeholder="Add Location Metadata..."
-                      className="w-full bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] px-6 py-5 rounded-[20px] font-inter text-sm text-primary focus:outline-none focus:ring-1 focus:ring-gallery-gold/50 transition-all placeholder:text-on-surface/20"
-                    />
-                    <MapPin
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-on-surface/20"
-                      size={18}
-                    />
-                  </div>
-                </div>
+            {/* Right — metadata fields */}
+            <div className="lg:col-span-5 space-y-5">
+
+              {/* Session — required */}
+              <div>
+                <FieldLabel icon={Clapperboard} required>
+                  Session
+                </FieldLabel>
+                <Combobox
+                  options={sessionOptions}
+                  value={selectedSessionId ? String(selectedSessionId) : undefined}
+                  onChange={handleSessionChange}
+                  placeholder="Select or create…"
+                  allowCreate
+                  createLabel={(v) => `Create "${v}"`}
+                  aria-label="Session"
+                />
+                {sessionError && (
+                  <p className="mt-1.5 font-inter text-[11px] text-[#bb1800] dark:text-[#ff7f67] ml-0.5">
+                    {sessionError}
+                  </p>
+                )}
               </div>
 
-              {/* Tonal Tag Preview */}
-              <div className="bg-[#ff7f67]/5 p-6 rounded-[24px] border border-[#ff7f67]/10 space-y-4">
-                <p className="font-space-mono text-[10px] font-bold tracking-widest text-[#901000]/40 uppercase">
-                  Classification Engine
+              {/* Location */}
+              <div>
+                <FieldLabel icon={MapPin}>Location</FieldLabel>
+                <LocationSearch
+                  value={locationAddress}
+                  onChange={setLocationAddress}
+                  onLocationSelect={handleLocationSelect}
+                  hasExistingGps={false}
+                  placeholder="Search location…"
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <FieldLabel icon={Tag}>Tags</FieldLabel>
+                <TagInput
+                  tags={tags}
+                  onChange={setTags}
+                  placeholder="Type and press Enter…"
+                  maxTags={20}
+                />
+              </div>
+
+              {/* Hint — tonal, no border */}
+              <div className="bg-gallery-gold/[0.06] rounded-[16px] px-4 py-3">
+                <p className="font-inter text-[11px] text-on-surface/50 leading-relaxed">
+                  EXIF metadata, camera info and GPS coordinates are extracted automatically after upload.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-[#ff7f67] text-white px-3 py-1.5 rounded-lg font-space-mono text-[9px] font-bold shadow-md shadow-[#ff7f67]/20 uppercase">
-                    Awaiting Curatorial Review
-                  </span>
-                  <span className="bg-black/5 dark:bg-white/5 text-on-surface/40 px-3 py-1.5 rounded-lg font-space-mono text-[9px] font-bold uppercase">
-                    Forensic Extraction Active
-                  </span>
-                </div>
               </div>
             </div>
-
-            {/* Footer Actions */}
-            <div className="flex flex-col gap-3 pt-8">
-              <Button
-                onClick={handleSubmit(onIngest)}
-                className="w-full h-16 rounded-[24px] bg-primary-container text-on-primary-fixed hover:bg-primary-container/90 shadow-[0_20px_40px_rgba(215,153,34,0.2)] font-inter text-sm font-bold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-3"
-              >
-                <CloudUpload size={20} />
-                Start Archival Ingest
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={closeWorkbench}
-                className="w-full h-12 rounded-[20px] text-on-surface/40 hover:text-primary font-space-mono text-[11px] font-bold uppercase tracking-widest transition-all"
-              >
-                Cancel & Clear Queue
-              </Button>
-            </div>
           </div>
+        </div>
+
+        {/* ── Actions — sticky footer ─────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-6 sm:px-10 py-5 sm:py-6 bg-white/80 dark:bg-[#0d0f14]/80 backdrop-blur-xl border-t-0 space-y-2.5">
+          <Button
+            onClick={onIngest}
+            className="w-full h-14 rounded-[20px] bg-gradient-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-sm font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2.5"
+          >
+            <CloudUpload size={18} />
+            Start Ingest
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={closeWorkbench}
+            className="w-full h-10 rounded-[16px] text-on-surface/35 hover:text-on-surface/60 font-space-mono text-[10px] font-bold uppercase tracking-[0.15em] transition-colors"
+          >
+            Cancel & clear queue
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

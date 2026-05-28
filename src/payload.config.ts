@@ -23,6 +23,7 @@ import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
 import { Users } from '@/collections/Users'
 import { SmartCollections } from '@/collections/SmartCollections'
+import { Sessions } from '@/collections/Sessions'
 import { UploadBatches } from '@/collections/UploadBatches'
 import { Waitlist } from '@/collections/Waitlist'
 
@@ -85,6 +86,7 @@ export default buildConfig({
     Media,
     Portfolios,
     SmartCollections,
+    Sessions,
     UploadBatches,
     Waitlist,
   ],

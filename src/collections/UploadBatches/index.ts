@@ -10,6 +10,7 @@ import { ownerOrAdmin } from '@/access/ownerOrAdmin'
 // Smallest viable shape — defer batch-level state (status, failedCount,
 // retry-all) until there's a UI surface to use them. Asset count is
 // derived on demand via payload.count, not stored.
+//
 export const UploadBatches: CollectionConfig = {
   slug: 'upload-batches',
   admin: {

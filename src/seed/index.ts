@@ -236,57 +236,57 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
     const missingFixtures = fixtureFiles.filter((f) => !presentFixtureFilenames.has(f))
 
+    const allCreativeIds: Record<string, string | number> = {
+      [creativeEmail]: creativeOwnerId,
+      ...creativeUserIds,
+    }
+
+    const FIXTURE_OWNERSHIP: Record<string, { ownerEmail: string; shootName: string }> = {
+      'alpine-summit-01.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+      'urban-neon-02.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+      'mountain-mist-07.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
+      'coastal-dawn-03.jpg': {
+        ownerEmail: 'alex.chen@framehouseworks.com',
+        shootName: 'Seed: Street & Shore',
+      },
+      'night-market-08.jpg': {
+        ownerEmail: 'alex.chen@framehouseworks.com',
+        shootName: 'Seed: Street & Shore',
+      },
+      'studio-portrait-04.jpg': {
+        ownerEmail: 'maya.patel@framehouseworks.com',
+        shootName: 'Seed: Studio & Nature',
+      },
+      'rooftop-light-10.jpg': {
+        ownerEmail: 'maya.patel@framehouseworks.com',
+        shootName: 'Seed: Studio & Nature',
+      },
+      'tide-pools-09.jpg': {
+        ownerEmail: 'maya.patel@framehouseworks.com',
+        shootName: 'Seed: Studio & Nature',
+      },
+      'forest-canopy-05.jpg': {
+        ownerEmail: 'leo.strand@framehouseworks.com',
+        shootName: 'Seed: Landscape',
+      },
+      'desert-horizon-06.jpg': {
+        ownerEmail: 'leo.strand@framehouseworks.com',
+        shootName: 'Seed: Landscape',
+      },
+      'dune-shadows-11.jpg': {
+        ownerEmail: 'leo.strand@framehouseworks.com',
+        shootName: 'Seed: Landscape',
+      },
+      'moss-grove-12.jpg': {
+        ownerEmail: 'leo.strand@framehouseworks.com',
+        shootName: 'Seed: Landscape',
+      },
+    }
+
     if (missingFixtures.length > 0) {
       payload.logger.info(
         `Seeding ${missingFixtures.length} missing fixture(s): ${missingFixtures.join(', ')}`,
       )
-
-      const allCreativeIds: Record<string, string | number> = {
-        [creativeEmail]: creativeOwnerId,
-        ...creativeUserIds,
-      }
-
-      const FIXTURE_OWNERSHIP: Record<string, { ownerEmail: string; shootName: string }> = {
-        'alpine-summit-01.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
-        'urban-neon-02.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
-        'mountain-mist-07.jpg': { ownerEmail: creativeEmail, shootName: 'Seed: Main Portfolio' },
-        'coastal-dawn-03.jpg': {
-          ownerEmail: 'alex.chen@framehouseworks.com',
-          shootName: 'Seed: Street & Shore',
-        },
-        'night-market-08.jpg': {
-          ownerEmail: 'alex.chen@framehouseworks.com',
-          shootName: 'Seed: Street & Shore',
-        },
-        'studio-portrait-04.jpg': {
-          ownerEmail: 'maya.patel@framehouseworks.com',
-          shootName: 'Seed: Studio & Nature',
-        },
-        'rooftop-light-10.jpg': {
-          ownerEmail: 'maya.patel@framehouseworks.com',
-          shootName: 'Seed: Studio & Nature',
-        },
-        'tide-pools-09.jpg': {
-          ownerEmail: 'maya.patel@framehouseworks.com',
-          shootName: 'Seed: Studio & Nature',
-        },
-        'forest-canopy-05.jpg': {
-          ownerEmail: 'leo.strand@framehouseworks.com',
-          shootName: 'Seed: Landscape',
-        },
-        'desert-horizon-06.jpg': {
-          ownerEmail: 'leo.strand@framehouseworks.com',
-          shootName: 'Seed: Landscape',
-        },
-        'dune-shadows-11.jpg': {
-          ownerEmail: 'leo.strand@framehouseworks.com',
-          shootName: 'Seed: Landscape',
-        },
-        'moss-grove-12.jpg': {
-          ownerEmail: 'leo.strand@framehouseworks.com',
-          shootName: 'Seed: Landscape',
-        },
-      }
 
       // One UploadBatch per creative user so each user's fixtures share a batch
       const seedBatches: Record<string, { id: string | number }> = {}
@@ -488,6 +488,326 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
       // Re-fetch after seeding
       mediaDocs = await payload.find({ collection: 'media', limit: 100 })
+    }
+
+    // Build filename → doc map for the new seeding sections
+    const mediaByFilename = new Map<string, any>()
+    for (const doc of mediaDocs.docs) {
+      const fn = (doc as any).filename
+      if (fn) mediaByFilename.set(fn, doc)
+    }
+
+    // 1a. Sessions — one per creative user, idempotent
+    try {
+      payload.logger.info('Seeding Sessions...')
+      const sessionDefs: Array<{
+        ownerEmail: string
+        name: string
+        shootDate: string
+        coverFilename: string
+      }> = [
+        {
+          ownerEmail: creativeEmail,
+          name: 'Seed: Main Portfolio',
+          shootDate: '2025-08-15',
+          coverFilename: 'alpine-summit-01.jpg',
+        },
+        {
+          ownerEmail: 'alex.chen@framehouseworks.com',
+          name: 'Seed: Street & Shore',
+          shootDate: '2025-09-10',
+          coverFilename: 'coastal-dawn-03.jpg',
+        },
+        {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          name: 'Seed: Studio & Nature',
+          shootDate: '2025-10-05',
+          coverFilename: 'studio-portrait-04.jpg',
+        },
+        {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          name: 'Seed: Landscape',
+          shootDate: '2025-07-22',
+          coverFilename: 'forest-canopy-05.jpg',
+        },
+      ]
+
+      for (const def of sessionDefs) {
+        const ownerId = allCreativeIds[def.ownerEmail]
+        if (!ownerId) continue
+        const existing = await payload.find({
+          collection: 'sessions',
+          where: { and: [{ owner: { equals: ownerId } }, { name: { equals: def.name } }] },
+          limit: 1,
+        })
+        if (existing.docs.length > 0) {
+          payload.logger.info(`  Session "${def.name}" already exists, skipping.`)
+          continue
+        }
+        const coverDoc = mediaByFilename.get(def.coverFilename)
+        await payload.create({
+          collection: 'sessions',
+          data: {
+            name: def.name,
+            shootDate: def.shootDate,
+            owner: ownerId as any,
+            ...(coverDoc ? { coverAsset: coverDoc.id as any } : {}),
+          },
+          context: { disableRevalidate: true },
+        })
+        payload.logger.info(`  Created session "${def.name}"`)
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding Sessions: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // 1b. Media → Session links
+    try {
+      payload.logger.info('Linking media docs to sessions...')
+      // Re-fetch sessions to get their IDs
+      const sessionDocs = await payload.find({ collection: 'sessions', limit: 50 })
+      const sessionByName = new Map<string, any>()
+      for (const s of sessionDocs.docs) {
+        sessionByName.set((s as any).name, s)
+      }
+
+      for (const doc of mediaDocs.docs) {
+        const shootName = (doc as any).shootName as string | undefined
+        if (!shootName) continue
+        const session = sessionByName.get(shootName)
+        if (!session) continue
+        if ((doc as any).session && (doc as any).session === session.id) continue
+        await payload.update({
+          collection: 'media',
+          id: doc.id,
+          data: { session: session.id as any },
+          context: { disableRevalidate: true },
+        })
+      }
+      payload.logger.info('  Media session links updated.')
+    } catch (err) {
+      payload.logger.error(
+        `Error linking media to sessions: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // 1c. SmartCollections — 2-3 per user, scoped by owner
+    try {
+      payload.logger.info('Seeding SmartCollections...')
+
+      type SmartCollectionDef = {
+        name: string
+        filterQuery: Record<string, unknown>
+        icon: 'folder' | 'map' | 'tag' | 'sparkles' | 'camera' | null
+        isSystemGenerated: boolean
+        generatedFrom: 'location' | 'camera' | 'manual' | 'ai_tags' | 'metadata' | 'tags' | 'media_type' | 'date' | null
+        sortOrder: number
+      }
+
+      const smartCollectionsByOwner: Array<{
+        ownerEmail: string
+        collections: SmartCollectionDef[]
+      }> = [
+        {
+          ownerEmail: creativeEmail,
+          collections: [
+            {
+              name: 'All Images',
+              filterQuery: { mediaType: { equals: 'image' } },
+              icon: 'camera',
+              isSystemGenerated: true,
+              generatedFrom: 'media_type',
+              sortOrder: 0,
+            },
+            {
+              name: 'Main Portfolio Shoot',
+              filterQuery: { shootName: { equals: 'Seed: Main Portfolio' } },
+              icon: 'folder',
+              isSystemGenerated: true,
+              generatedFrom: 'metadata',
+              sortOrder: 1,
+            },
+            {
+              name: 'Ready to Publish',
+              filterQuery: { ingestionStatus: { equals: 'ready' } },
+              icon: 'sparkles',
+              isSystemGenerated: false,
+              generatedFrom: 'manual',
+              sortOrder: 2,
+            },
+          ],
+        },
+        {
+          ownerEmail: 'alex.chen@framehouseworks.com',
+          collections: [
+            {
+              name: 'All Images',
+              filterQuery: { mediaType: { equals: 'image' } },
+              icon: 'camera',
+              isSystemGenerated: true,
+              generatedFrom: 'media_type',
+              sortOrder: 0,
+            },
+            {
+              name: 'Street & Shore Shoot',
+              filterQuery: { shootName: { equals: 'Seed: Street & Shore' } },
+              icon: 'folder',
+              isSystemGenerated: true,
+              generatedFrom: 'metadata',
+              sortOrder: 1,
+            },
+          ],
+        },
+        {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          collections: [
+            {
+              name: 'All Images',
+              filterQuery: { mediaType: { equals: 'image' } },
+              icon: 'camera',
+              isSystemGenerated: true,
+              generatedFrom: 'media_type',
+              sortOrder: 0,
+            },
+            {
+              name: 'Studio & Nature Shoot',
+              filterQuery: { shootName: { equals: 'Seed: Studio & Nature' } },
+              icon: 'folder',
+              isSystemGenerated: true,
+              generatedFrom: 'metadata',
+              sortOrder: 1,
+            },
+          ],
+        },
+        {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          collections: [
+            {
+              name: 'All Images',
+              filterQuery: { mediaType: { equals: 'image' } },
+              icon: 'camera',
+              isSystemGenerated: true,
+              generatedFrom: 'media_type',
+              sortOrder: 0,
+            },
+            {
+              name: 'Landscape Shoot',
+              filterQuery: { shootName: { equals: 'Seed: Landscape' } },
+              icon: 'folder',
+              isSystemGenerated: true,
+              generatedFrom: 'metadata',
+              sortOrder: 1,
+            },
+          ],
+        },
+      ]
+
+      for (const { ownerEmail, collections } of smartCollectionsByOwner) {
+        const ownerId = allCreativeIds[ownerEmail]
+        if (!ownerId) continue
+        for (const col of collections) {
+          const existing = await payload.find({
+            collection: 'smart-collections',
+            where: { and: [{ owner: { equals: ownerId } }, { name: { equals: col.name } }] },
+            limit: 1,
+          })
+          if (existing.docs.length > 0) {
+            payload.logger.info(`  SmartCollection "${col.name}" for ${ownerEmail} exists, skipping.`)
+            continue
+          }
+          await payload.create({
+            collection: 'smart-collections',
+            data: {
+              name: col.name,
+              owner: ownerId as any,
+              filterQuery: col.filterQuery,
+              icon: col.icon,
+              isSystemGenerated: col.isSystemGenerated,
+              generatedFrom: col.generatedFrom,
+              sortOrder: col.sortOrder,
+            },
+            context: { disableRevalidate: true },
+          })
+          payload.logger.info(`  Created SmartCollection "${col.name}" for ${ownerEmail}`)
+        }
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding SmartCollections: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // 1d. Portfolios — 1 per creative user
+    try {
+      payload.logger.info('Seeding Portfolios...')
+
+      const portfolioDefs: Array<{
+        ownerEmail: string
+        name: string
+        fixtureFilenames: string[]
+      }> = [
+        {
+          ownerEmail: creativeEmail,
+          name: 'Main Portfolio',
+          fixtureFilenames: ['alpine-summit-01.jpg', 'urban-neon-02.jpg', 'mountain-mist-07.jpg'],
+        },
+        {
+          ownerEmail: 'alex.chen@framehouseworks.com',
+          name: 'Street Photography',
+          fixtureFilenames: ['coastal-dawn-03.jpg', 'night-market-08.jpg'],
+        },
+        {
+          ownerEmail: 'maya.patel@framehouseworks.com',
+          name: 'Studio Work',
+          fixtureFilenames: ['studio-portrait-04.jpg', 'rooftop-light-10.jpg', 'tide-pools-09.jpg'],
+        },
+        {
+          ownerEmail: 'leo.strand@framehouseworks.com',
+          name: 'Landscape Series',
+          fixtureFilenames: [
+            'forest-canopy-05.jpg',
+            'desert-horizon-06.jpg',
+            'dune-shadows-11.jpg',
+            'moss-grove-12.jpg',
+          ],
+        },
+      ]
+
+      for (const def of portfolioDefs) {
+        const ownerId = allCreativeIds[def.ownerEmail]
+        if (!ownerId) continue
+        const existing = await payload.find({
+          collection: 'portfolios',
+          where: { and: [{ owner: { equals: ownerId } }, { name: { equals: def.name } }] },
+          limit: 1,
+        })
+        if (existing.docs.length > 0) {
+          payload.logger.info(`  Portfolio "${def.name}" already exists, skipping.`)
+          continue
+        }
+        const items = def.fixtureFilenames
+          .map((fn) => mediaByFilename.get(fn))
+          .filter(Boolean)
+          .map((doc) => ({ media: doc.id as any, size: 'medium' as const }))
+
+        await payload.create({
+          collection: 'portfolios',
+          data: {
+            name: def.name,
+            owner: ownerId as any,
+            visibility: 'private',
+            layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as any,
+          } as any,
+          context: { disableRevalidate: true },
+        })
+        payload.logger.info(`  Created portfolio "${def.name}" for ${def.ownerEmail}`)
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding Portfolios: ${err instanceof Error ? err.message : String(err)}`,
+      )
     }
 
     const fallbackMediaIds = mediaDocs.docs.map((doc) => doc.id)

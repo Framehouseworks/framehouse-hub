@@ -11,6 +11,7 @@ import {
   Settings,
   PlusCircle,
   CloudUpload,
+  Clapperboard,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
@@ -21,8 +22,9 @@ const navItems = [
   {
     label: 'LIBRARY',
     items: [
-      { name: 'All Media', icon: Archive, href: '/dashboard' },
-      { name: 'Collections', icon: FolderRoot, href: '/dashboard/collections' },
+      { name: 'All Media', icon: Archive, href: '/dashboard/library' },
+      { name: 'Sessions', icon: Clapperboard, href: '/dashboard/library/sessions' },
+      { name: 'Collections', icon: FolderRoot, href: '/dashboard/library/collections' },
       { name: 'Shared', icon: LayoutGrid, href: '/dashboard/shared' },
     ],
   },
@@ -67,7 +69,10 @@ export const Sidebar: React.FC = () => {
             </h3>
             <ul className="space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href
+                const isActive =
+                  item.href === '/dashboard/library'
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(item.href + '/')
                 const isUploadAction = item.name === 'Archive Work'
 
                 return (

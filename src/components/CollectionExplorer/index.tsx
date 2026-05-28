@@ -120,7 +120,7 @@ export const CollectionExplorer = async ({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {shootNames.map((shoot) => {
             const isActive = activeSearch === shoot
-            const href = isActive ? '/dashboard' : `/dashboard?search=${encodeURIComponent(shoot)}`
+            const href = isActive ? '/dashboard/library' : `/dashboard/library?search=${encodeURIComponent(shoot)}`
             return (
               <Link key={shoot} href={href} className="group">
                 <div
@@ -145,7 +145,7 @@ export const CollectionExplorer = async ({
           })}
           {smartTags.map((tag) => {
             const isActive = activeSearch === tag
-            const href = isActive ? '/dashboard' : `/dashboard?search=${encodeURIComponent(tag)}`
+            const href = isActive ? '/dashboard/library' : `/dashboard/library?search=${encodeURIComponent(tag)}`
             return (
               <Link key={tag} href={href} className="group">
                 <div
