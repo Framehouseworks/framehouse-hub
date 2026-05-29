@@ -169,7 +169,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   const groups = useMemo(() => groupMedia(filteredMedia, dateMode), [filteredMedia, dateMode])
 
   // How many selected IDs are currently visible in the filtered view.
-  const selectedInView = useMemo(
+  const _selectedInView = useMemo(
     () => filteredMedia.filter((m) => selectedIds.has(m.id)).length,
     [filteredMedia, selectedIds],
   )
