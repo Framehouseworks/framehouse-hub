@@ -68,12 +68,14 @@ export default async function PortfolioPage({ params }: Props) {
                                 <div className="h-px w-12 bg-[var(--portfolio-accent)] opacity-10" />
                             </div>
 
-                            <RichText
+                            {portfolio.title && (
+                              <RichText
                                 data={portfolio.title}
                                 className="text-5xl md:text-7xl lg:text-8xl tracking-[ -0.02em] leading-[0.9] prose-none !max-w-none not-italic"
                                 enableProse={false}
                                 enableGutter={false}
-                            />
+                              />
+                            )}
 
                             {portfolio.subheading && (
                                 <div className="max-w-3xl">
