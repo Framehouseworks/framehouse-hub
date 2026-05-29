@@ -18,7 +18,6 @@ import {
   ChevronRight,
   ShieldCheck,
   Crosshair,
-  Clapperboard,
 } from 'lucide-react'
 import {
   AnimatePresence,
@@ -285,7 +284,7 @@ const PanelContent: React.FC<{
             {/* Session link — view mode */}
             {!isEditing && (media.shootName || sessionName) && (
               <div className="flex items-center gap-1.5 pt-0.5">
-                <Clapperboard size={9} className="text-on-surface/30 shrink-0" />
+                <Camera size={9} className="text-on-surface/30 shrink-0" />
                 <FadeValue mediaId={mediaId} className="text-[10px] text-on-surface/45 font-medium break-words">
                   {sessionName || media.shootName}
                 </FadeValue>
@@ -295,7 +294,7 @@ const PanelContent: React.FC<{
             {isEditing && (
               <div className="pt-1 space-y-1">
                 <label className="text-[9px] font-bold tracking-widest text-on-surface/30 uppercase font-rubik flex items-center gap-1">
-                  <Clapperboard size={9} />
+                  <Camera size={9} />
                   Session
                 </label>
                 <Combobox

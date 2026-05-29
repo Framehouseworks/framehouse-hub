@@ -114,7 +114,7 @@ export function Combobox({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          className="flex-1 bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface/30 min-w-0"
+          className="flex-1 bg-transparent text-sm text-on-surface outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-on-surface/30 min-w-0"
           disabled={disabled}
           autoComplete="off"
         />

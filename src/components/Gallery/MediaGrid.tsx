@@ -5,7 +5,7 @@ import { AssetViewer } from '@/components/AssetViewer'
 import type { Media } from '@/payload-types'
 import { useUpload } from '@/providers/UploadProvider'
 import { useRouter } from 'next/navigation'
-import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon, Save, ChevronLeft, Settings, PinOff } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Edit3, X as CloseIcon, Save, ChevronLeft, Settings, PinOff, Bookmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/utilities/cn'
@@ -19,6 +19,8 @@ import { TimelineStream } from './TimelineStream'
 import { groupMedia, type DateMode } from '@/lib/groupMedia'
 import { CollectionRuleEditor } from '@/components/SmartCollections/CollectionRuleEditor'
 import { MediaPickerModal } from '@/components/SmartCollections/MediaPickerModal'
+import { BulkAddToCollectionModal } from '@/components/SmartCollections/BulkAddToCollectionModal'
+import { MediaCard } from './MediaCard'
 
 /** When provided, MediaGrid renders in collection-context mode:
  *  - No "Creative Archive" header or status filter bar
@@ -30,6 +32,9 @@ export interface CollectionContext {
   name: string
   isSystemGenerated?: boolean
   manualIncludeIds: number[]
+  manualIncludeDocs?: Media[]
+  hasFilterQuery?: boolean
+  autoMatchedCount?: number
 }
 
 interface MediaGridProps {
@@ -39,9 +44,12 @@ interface MediaGridProps {
     status?: string
   }
   collectionContext?: CollectionContext
+  /** 'library' (default) shows status filters + ingest button.
+   *  'session' suppresses the entire discovery toolbar — session page owns its header. */
+  variant?: 'library' | 'session'
 }
 
-export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters, collectionContext }) => {
+export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilters, collectionContext, variant = 'library' }) => {
   const { queue, openPicker, hydrateServerProcessing } = useUpload()
   const router = useRouter()
   const [localMedia, setLocalMedia] = useState<Media[]>(initialMedia)
@@ -69,6 +77,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   // Collection-context modals
   const [isRuleEditorOpen, setIsRuleEditorOpen] = useState(false)
   const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false)
+  const [isBulkCollectionOpen, setIsBulkCollectionOpen] = useState(false)
 
   const handleBulkDeleteTrigger = () => {
     if (selectedIds.size === 0) return
@@ -344,25 +353,28 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   return (
     <>
       {collectionContext ? (
-        /* ── Collection header ──────────────────────────────────────────── */
-        <div className="flex flex-col gap-4 mb-6">
+        /* ── Collection context: header + manual includes + auto-matched label ── */
+        <div className="flex flex-col gap-0 mb-6 w-full min-w-0">
           {/* Back nav */}
           <button
-            onClick={() => router.push('/dashboard/library')}
-            className="flex items-center gap-1 text-xs text-[#1a1c1c]/40 hover:text-[#1a1c1c] transition-colors w-fit"
+            onClick={() => router.push('/dashboard/library/collections')}
+            className="flex items-center gap-1 text-xs text-on-surface/40 hover:text-on-surface transition-colors w-fit mb-4"
           >
             <ChevronLeft size={14} /> Collections
           </button>
 
           {/* Title + actions row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-primary">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6 w-full min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight text-primary truncate">
                 {collectionContext.name}
               </h1>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="font-rubik text-[10px] uppercase tracking-widest text-on-surface/40">
-                  {filteredMedia.length.toLocaleString()} ASSETS
+                  {(
+                    (collectionContext.autoMatchedCount ?? filteredMedia.length) +
+                    (collectionContext.manualIncludeDocs?.length ?? 0)
+                  ).toLocaleString()} ASSETS
                 </span>
                 {collectionContext.isSystemGenerated && (
                   <span className="font-rubik text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-gallery-gold/10 text-gallery-gold">
@@ -372,7 +384,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
               {/* Date mode */}
               <div className="flex items-center gap-1 p-0.5 bg-black/[0.03] rounded-2xl">
                 {(['capture', 'ingest'] as const).map((mode) => (
@@ -427,52 +439,45 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
               </Button>
             </div>
           </div>
-        </div>
-      ) : (
-        /* ── Library header ─────────────────────────────────────────────── */
-        <>
-          {/* 1. Integrated Gallery Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-primary">Creative Archive</h1>
-              <p className="text-sm text-on-surface/40 font-varela mt-1">
-                Your centralized stage for high-resolution creative work and visual metadata.
+
+          {/* Manual includes section */}
+          {collectionContext.manualIncludeDocs && collectionContext.manualIncludeDocs.length > 0 && (
+            <section aria-label="Manually added assets" className="mb-8 w-full min-w-0">
+              <p className="text-[10px] tracking-widest font-medium text-on-surface/40 uppercase mb-3">
+                MANUALLY ADDED ({collectionContext.manualIncludeDocs.length.toLocaleString()})
               </p>
-            </div>
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+                {collectionContext.manualIncludeDocs.map((item) => (
+                  <MediaCard
+                    key={item.id}
+                    media={item}
+                    isSelected={selectedIds.has(item.id)}
+                    onSelect={toggleSelection}
+                    onView={handleView}
+                    isSelectionMode={isSelectionMode || selectedIds.size > 0}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  if (isSelectionMode) clearSelection()
-                  else setIsSelectionMode(true)
-                }}
-                className={cn(
-                  'h-10 px-4 rounded-xl gap-2 font-medium transition-all',
-                  isSelectionMode
-                    ? 'bg-gallery-gold/10 text-gallery-gold'
-                    : 'text-on-surface/40 hover:text-primary',
-                )}
-              >
-                <CheckSquare size={16} />
-                <span>{isSelectionMode ? 'Cancel Selection' : 'Select'}</span>
-              </Button>
-
-              <Button
-                variant="gallery"
-                className="h-10 px-6 rounded-full gap-2 shadow-sm"
-                onClick={openPicker}
-              >
-                <Plus size={18} />
-                <span>Ingest New Work</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* 2. Discovery Bar */}
-          <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
-            {/* Status filters */}
-            <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+          {/* Auto-matched section label */}
+          {collectionContext.hasFilterQuery && (
+            <p
+              className="text-[10px] tracking-widest font-medium text-on-surface/40 uppercase mb-3"
+              aria-label={`Automatically matched assets: ${(collectionContext.autoMatchedCount ?? filteredMedia.length).toLocaleString()}`}
+            >
+              AUTOMATICALLY MATCHED ({(collectionContext.autoMatchedCount ?? filteredMedia.length).toLocaleString()})
+            </p>
+          )}
+        </div>
+      ) : variant === 'library' && (
+        /* ── Library toolbar ────────────────────────────────────────────── */
+        <div className="flex flex-col gap-3 mb-8">
+          {/* Row 1: status filters + actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Status filter pills */}
+            <div className="flex items-center gap-1.5 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl self-start">
               {(['ready', 'processing', 'failed'] as const).map((status) => {
                 const count = statusCounts[status]
                 return (
@@ -480,7 +485,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
                     key={status}
                     onClick={() => setStatusFilter(statusFilter === status ? null : status)}
                     className={cn(
-                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
                       statusFilter === status
                         ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
                         : 'text-on-surface/30 hover:text-on-surface/60',
@@ -508,48 +513,69 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
               })}
             </div>
 
-            {/* Date mode toggle */}
-            <div className="flex items-center gap-2 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
-              {(['capture', 'ingest'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setDateMode(mode)}
-                  className={cn(
-                    'px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
-                    dateMode === mode
-                      ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
-                      : 'text-on-surface/30 hover:text-on-surface/60',
-                  )}
-                >
-                  {mode === 'capture' ? 'Capture Date' : 'Upload Date'}
-                </button>
-              ))}
-            </div>
+            {/* Right: date mode + select + ingest */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 p-1 bg-black/[0.03] dark:bg-white/[0.03] rounded-2xl">
+                {(['capture', 'ingest'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setDateMode(mode)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all',
+                      dateMode === mode
+                        ? 'bg-white dark:bg-white/10 text-gallery-gold shadow-sm'
+                        : 'text-on-surface/30 hover:text-on-surface/60',
+                    )}
+                  >
+                    {mode === 'capture' ? 'Capture' : 'Upload'}
+                  </button>
+                ))}
+              </div>
 
-            {(initialFilters?.search || statusFilter) && (
-              <div className="flex flex-col items-end gap-1">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (isSelectionMode) clearSelection()
+                  else setIsSelectionMode(true)
+                }}
+                className={cn(
+                  'h-9 px-3 rounded-xl gap-2 font-medium text-sm transition-all',
+                  isSelectionMode
+                    ? 'bg-gallery-gold/10 text-gallery-gold'
+                    : 'text-on-surface/40 hover:text-primary',
+                )}
+              >
+                <CheckSquare size={14} />
+                <span className="hidden sm:inline">{isSelectionMode ? 'Cancel' : 'Select'}</span>
+              </Button>
+
+              {(initialFilters?.search || statusFilter) && (
                 <Button
                   variant="outline"
                   onClick={() => setIsSaveViewOpen(true)}
-                  className="h-12 px-6 rounded-2xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 flex items-center gap-2 font-semibold"
-                  title={`Save view parameters: ${statusFilter ? `Status=${statusFilter}` : ''}${initialFilters?.search && statusFilter ? ' + ' : ''}${initialFilters?.search ? `Search='${initialFilters.search}'` : ''}`}
+                  className="h-9 px-3 rounded-xl border-dashed border-gallery-gold/30 text-gallery-gold hover:bg-gallery-gold/5 gap-2 text-sm"
                 >
-                  <Save size={16} />
-                  <span>Save View</span>
+                  <Save size={14} />
+                  <span className="hidden sm:inline">Save View</span>
                 </Button>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-on-surface/30 font-varela pr-2">
-                  {statusFilter ? `Status:${statusFilter}` : ''}
-                  {initialFilters?.search && statusFilter ? ' + ' : ''}
-                  {initialFilters?.search ? `Query:${initialFilters.search}` : ''}
-                </span>
-              </div>
-            )}
+              )}
+
+              <Button
+                variant="gallery"
+                className="h-9 px-4 rounded-xl gap-2 text-sm shadow-sm"
+                onClick={openPicker}
+              >
+                <Plus size={14} />
+                <span className="hidden sm:inline">Ingest</span>
+                <span className="sm:hidden">+</span>
+              </Button>
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* 3. Timeline Stream */}
-      <div className="flex-1 min-h-[600px]">
+      <div className="flex-1 min-h-[600px] w-full min-w-0">
         {filteredMedia.length > 0 ? (
           <TimelineStream
             groups={groups}
@@ -582,76 +608,79 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[110]"
           >
-            <div className="bg-white/90 dark:bg-[#0a0c10]/90 backdrop-blur-2xl border border-black/[0.05] dark:border-white/[0.1] rounded-[32px] p-4 px-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] flex items-center gap-8 min-w-[500px]">
-              <div className="flex flex-col min-w-[120px]">
-                <span className="text-[10px] font-bold tracking-widest text-gallery-gold uppercase font-rubik leading-none mb-1">
-                  Selection
+            <div className="bg-white/90 dark:bg-[#0a0c10]/90 backdrop-blur-2xl border border-black/[0.05] dark:border-white/[0.1] rounded-[28px] p-3 px-4 sm:px-6 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] flex items-center gap-3 sm:gap-6 w-[calc(100vw-2rem)] sm:w-auto max-w-[640px]">
+              {/* Count */}
+              <div className="flex flex-col min-w-0 shrink-0">
+                <span className="text-[9px] font-bold tracking-widest text-gallery-gold uppercase font-rubik leading-none mb-0.5">
+                  Selected
                 </span>
-                <span className="text-sm font-semibold text-primary">
-                  {selectedIds.size === localMedia.length
-                    ? 'All Assets'
-                    : `${selectedIds.size} Selected`}
+                <span className="text-sm font-semibold text-primary whitespace-nowrap">
+                  {selectedIds.size === localMedia.length ? 'All' : selectedIds.size}
                 </span>
-                {selectedInView < selectedIds.size && (
-                  <span className="text-[10px] font-mono tracking-wide text-on-surface/40 mt-0.5">
-                    {selectedInView} visible in view
-                  </span>
-                )}
               </div>
 
-              <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
+              <div className="h-8 w-px bg-black/[0.05] dark:bg-white/[0.1] shrink-0" />
 
-              <div className="flex items-center gap-3">
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-wrap">
                 <Button
                   variant="ghost"
                   onClick={handleSelectAll}
-                  className="h-11 rounded-2xl gap-2 text-on-surface/60 hover:text-primary px-4"
+                  className="h-9 rounded-xl gap-1.5 text-on-surface/60 hover:text-primary px-2 sm:px-3 text-sm"
                 >
-                  <CheckSquare size={16} />
-                  <span>
-                    {filteredMedia.every((m) => selectedIds.has(m.id))
-                      ? 'Deselect All'
-                      : 'Select All'}
+                  <CheckSquare size={14} />
+                  <span className="hidden sm:inline">
+                    {filteredMedia.every((m) => selectedIds.has(m.id)) ? 'Deselect All' : 'All'}
                   </span>
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => setIsBulkEditOpen(true)}
-                  className="h-11 rounded-2xl gap-2 text-on-surface/60 hover:text-gallery-gold px-4"
+                  className="h-9 rounded-xl gap-1.5 text-on-surface/60 hover:text-gallery-gold px-2 sm:px-3 text-sm"
                 >
-                  <Edit3 size={16} />
-                  <span>Batch Edit</span>
+                  <Edit3 size={14} />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
+                {!collectionContext && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsBulkCollectionOpen(true)}
+                    className="h-9 rounded-xl gap-1.5 text-on-surface/60 hover:text-gallery-gold px-2 sm:px-3 text-sm"
+                  >
+                    <Bookmark size={14} />
+                    <span className="hidden sm:inline">Collect</span>
+                  </Button>
+                )}
                 {collectionContext ? (
                   <Button
                     variant="ghost"
                     onClick={handleRemoveFromCollection}
-                    className="h-11 rounded-2xl gap-2 text-[#bb1800] hover:bg-red-500/10 px-4"
+                    className="h-9 rounded-xl gap-1.5 text-[#bb1800] hover:bg-red-500/10 px-2 sm:px-3 text-sm"
                   >
-                    <PinOff size={16} />
-                    <span>Remove from Collection</span>
+                    <PinOff size={14} />
+                    <span className="hidden sm:inline">Remove</span>
                   </Button>
                 ) : (
                   <Button
                     variant="ghost"
                     onClick={handleBulkDeleteTrigger}
-                    className="h-11 rounded-2xl gap-2 text-red-500 hover:bg-red-500/10 px-4"
+                    className="h-9 rounded-xl gap-1.5 text-red-500 hover:bg-red-500/10 px-2 sm:px-3 text-sm"
                   >
-                    <Trash2 size={16} />
-                    <span>Delete</span>
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 )}
               </div>
 
-              <div className="h-10 w-px bg-black/[0.05] dark:bg-white/[0.1]" />
+              <div className="h-8 w-px bg-black/[0.05] dark:bg-white/[0.1] shrink-0" />
 
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={clearSelection}
-                className="h-11 w-11 rounded-2xl text-on-surface/30 hover:text-primary transition-colors"
+                className="h-9 w-9 rounded-xl text-on-surface/30 hover:text-primary transition-colors shrink-0"
               >
-                <CloseIcon size={20} />
+                <CloseIcon size={16} />
               </Button>
             </div>
           </motion.div>
@@ -684,6 +713,14 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
         isOpen={isSaveViewOpen}
         onClose={() => setIsSaveViewOpen(false)}
         onSave={handleSaveViewAction}
+      />
+
+      {/* Bulk add to collection */}
+      <BulkAddToCollectionModal
+        open={isBulkCollectionOpen}
+        onOpenChange={setIsBulkCollectionOpen}
+        mediaIds={Array.from(selectedIds) as number[]}
+        onSuccess={clearSelection}
       />
 
       {/* Collection context modals */}

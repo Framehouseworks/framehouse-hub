@@ -99,7 +99,7 @@ export function summariseFilter(fq: Record<string, unknown> | null | undefined):
 function CollectionTypeIcon({ col }: { col: CollectionCardData }) {
   const hasFilter = col.filterQuery && Object.keys(col.filterQuery).length > 0
   if (!hasFilter)
-    return <Bookmark size={11} className="text-[#1a1c1c]/40 flex-shrink-0 mt-px" aria-label="Manual view" />
+    return <Bookmark size={11} className="text-on-surface/40 flex-shrink-0 mt-px" aria-label="Manual view" />
   if (col.hasManualOverrides)
     return <SlidersHorizontal size={11} className="text-gallery-gold/70 flex-shrink-0 mt-px" aria-label="Hybrid view" />
   return <Filter size={11} className="text-gallery-gold flex-shrink-0 mt-px" aria-label="Rule-based view" />
@@ -245,7 +245,7 @@ export function CollectionCard({
         aria-busy={collection.assetCount === undefined}
       >
         {/* Cover area — inset by card padding (p-2), no overflow clipping needed */}
-        <div className="relative aspect-[4/3] w-full rounded-[16px] overflow-hidden bg-[#eeeeee] flex-shrink-0">
+        <div className="relative aspect-[4/3] w-full rounded-[16px] overflow-hidden bg-black/[0.06] dark:bg-white/[0.08] flex-shrink-0">
           {coverSrc ? (
             <Image
               src={coverSrc}
@@ -277,26 +277,32 @@ export function CollectionCard({
           )}
           {/* Tonal gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 pointer-events-none" />
-          {/* Selection checkbox — visible in selectionMode or on hover */}
-          {(selectionMode || true) && (
-            <div
-              className={cn(
-                'absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150',
-                'pointer-events-none',
-                selectionMode || 'opacity-0 group-hover:opacity-100',
-                selected
-                  ? 'bg-[#d79922] shadow-[0px_2px_8px_rgba(215,153,34,0.5)]'
-                  : 'bg-white/80 backdrop-blur-[4px]',
-              )}
-              aria-hidden="true"
-            >
-              {selected && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </div>
-          )}
+          {/* Selection circle — always rendered; acts as entry point into selection mode */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              onToggleSelect?.(collection.id)
+            }}
+            className={cn(
+              'absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center',
+              'transition-all duration-150 z-10',
+              'focus:outline-none focus-visible:shadow-[0_0_0_2px_rgba(215,153,34,0.6)]',
+              selectionMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+              selected
+                ? 'bg-[#d79922] shadow-[0px_2px_8px_rgba(215,153,34,0.5)]'
+                : 'bg-white/80 dark:bg-black/60 backdrop-blur-[4px]',
+            )}
+            aria-label={selected ? `Deselect ${collection.name}` : `Select ${collection.name}`}
+            aria-pressed={selected}
+          >
+            {selected && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
         </div>
 
         {/* Card content */}
@@ -320,7 +326,7 @@ export function CollectionCard({
                   }
                 }}
                 className={cn(
-                  'text-sm font-semibold text-[#1a1c1c] truncate transition-colors duration-200 min-w-0',
+                  'text-sm font-semibold text-on-surface truncate transition-colors duration-200 min-w-0',
                   !isEmpty && 'group-hover:text-gallery-gold',
                   isRenaming && 'outline-none border-b border-gallery-gold/50',
                 )}
@@ -336,7 +342,7 @@ export function CollectionCard({
                   id={`menu-trigger-${collection.id}`}
                   aria-haspopup="menu"
                   onClick={(e) => e.stopPropagation()}
-                  className="rounded-full p-1.5 hover:bg-[#eeeeee] text-[#1a1c1c]/40 hover:text-[#1a1c1c] transition-colors flex-shrink-0 pointer-events-auto"
+                  className="rounded-full p-1.5 hover:bg-black/[0.06] dark:bg-white/[0.08] text-on-surface/40 hover:text-on-surface transition-colors flex-shrink-0 pointer-events-auto"
                 >
                   <MoreHorizontal size={14} />
                 </button>
@@ -399,11 +405,11 @@ export function CollectionCard({
           <div className="flex items-center gap-2 flex-wrap">
             {collection.assetCount === undefined ? (
               <span
-                className="h-3 w-16 bg-[#eeeeee] animate-pulse rounded"
+                className="h-3 w-16 bg-black/[0.06] dark:bg-white/[0.08] animate-pulse rounded"
                 aria-busy="true"
               />
             ) : (
-              <span className="font-rubik text-[10px] uppercase tracking-widest text-[#1a1c1c]/40">
+              <span className="font-rubik text-[10px] uppercase tracking-widest text-on-surface/40">
                 {collection.assetCount.toLocaleString()} ASSETS
               </span>
             )}
@@ -413,7 +419,7 @@ export function CollectionCard({
               </Badge>
             )}
             {collection.isHidden && (
-              <Badge className="bg-[#eeeeee] text-[#1a1c1c]/40 border-0 font-rubik text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm">
+              <Badge className="bg-black/[0.06] dark:bg-white/[0.08] text-on-surface/40 border-0 font-rubik text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm">
                 HIDDEN
               </Badge>
             )}
@@ -423,7 +429,7 @@ export function CollectionCard({
             const summary = summariseFilter(collection.filterQuery)
             const label = summary ?? (collection.generatedFrom === 'manual' ? 'Manually curated' : null)
             return label ? (
-              <p className="text-[10px] text-[#1a1c1c]/35 truncate leading-tight" aria-label={`Rules: ${label}`}>
+              <p className="text-[10px] text-on-surface/35 truncate leading-tight" aria-label={`Rules: ${label}`}>
                 {label}
               </p>
             ) : null
