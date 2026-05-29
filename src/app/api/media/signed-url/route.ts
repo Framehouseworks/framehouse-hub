@@ -27,11 +27,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required filename or mimeType' }, { status: 400 })
     }
 
+    // Browsers leave File.type empty for RAW formats (.dng, .arw, .cr2, .heic, etc.).
+    // GCS always embeds content-type in signedHeaders — a blank or mismatched value
+    // causes MalformedSecurityHeader on PUT. Normalise here and echo back so the
+    // client uses the same value for the Content-Type header on the PUT request.
+    const effectiveMimeType = mimeType || 'application/octet-stream'
+
     // Pre-flight size enforcement. Run before any GCS work so an over-limit
     // client never gets a signed URL it could waste bandwidth filling.
     if (filesize != null) {
       const numericSize = Number(filesize)
-      const domainForCheck = classifyDomainCategory(mimeType, filename)
+      const domainForCheck = classifyDomainCategory(effectiveMimeType, filename)
       try {
         enforceUploadSizeLimit(domainCategoryToMediaType(domainForCheck), numericSize)
       } catch (err) {
@@ -52,7 +58,7 @@ export async function POST(req: Request) {
     const now = new Date()
     const year = now.getFullYear().toString()
     const month = (now.getMonth() + 1).toString().padStart(2, '0')
-    const domainCategory = classifyDomainCategory(mimeType, filename)
+    const domainCategory = classifyDomainCategory(effectiveMimeType, filename)
 
     const storagePath = buildStoragePath({
       userId: String(user.id),
@@ -92,12 +98,13 @@ export async function POST(req: Request) {
       version: 'v4',
       action: 'write',
       expires: Date.now() + 15 * 60 * 1000,
-      contentType: mimeType,
+      contentType: effectiveMimeType,
     })
 
     return NextResponse.json({
       localMode: false,
       url: signedUrl,
+      mimeType: effectiveMimeType,
       assetId,
       storagePath,
       domainCategory,

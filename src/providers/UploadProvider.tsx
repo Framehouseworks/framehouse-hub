@@ -445,13 +445,13 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // the route re-derives it server-side from mimeType+filename and
         // validates the path matches. signed-url remains the single
         // server-side authority on the storagePath value.
-        const { url, storagePath } = uploadSession
+        const { url, storagePath, mimeType: effectiveMimeType } = uploadSession
 
         // Perform direct HTTP PUT binary stream to GCS using raw XHR for real-time progress
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open('PUT', url)
-          xhr.setRequestHeader('Content-Type', uploadFile.type)
+          xhr.setRequestHeader('Content-Type', effectiveMimeType || uploadFile.type || 'application/octet-stream')
 
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
