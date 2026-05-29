@@ -1,4 +1,4 @@
-import type { Media } from '@/payload-types'
+import type { Media, Portfolio, Session } from '@/payload-types'
 import type { PaginatedDocs, Payload } from 'payload'
 import { aboutPageData, hubPageData } from './content/hubPages'
 import fs from 'fs'
@@ -500,9 +500,9 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
     }
 
     // Build filename → doc map for the new seeding sections
-    const mediaByFilename = new Map<string, any>()
+    const mediaByFilename = new Map<string, Media>()
     for (const doc of mediaDocs.docs) {
-      const fn = (doc as any).filename
+      const fn = doc.filename
       if (fn) mediaByFilename.set(fn, doc)
     }
 
@@ -559,8 +559,8 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           data: {
             name: def.name,
             shootDate: def.shootDate,
-            owner: ownerId as any,
-            ...(coverDoc ? { coverAsset: coverDoc.id as any } : {}),
+            owner: Number(ownerId),
+            ...(coverDoc ? { coverAsset: coverDoc.id } : {}),
           },
           context: { disableRevalidate: true },
         })
@@ -577,21 +577,22 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       payload.logger.info('Linking media docs to sessions...')
       // Re-fetch sessions to get their IDs
       const sessionDocs = await payload.find({ collection: 'sessions', limit: 50 })
-      const sessionByName = new Map<string, any>()
+      const sessionByName = new Map<string, Session>()
       for (const s of sessionDocs.docs) {
-        sessionByName.set((s as any).name, s)
+        sessionByName.set(s.name, s)
       }
 
       for (const doc of mediaDocs.docs) {
-        const shootName = (doc as any).shootName as string | undefined
+        const shootName = doc.shootName
         if (!shootName) continue
         const session = sessionByName.get(shootName)
         if (!session) continue
-        if ((doc as any).session && (doc as any).session === session.id) continue
+        const currentSession = typeof doc.session === 'object' ? doc.session?.id : doc.session
+        if (currentSession === session.id) continue
         await payload.update({
           collection: 'media',
           id: doc.id,
-          data: { session: session.id as any },
+          data: { session: session.id },
           context: { disableRevalidate: true },
         })
       }
@@ -730,7 +731,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             collection: 'smart-collections',
             data: {
               name: col.name,
-              owner: ownerId as any,
+              owner: Number(ownerId),
               filterQuery: col.filterQuery,
               icon: col.icon,
               isSystemGenerated: col.isSystemGenerated,
@@ -798,8 +799,8 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         }
         const items = def.fixtureFilenames
           .map((fn) => mediaByFilename.get(fn))
-          .filter(Boolean)
-          .map((doc) => ({ media: doc.id as any, size: 'medium' as const }))
+          .filter((doc): doc is Media => Boolean(doc))
+          .map((doc) => ({ media: doc.id, size: 'medium' as const }))
 
         const seedTitle = {
           root: {
@@ -826,11 +827,11 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           collection: 'portfolios',
           data: {
             name: def.name,
-            title: seedTitle as any,
-            owner: ownerId as any,
+            title: seedTitle as Portfolio['title'],
+            owner: Number(ownerId),
             visibility: 'private',
-            layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as any,
-          } as any,
+            layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as Portfolio['layoutBlocks'],
+          },
           context: { disableRevalidate: true },
         })
         payload.logger.info(`  Created portfolio "${def.name}" for ${def.ownerEmail}`)
