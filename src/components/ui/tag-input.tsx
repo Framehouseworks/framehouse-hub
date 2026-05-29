@@ -54,8 +54,8 @@ export function TagInput({
   return (
     <div
       className={cn(
-        'flex flex-wrap gap-1.5 rounded-[16px] bg-black/[0.04] dark:bg-white/[0.05] px-3 py-2.5 cursor-text min-h-[44px] transition-colors',
-        'focus-within:ring-2 focus-within:ring-gallery-gold/30 focus-within:bg-black/[0.06] dark:focus-within:bg-white/[0.07]',
+        'flex flex-wrap gap-1.5 rounded-[16px] bg-black/[0.04] dark:bg-white/[0.05] px-3 py-2.5 cursor-text min-h-[44px] transition-shadow',
+        'focus-within:shadow-[0_0_0_2px_rgba(215,153,34,0.35)]',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
@@ -89,7 +89,7 @@ export function TagInput({
           onKeyDown={handleKeyDown}
           onBlur={() => addTag(input)}
           placeholder={tags.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[120px] bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface/30"
+          className="flex-1 min-w-[120px] bg-transparent text-sm text-on-surface outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-on-surface/30"
           disabled={disabled}
         />
       )}

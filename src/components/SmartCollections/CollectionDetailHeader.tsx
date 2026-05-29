@@ -66,7 +66,7 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
         {/* Back nav */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1 text-xs text-[#1a1c1c]/40 hover:text-[#1a1c1c] transition-colors w-fit"
+          className="flex items-center gap-1 text-xs text-on-surface/40 hover:text-on-surface transition-colors w-fit"
         >
           <ChevronLeft size={14} /> Collections
         </button>
@@ -74,15 +74,15 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
         {/* Title row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-[#1a1c1c]">{collection.name}</h1>
+            <h1 className="text-xl font-semibold text-on-surface">{collection.name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="font-rubik text-[10px] uppercase tracking-widest text-[#1a1c1c]/40">
+              <span className="font-rubik text-[10px] uppercase tracking-widest text-on-surface/40">
                 {collection.assetCount.toLocaleString()} ASSETS
               </span>
               {lastUpdated && (
                 <>
-                  <span className="text-[#1a1c1c]/20">·</span>
-                  <span className="font-rubik text-[10px] uppercase tracking-widest text-[#1a1c1c]/30">
+                  <span className="text-on-surface/20">·</span>
+                  <span className="font-rubik text-[10px] uppercase tracking-widest text-on-surface/30">
                     UPDATED {lastUpdated.toUpperCase()}
                   </span>
                 </>
@@ -102,7 +102,7 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
                   ? 'Manually curated'
                   : null
               return label ? (
-                <p className="text-xs text-[#1a1c1c]/40 mt-1">{label}</p>
+                <p className="text-xs text-on-surface/40 mt-1">{label}</p>
               ) : null
             })()}
           </div>
@@ -135,7 +135,7 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="rounded-full p-2 hover:bg-[#eeeeee] text-[#1a1c1c]/40 hover:text-[#1a1c1c] transition-colors" aria-haspopup="menu">
+                <button className="rounded-full p-2 hover:bg-black/[0.06] dark:bg-white/[0.08] text-on-surface/40 hover:text-on-surface transition-colors" aria-haspopup="menu">
                   <MoreHorizontal size={16} />
                 </button>
               </DropdownMenuTrigger>
