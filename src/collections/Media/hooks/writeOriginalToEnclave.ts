@@ -85,7 +85,8 @@ export const writeOriginalToEnclave: CollectionBeforeChangeHook = async ({
 
   return {
     ...data,
-    filename: path.basename(enclavePath),
+    // filename is Payload's upload-managed field — do not set it here.
+    // Payload derives it from req.file.name after beforeOperation runs.
     originalFilename: filename,
     mimeType,
     filesize: incoming.size ?? buffer.length,
