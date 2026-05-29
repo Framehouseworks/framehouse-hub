@@ -3,7 +3,8 @@ import { auth } from '@/utilities/auth'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { MediaGrid } from '@/components/Gallery/MediaGrid'
-import { Clapperboard, CalendarDays, MapPin, Tag, Images, ArrowLeft } from 'lucide-react'
+import { SessionDetailActions } from '@/components/Sessions/SessionDetailActions'
+import { CalendarDays, MapPin, Tag, Images, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import type { Media, Session } from '@/payload-types'
 
@@ -84,16 +85,30 @@ export default async function SessionDetailPage({
       {/* Production brief header */}
       <header className="mb-8">
         <div className="inline-flex items-center gap-1.5 bg-[#445aa5]/10 text-[#445aa5] font-rubik text-[9px] tracking-[0.25em] px-2.5 py-1 rounded-lg uppercase w-fit mb-4">
-          <Clapperboard className="h-3 w-3" />
+          <CalendarDays className="h-3 w-3" />
           Session
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-start gap-6">
           {/* Title + meta */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight text-primary lg:text-4xl leading-tight">
-              {session.name}
-            </h1>
+            <div className="flex items-start gap-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-primary lg:text-4xl leading-tight flex-1">
+                {session.name}
+              </h1>
+              <SessionDetailActions
+                session={{
+                  id: session.id,
+                  name: session.name,
+                  shootDate: (session.shootDate as string | null) ?? null,
+                  description: session.description ?? null,
+                  location: loc as { address?: string | null; latitude?: number | null; longitude?: number | null } | null,
+                  defaultTags: (session.defaultTags as { tag?: string }[] | null | undefined ?? [])
+                    .map((t) => t.tag)
+                    .filter(Boolean) as string[],
+                }}
+              />
+            </div>
             {session.description && (
               <p className="mt-2 text-sm text-on-surface/50 max-w-2xl leading-relaxed">
                 {session.description}
@@ -125,8 +140,8 @@ export default async function SessionDetailPage({
             </div>
           </div>
 
-          {/* Stats sidebar — tonal cards */}
-          <div className="flex gap-3 flex-shrink-0">
+          {/* Stats — tonal cards */}
+          <div className="flex gap-3 flex-shrink-0 flex-wrap">
             <div className="bg-[#445aa5]/[0.07] rounded-[16px] px-5 py-3 text-center min-w-[80px]">
               <div className="flex items-center justify-center mb-1">
                 <Images className="h-4 w-4 text-[#445aa5]/60" />
@@ -168,19 +183,14 @@ export default async function SessionDetailPage({
           </div>
           <p className="font-inter text-base font-medium text-primary">No media in this session yet</p>
           <p className="font-inter text-sm text-on-surface/40">
-            Ingest files and assign them to <strong>{session.name}</strong>.
+            Upload files and assign them to <strong>{session.name}</strong>.
           </p>
         </div>
       ) : (
-        <>
-          <p className="font-rubik text-[9px] font-bold text-on-surface/30 uppercase tracking-[0.2em] mb-4">
-            All assets — {totalDocs.toLocaleString()}
-          </p>
-          <MediaGrid
-            initialMedia={mediaItems as Media[]}
-            collectionContext={undefined}
-          />
-        </>
+        <MediaGrid
+          initialMedia={mediaItems as Media[]}
+          variant="session"
+        />
       )}
     </div>
   )

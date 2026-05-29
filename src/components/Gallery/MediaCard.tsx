@@ -9,9 +9,11 @@ import tempAsset from '@/assets/hub/temp_asset.png'
 import { updateMediaAction } from '@/app/(dashboard)/actions/media'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { Bookmark } from 'lucide-react'
 import { CardTopBadges } from './cards/CardTopBadges'
 import { CardIdentityBar } from './cards/CardIdentityBar'
 import { CardMetadataPanel } from './cards/CardMetadataPanel'
+import { CollectionPickerPopover } from '@/components/SmartCollections/CollectionPickerPopover'
 
 interface Props {
   media: Media
@@ -222,6 +224,29 @@ const MediaCardComponent: React.FC<Props> = ({
 
       {/* 5. Identity bar (always visible, hides when panel is open) */}
       <CardIdentityBar media={media} title={title} visible={!isMetaOpen} />
+
+      {/* 6. Add-to-collection button — bottom-right, visible on hover/not-in-selection */}
+      {!isSelectionMode && !isSelected && (
+        <div
+          className={cn(
+            'absolute bottom-2 right-2 z-20 transition-opacity duration-150',
+            isHovered ? 'opacity-100' : 'opacity-0',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CollectionPickerPopover
+            mediaId={media.id as number}
+            trigger={
+              <button
+                className="w-7 h-7 rounded-[10px] bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold/50"
+                aria-label={`Add ${title} to a collection`}
+              >
+                <Bookmark size={13} />
+              </button>
+            }
+          />
+        </div>
+      )}
     </motion.article>
   )
 }

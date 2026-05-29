@@ -94,7 +94,6 @@ export const Portfolios: CollectionConfig = {
     {
       name: 'title',
       type: 'richText',
-      required: true,
       editor: minimalistLexical,
       admin: {
         description: 'Portfolio Title (Rich Text supported for custom emphasis)',

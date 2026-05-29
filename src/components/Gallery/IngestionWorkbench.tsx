@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useUpload } from '@/providers/UploadProvider'
-import { CloudUpload, Image as ImageIcon, Clapperboard, MapPin, Tag } from 'lucide-react'
+import { CloudUpload, Image as ImageIcon, Camera, MapPin, Tag } from 'lucide-react'
 import NextImage from 'next/image'
 import { LocationSearch, type PhotonResult } from '@/components/ui/location-search'
 import { TagInput } from '@/components/ui/tag-input'
@@ -40,9 +40,15 @@ export const IngestionWorkbench: React.FC = () => {
   const { stagedFiles, isWorkbenchOpen, closeWorkbench, commitStagedFiles } = useUpload()
 
   const [sessionOptions, setSessionOptions] = useState<ComboboxOption[]>([])
-  const [selectedSessionId, setSelectedSessionId] = useState<number | undefined>()
-  const [selectedSessionName, setSelectedSessionName] = useState('')
+  // combobox display value — either an existing session id or the sentinel '__pending__'
+  const [sessionComboValue, setSessionComboValue] = useState<string | undefined>()
+  // resolved id for existing sessions; undefined until upload time for new ones
+  const [resolvedSessionId, setResolvedSessionId] = useState<number | undefined>()
+  // name typed for a brand-new session; null means an existing session was selected
+  const [pendingNewName, setPendingNewName] = useState<string | null>(null)
+  const [sessionName, setSessionName] = useState('')
   const [sessionError, setSessionError] = useState('')
+  const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [tags, setTags] = useState<string[]>([])
   const [locationAddress, setLocationAddress] = useState('')
   const [locationLat, setLocationLat] = useState<number | undefined>()
@@ -89,55 +95,78 @@ export const IngestionWorkbench: React.FC = () => {
   }, [])
 
   const handleSessionChange = useCallback(
-    async (value: string, isNew?: boolean) => {
+    (value: string, isNew?: boolean) => {
       setSessionError('')
       if (isNew) {
-        try {
-          const res = await fetch('/api/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ name: value }),
-          })
-          if (!res.ok) throw new Error()
-          const data = await res.json()
-          const s = data?.doc ?? data
-          const opt: ComboboxOption = { value: String(s.id), label: s.name }
-          setSessionOptions((prev) => [opt, ...prev])
-          setSelectedSessionId(s.id)
-          setSelectedSessionName(s.name)
-        } catch {
-          setSessionError('Could not create session — try again.')
-        }
+        // Defer creation — store the name, show a temporary option in the combobox
+        const tempOpt: ComboboxOption = { value: '__pending__', label: value }
+        setSessionOptions((prev) => [tempOpt, ...prev.filter((o) => o.value !== '__pending__')])
+        setSessionComboValue('__pending__')
+        setPendingNewName(value)
+        setResolvedSessionId(undefined)
+        setSessionName(value)
       } else {
         const opt = sessionOptions.find((o) => o.value === value)
-        setSelectedSessionId(Number(value))
-        setSelectedSessionName(opt?.label ?? '')
+        setSessionComboValue(value)
+        setResolvedSessionId(Number(value))
+        setPendingNewName(null)
+        setSessionName(opt?.label ?? '')
       }
     },
     [sessionOptions],
   )
 
-  const onIngest = () => {
-    if (!selectedSessionId) {
+  const resetSession = () => {
+    setSessionComboValue(undefined)
+    setResolvedSessionId(undefined)
+    setPendingNewName(null)
+    setSessionName('')
+    setSessionError('')
+    setSessionOptions((prev) => prev.filter((o) => o.value !== '__pending__'))
+  }
+
+  const onIngest = async () => {
+    if (!sessionName.trim()) {
       setSessionError('Choose or create a session to continue.')
       return
     }
-    commitStagedFiles({
-      sessionId: selectedSessionId,
-      shootName: selectedSessionName,
-      tags,
-      location: locationAddress
-        ? { address: locationAddress, latitude: locationLat, longitude: locationLng }
-        : undefined,
-    })
-    setSelectedSessionId(undefined)
-    setSelectedSessionName('')
-    setTags([])
-    setLocationAddress('')
-    setLocationLat(undefined)
-    setLocationLng(undefined)
-    setSessionError('')
+    setIsCreatingSession(true)
+    try {
+      let finalSessionId = resolvedSessionId
+      if (pendingNewName) {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name: pendingNewName }),
+        })
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        const s = data?.doc ?? data
+        finalSessionId = s.id
+      }
+      if (!finalSessionId) {
+        setSessionError('Could not resolve session — try again.')
+        return
+      }
+      commitStagedFiles({
+        sessionId: finalSessionId,
+        shootName: sessionName,
+        tags,
+        location: locationAddress
+          ? { address: locationAddress, latitude: locationLat, longitude: locationLng }
+          : undefined,
+      })
+      resetSession()
+      setTags([])
+      setLocationAddress('')
+      setLocationLat(undefined)
+      setLocationLng(undefined)
+    } catch {
+      setSessionError('Could not create session — try again.')
+    } finally {
+      setIsCreatingSession(false)
+    }
   }
 
   return (
@@ -147,18 +176,12 @@ export const IngestionWorkbench: React.FC = () => {
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-6 flex items-start justify-between gap-4 flex-shrink-0">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 mb-3">
-              <div className="h-1 w-5 rounded-full bg-gallery-gold/60" />
-              <span className="font-space-mono text-[9px] font-bold text-gallery-gold/60 uppercase tracking-[0.25em]">
-                Ingest Queue
-              </span>
-            </div>
             <h1 className="font-inter text-2xl sm:text-3xl font-semibold text-primary tracking-tight leading-tight">
               {stagedFiles.length}{' '}
-              {stagedFiles.length === 1 ? 'file' : 'files'} ready
+              {stagedFiles.length === 1 ? 'file' : 'files'} ready to upload
             </h1>
             <p className="mt-1 font-inter text-sm text-on-surface/40">
-              Add session details before committing to your archive.
+              Assign a session before uploading.
             </p>
           </div>
 
@@ -261,12 +284,12 @@ export const IngestionWorkbench: React.FC = () => {
 
               {/* Session — required */}
               <div>
-                <FieldLabel icon={Clapperboard} required>
+                <FieldLabel icon={Camera} required>
                   Session
                 </FieldLabel>
                 <Combobox
                   options={sessionOptions}
-                  value={selectedSessionId ? String(selectedSessionId) : undefined}
+                  value={sessionComboValue}
                   onChange={handleSessionChange}
                   placeholder="Select or create…"
                   allowCreate
@@ -317,17 +340,18 @@ export const IngestionWorkbench: React.FC = () => {
         <div className="flex-shrink-0 px-6 sm:px-10 py-5 sm:py-6 bg-white/80 dark:bg-[#0d0f14]/80 backdrop-blur-xl border-t-0 space-y-2.5">
           <Button
             onClick={onIngest}
-            className="w-full h-14 rounded-[20px] bg-gradient-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-sm font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2.5"
+            disabled={!sessionName.trim() || isCreatingSession}
+            className="w-full h-14 rounded-[20px] bg-gradient-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-sm font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:pointer-events-none"
           >
             <CloudUpload size={18} />
-            Start Ingest
+            {isCreatingSession ? 'Starting upload…' : `Upload ${stagedFiles.length} ${stagedFiles.length === 1 ? 'File' : 'Files'}`}
           </Button>
           <Button
             variant="ghost"
             onClick={closeWorkbench}
             className="w-full h-10 rounded-[16px] text-on-surface/35 hover:text-on-surface/60 font-space-mono text-[10px] font-bold uppercase tracking-[0.15em] transition-colors"
           >
-            Cancel & clear queue
+            Cancel
           </Button>
         </div>
       </DialogContent>

@@ -21,11 +21,11 @@ import {
 } from 'lucide-react'
 
 const STEP_DISPLAY: Record<string, { label: string; icon: LucideIcon }> = {
-  upload_complete: { label: 'Upload complete', icon: CloudUpload },
-  exif_parsing: { label: 'Reading metadata', icon: ScanSearch },
-  generating_webp: { label: 'Generating previews', icon: ImagePlus },
-  registering_assets: { label: 'Finalizing', icon: PackageCheck },
-  ready: { label: 'Done', icon: CheckCircle2 },
+  upload_complete: { label: 'Uploaded', icon: CloudUpload },
+  exif_parsing: { label: 'Reading file info', icon: ScanSearch },
+  generating_webp: { label: 'Creating previews', icon: ImagePlus },
+  registering_assets: { label: 'Saving to library', icon: PackageCheck },
+  ready: { label: 'Ready', icon: CheckCircle2 },
   failed: { label: 'Failed', icon: AlertCircle },
 }
 
@@ -67,10 +67,10 @@ export const ArchivalProgressOverlay: React.FC = () => {
   const isFinished = queue.length > 0 && activeItems.length === 0
 
   const headerLabel = isFinished
-    ? 'Upload Complete'
+    ? 'Done'
     : activeItems.some((i) => i.status === 'processing')
       ? 'Processing…'
-      : 'Uploading…'
+      : 'Uploading files…'
 
   const headerIcon = isFinished ? CheckCircle2 : CloudUpload
 
@@ -100,7 +100,7 @@ export const ArchivalProgressOverlay: React.FC = () => {
               <div>
                 <h3 className="font-inter text-sm font-semibold text-primary">{headerLabel}</h3>
                 <p className="font-rubik text-[9px] text-on-surface/30 uppercase tracking-wider">
-                  {completedCount} / {queue.length} Committed
+                  {completedCount} of {queue.length} ready
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export const ArchivalProgressOverlay: React.FC = () => {
                 <div className="px-5 pb-2">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-rubik text-[8px] text-on-surface/30 uppercase tracking-widest">
-                      Pipeline Progress
+                      Progress
                     </span>
                     <span className="font-rubik text-[10px] text-gallery-gold font-semibold">
                       {totalProgress}%
@@ -237,7 +237,7 @@ export const ArchivalProgressOverlay: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <AlertCircle className="text-red-500" size={14} />
                         <p className="font-inter text-[10px] text-red-600 dark:text-red-400 font-medium">
-                          {failedCount} asset{failedCount > 1 ? 's' : ''} failed extraction.
+                          {failedCount} file{failedCount > 1 ? 's' : ''} failed —
                         </p>
                       </div>
                       <button
@@ -245,7 +245,7 @@ export const ArchivalProgressOverlay: React.FC = () => {
                         className="h-7 px-3 rounded-xl bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-red-600 transition-all flex items-center gap-2"
                       >
                         <RefreshCcw size={12} />
-                        Retry All
+                        Retry
                       </button>
                     </div>
                   </div>
