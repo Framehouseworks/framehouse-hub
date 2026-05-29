@@ -972,7 +972,7 @@ export interface Portfolio {
   /**
    * Portfolio Title (Rich Text supported for custom emphasis)
    */
-  title: {
+  title?: {
     root: {
       type: string;
       children: {
@@ -986,7 +986,7 @@ export interface Portfolio {
       version: number;
     };
     [k: string]: unknown;
-  };
+  } | null;
   /**
    * Portfolio Subheading (Rich Text supported)
    */

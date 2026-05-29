@@ -3,7 +3,6 @@ import { auth } from '@/utilities/auth'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { MediaGrid } from '@/components/Gallery/MediaGrid'
-import { CollectionDetailHeader } from '@/components/SmartCollections/CollectionDetailHeader'
 import type { Media, SmartCollection } from '@/payload-types'
 import type { Where } from 'payload'
 
@@ -19,44 +18,6 @@ type SmartCollectionV2 = SmartCollection & {
 }
 
 export const dynamic = 'force-dynamic'
-
-// ─── Manual includes section ──────────────────────────────────────────────────
-
-function ManualIncludesSection({ media }: { media: Media[] }) {
-  if (!media.length) return null
-  return (
-    <section aria-label="Manually added assets" className="mb-8">
-      <p className="text-[10px] tracking-widest font-medium text-[#1a1c1c]/40 uppercase mb-3">
-        MANUALLY ADDED ({media.length.toLocaleString()})
-      </p>
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {media.map((item) => {
-          const src = item.thumbnailUrl || item.proxyUrl || item.originalUrl || item.url
-          return (
-            <div
-              key={item.id}
-              className="relative aspect-square rounded-[12px] overflow-hidden bg-[#eeeeee]"
-            >
-              {src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={src}
-                  alt={item.title || item.filename || ''}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[#d5c4af] text-xs">
-                  No preview
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -122,40 +83,8 @@ export default async function CollectionDetailPage({
     depth: 0,
   })
 
-  // Collection data for header
-  const rawFilterQuery = Object.keys(filterQuery).length > 0 ? filterQuery : null
-  const collectionForHeader = {
-    id: collection.id,
-    name: collection.name,
-    isSystemGenerated: collection.isSystemGenerated ?? false,
-    isHidden: collection.isHidden ?? false,
-    generatedFrom: collection.generatedFrom ?? 'manual',
-    sortOrder: collection.sortOrder ?? 0,
-    assetCount: totalAutoCount + manualIncludeIds.length,
-    filterQuery: rawFilterQuery,
-    hasManualOverrides: manualIncludeIds.length > 0 || manualExcludeIds.length > 0,
-    updatedAt: collection.updatedAt,
-  }
-
   return (
     <div className="flex flex-col min-h-[calc(100vh-180px)]">
-      {/* Detail header with type icon, rule summary, edit actions */}
-      <CollectionDetailHeader collection={collectionForHeader} />
-
-      {/* Manual includes section — only shown when manually added assets exist */}
-      <ManualIncludesSection media={manualIncludeDocs} />
-
-      {/* Auto-matched section label */}
-      {hasFilterQuery && (
-        <p
-          className="text-[10px] tracking-widest font-medium text-[#1a1c1c]/40 uppercase mb-3"
-          aria-label={`Automatically matched assets: ${totalAutoCount.toLocaleString()}`}
-        >
-          AUTOMATICALLY MATCHED ({totalAutoCount.toLocaleString()})
-        </p>
-      )}
-
-      {/* Auto-matched assets grid with pagination */}
       <MediaGrid
         initialMedia={autoMedia as Media[]}
         collectionContext={{
@@ -163,6 +92,9 @@ export default async function CollectionDetailPage({
           name: collection.name,
           isSystemGenerated: collection.isSystemGenerated ?? false,
           manualIncludeIds,
+          manualIncludeDocs,
+          hasFilterQuery,
+          autoMatchedCount: totalAutoCount,
         }}
       />
     </div>
