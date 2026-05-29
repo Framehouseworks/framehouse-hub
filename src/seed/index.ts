@@ -224,14 +224,23 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       : []
 
     // Determine which fixture filenames are already represented by a doc with
-    // its file on disk. Anything not in this set will be (re-)seeded below.
+    // its file on disk. Query by the exact fixture filenames to avoid pagination
+    // limits on large media tables missing the original fixture docs.
     const presentFixtureFilenames = new Set<string>()
-    for (const doc of mediaDocs.docs) {
-      const sp = (doc as { storagePath?: string }).storagePath
-      const docFilename = (doc as { filename?: string }).filename
-      if (!sp || !docFilename) continue
-      if (!fs.existsSync(path.join(MEDIA_ROOT, sp))) continue
-      presentFixtureFilenames.add(docFilename)
+    if (fixtureFiles.length > 0) {
+      const fixtureQuery = await payload.find({
+        collection: 'media',
+        where: { filename: { in: fixtureFiles } },
+        limit: fixtureFiles.length * 10,
+        overrideAccess: true,
+      })
+      for (const doc of fixtureQuery.docs) {
+        const sp = (doc as { storagePath?: string }).storagePath
+        const docFilename = (doc as { filename?: string }).filename
+        if (!sp || !docFilename) continue
+        if (!fs.existsSync(path.join(MEDIA_ROOT, sp))) continue
+        presentFixtureFilenames.add(docFilename)
+      }
     }
 
     const missingFixtures = fixtureFiles.filter((f) => !presentFixtureFilenames.has(f))
@@ -792,10 +801,32 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           .filter(Boolean)
           .map((doc) => ({ media: doc.id as any, size: 'medium' as const }))
 
+        const seedTitle = {
+          root: {
+            children: [
+              {
+                children: [
+                  { detail: 0, format: 0, mode: 'normal', style: '', text: def.name, type: 'text', version: 1 },
+                ],
+                direction: 'ltr',
+                format: '',
+                indent: 0,
+                type: 'paragraph',
+                version: 1,
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            type: 'root',
+            version: 1,
+          },
+        }
         await payload.create({
           collection: 'portfolios',
           data: {
             name: def.name,
+            title: seedTitle as any,
             owner: ownerId as any,
             visibility: 'private',
             layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as any,

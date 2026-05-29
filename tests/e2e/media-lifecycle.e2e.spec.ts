@@ -87,14 +87,14 @@ test.describe('Media lifecycle (e2e)', () => {
       await page.waitForURL(/\/dashboard/, { timeout: 60_000 })
 
       // 2. Trigger the upload picker, populate the hidden input.
-      await page.locator('button:has-text("Ingest New Work")').first().click()
+      await page.locator('button:has-text("Ingest")').first().click()
       await page.locator('input[type="file"]').setInputFiles(stagedFixture)
 
       // 3. IngestionWorkbench → commit. Wait for button to be enabled (async
       // file staging/validation gates it), then select a session (required
       // since FRH-47) and commit. The seed creates 'Seed: Main Portfolio' for
       // the creative user so the combobox always has at least one option.
-      const ingestBtn = page.locator('button:has-text("Start Ingest")')
+      const ingestBtn = page.locator('button:has-text("Upload")')
       await expect(ingestBtn).toBeEnabled({ timeout: 15_000 })
 
       // Open session combobox and pick the first available option.
