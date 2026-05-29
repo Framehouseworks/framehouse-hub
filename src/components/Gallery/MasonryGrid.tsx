@@ -48,7 +48,7 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
   const effectiveCols = Math.min(max, Math.max(floor, items.length))
 
   return (
-    <div ref={containerRef} style={{ columnCount: effectiveCols, columnGap: '1.25rem' }}>
+    <div ref={containerRef} className="w-full min-w-0" style={{ columnCount: effectiveCols, columnGap: '1.25rem' }}>
       {items.map((item) => (
         <div key={item.id} className="break-inside-avoid mb-5">
           <MediaCard

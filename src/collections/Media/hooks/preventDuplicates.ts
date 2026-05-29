@@ -72,12 +72,11 @@ export const preventDuplicates: CollectionBeforeOperationHook = async ({
   if (candidateFile !== filename) {
     req.payload.logger.info(`[Media] Temporal Gatekeeper Rename: ${filename} -> ${candidateFile}`)
 
-    // CRITICAL: Modifying req.file.name BEFORE the storage adapter sees it
-    // ensures the physical file on disk matches the database record.
+    // Modifying req.file.name BEFORE the storage adapter sees it ensures the
+    // physical file on disk matches the database record. Payload derives the
+    // `filename` field from req.file.name — do not also set data.filename or
+    // Payload's upload validation will reject it as a duplicate assignment.
     file.name = candidateFile
-
-    // Also ensure the data object reflects the new name
-    data.filename = candidateFile
   }
 
   return args

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Layers,
@@ -12,13 +12,14 @@ import {
   X,
   Trash2,
   EyeOff as HideIcon,
-  Search,
+  Loader2,
   Plus,
+  Bookmark,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SearchInput } from '@/components/ui/search-input'
 import { cn } from '@/utilities/cn'
 import { CollectionCard, type CollectionCardData } from './CollectionCard'
-import { NewCollectionCard } from './NewCollectionCard'
 import { CollectionGroupSection } from './CollectionGroupSection'
 import { CollectionRuleEditor } from './CollectionRuleEditor'
 import { ManualOverridesPanel } from './ManualOverridesPanel'
@@ -43,14 +44,100 @@ const GROUP_DEFS: { key: string; label: string; defaultExpanded: boolean }[] = [
 
 const RECENT_KEY = 'fh_recent_collections'
 
-// ─── Recent strip (localStorage-backed) ──────────────────────────────────────
+// ─── Inline "New Collection" button shown in the Manual section header ────────
+// Always visible at the top of the section — no scrolling required.
+
+function NewCollectionInlineButton({
+  onCreateManual,
+}: {
+  onCreateManual: (name: string) => Promise<void>
+}) {
+  const [isNaming, setIsNaming] = useState(false)
+  const [name, setName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (isNaming) inputRef.current?.focus()
+  }, [isNaming])
+
+  const commit = async () => {
+    const trimmed = name.trim()
+    if (!trimmed) { setIsNaming(false); setName(''); return }
+    setIsSaving(true)
+    try {
+      await onCreateManual(trimmed)
+      setName('')
+      setIsNaming(false)
+    } catch { /* parent handles toast */ }
+    finally { setIsSaving(false) }
+  }
+
+  if (isNaming) {
+    return (
+      <div className="flex items-center gap-1.5">
+        {/* Container gets focus ring — not the input */}
+        <div className="rounded-[12px] bg-black/[0.04] dark:bg-white/[0.05] focus-within:shadow-[0_0_0_2px_rgba(215,153,34,0.35)] transition-shadow">
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') { setIsNaming(false); setName('') }
+            }}
+            placeholder="Collection name…"
+            className="px-3 py-1.5 text-xs text-primary bg-transparent outline-none focus:outline-none placeholder:text-on-surface/30 w-[160px]"
+            aria-label="New collection name"
+          />
+        </div>
+        <button
+          onClick={commit}
+          disabled={!name.trim() || isSaving}
+          className="h-7 px-2.5 rounded-[10px] bg-gallery-gold text-white text-[11px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1"
+          aria-label="Create collection"
+        >
+          {isSaving ? <Loader2 size={11} className="animate-spin" /> : 'Create'}
+        </button>
+        <button
+          onClick={() => { setIsNaming(false); setName('') }}
+          className="h-7 w-7 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.05] flex items-center justify-center text-on-surface/40 hover:text-primary transition-colors"
+          aria-label="Cancel"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setIsNaming(true)}
+      className="flex items-center gap-1.5 text-[10px] font-medium text-on-surface/40 hover:text-gallery-gold transition-colors py-1 px-2 rounded-[8px] hover:bg-gallery-gold/[0.06] focus:outline-none focus-visible:shadow-[0_0_0_2px_rgba(215,153,34,0.35)]"
+      aria-label="Create new manual collection"
+    >
+      <Plus size={12} />
+      New
+    </button>
+  )
+}
+
+// ─── Recent section (localStorage-backed, responsive grid) ───────────────────
+// Stays mounted during selection so cards never reshuffle under the user's
+// pointer. Selection state is threaded in from the parent so the ring/tick
+// renders correctly without any local state duplication.
 
 function RecentStrip({
   allCollections,
+  selectionMode,
+  selectedIds,
   cardProps,
 }: {
   allCollections: CollectionCardData[]
-  cardProps: Omit<React.ComponentProps<typeof CollectionCard>, 'collection'>
+  selectionMode: boolean
+  selectedIds: Set<number>
+  cardProps: Omit<React.ComponentProps<typeof CollectionCard>, 'collection' | 'selectionMode' | 'selected'>
 }) {
   const [recentIds, setRecentIds] = useState<number[]>([])
 
@@ -67,36 +154,38 @@ function RecentStrip({
     () =>
       recentIds
         .map((id) => allCollections.find((c) => c.id === id))
-        .filter(Boolean) as CollectionCardData[],
+        .filter(Boolean)
+        .slice(0, 4) as CollectionCardData[],
     [recentIds, allCollections],
   )
 
   if (recent.length < 2) return null
 
   return (
-    <section aria-label="Recently viewed collections" className="flex flex-col gap-0 mb-1">
-      <p className="text-[10px] tracking-widest font-medium text-[#1a1c1c]/40 uppercase py-2.5 select-none">
-        RECENT
-      </p>
-      <div
-        className={cn(
-          'flex gap-4 overflow-x-auto pb-4',
-          'snap-x snap-mandatory scroll-smooth',
-          // Hide scrollbar cross-browser
-          '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
-        )}
-        role="list"
-        aria-label="Recently viewed"
-      >
-        {recent.map((c) => (
-          <div
-            key={c.id}
-            className="snap-start flex-shrink-0 w-[200px] sm:w-[220px]"
-            role="listitem"
-          >
-            <CollectionCard collection={c} {...cardProps} />
-          </div>
-        ))}
+    // Tonal surface card provides clear spatial demarcation from the grouped
+    // sections below — uses the platform's layering principle (surface_container_low)
+    // rather than a 1px border (prohibited by DESIGN.md).
+    <section aria-label="Recently viewed collections" className="mb-6 w-full">
+      <div className="bg-[#f5f4f2] dark:bg-white/[0.03] rounded-[20px] p-4">
+        <p className="text-[10px] tracking-widest font-medium text-on-surface/40 uppercase pb-3 select-none">
+          RECENT
+        </p>
+        <div
+          className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
+          role="list"
+          aria-label="Recently viewed"
+        >
+          {recent.map((c) => (
+            <div key={c.id} className="min-w-0" role="listitem">
+              <CollectionCard
+                collection={c}
+                {...cardProps}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(c.id)}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -117,7 +206,6 @@ export function CollectionsGrid({
   const [showHidden, setShowHidden] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [search, setSearch] = useState('')
-  const searchRef = useRef<HTMLInputElement>(null)
 
   // ── Multi-select ───────────────────────────────────────────────────────────
   const [selectionMode, setSelectionMode] = useState(false)
@@ -125,13 +213,11 @@ export function CollectionsGrid({
   const [isBulkWorking, setIsBulkWorking] = useState(false)
 
   const toggleSelect = useCallback((id: number) => {
+    setSelectionMode(true) // enter selection mode on first circle tap — matches MediaGrid behaviour
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }, [])
@@ -238,6 +324,17 @@ export function CollectionsGrid({
     setEditorOpen(true)
   }, [])
 
+  const handleNewManualCollection = useCallback(async (name: string) => {
+    const res = await fetch('/api/smart-collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, filterQuery: {}, generatedFrom: 'manual' }),
+    })
+    if (!res.ok) throw new Error('Create failed')
+    toast.success(`${name} created`)
+    router.refresh()
+  }, [router])
+
   const handleHide = async (id: number, hidden: boolean) => {
     const res = await fetch(`/api/smart-collections/${id}`, {
       method: 'PATCH',
@@ -297,15 +394,14 @@ export function CollectionsGrid({
     router.refresh()
   }
 
-  // Shared card callback props for the recent strip (no selection state)
-  const recentCardProps: Omit<React.ComponentProps<typeof CollectionCard>, 'collection'> = {
+  // Callback-only props shared into RecentStrip. selectionMode/selected are
+  // injected per-card inside RecentStrip using live parent state.
+  const recentCardProps: Omit<React.ComponentProps<typeof CollectionCard>, 'collection' | 'selectionMode' | 'selected'> = {
     onHide: handleHide,
     onDelete: handleDelete,
     onDuplicate: handleDuplicate,
     onEditRules: handleEditRules,
     onManageAssets: handleManageAssets,
-    selectionMode: false,
-    selected: false,
     onToggleSelect: toggleSelect,
   }
 
@@ -317,10 +413,10 @@ export function CollectionsGrid({
           <Layers className="text-[#d5c4af]" size={28} />
         </div>
         <div className="space-y-2 max-w-xs">
-          <p className="text-sm font-medium text-[#1a1c1c]/60">No views yet</p>
-          <p className="text-xs text-[#1a1c1c]/40 leading-relaxed">
-            Your first views will appear here automatically after you upload assets, or create one
-            with custom rules.
+          <p className="text-sm font-medium text-on-surface/60">No collections yet</p>
+          <p className="text-xs text-on-surface/40 leading-relaxed">
+            Create a manual collection to curate assets by hand, or generate smart views
+            automatically from your media.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -329,19 +425,27 @@ export function CollectionsGrid({
             disabled={isGenerating}
             variant="outline"
             className={cn(
-              'rounded-[20px] gap-2 border-[#d5c4af]/40 text-[#1a1c1c]/60',
+              'rounded-[20px] gap-2 border-[#d5c4af]/40 text-on-surface/60',
               'hover:border-gallery-gold/40 hover:text-gallery-gold hover:bg-gallery-gold/[0.03]',
             )}
           >
             <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} />
-            {isGenerating ? 'Generating…' : 'Generate from uploads'}
+            {isGenerating ? 'Generating…' : 'Generate smart views'}
           </Button>
           <Button
-            onClick={handleNewCollection}
+            onClick={() => handleNewManualCollection('New Collection').catch(() => {})}
             className="bg-gradient-to-r from-[#7f5700] to-[#d79922] text-white rounded-[24px] gap-2 px-6"
           >
-            <Sparkles size={14} />
-            Create a View
+            <Bookmark size={14} />
+            New Collection
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={handleNewCollection}
+            className="rounded-[20px] gap-2 text-on-surface/40 hover:text-primary text-xs"
+          >
+            <Sparkles size={13} />
+            Smart view with rules
           </Button>
         </div>
 
@@ -358,37 +462,13 @@ export function CollectionsGrid({
     <>
       {/* ── Search + Toolbar ─────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 mb-5">
-        {/* Search bar */}
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#1a1c1c]/30 pointer-events-none"
-          />
-          <input
-            ref={searchRef}
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search views…"
-            aria-label="Search collections"
-            className={cn(
-              'w-full pl-9 pr-4 py-2.5 rounded-[16px] text-sm',
-              'bg-[#f3f3f4] dark:bg-white/[0.06]',
-              'text-[#1a1c1c] dark:text-white placeholder:text-[#1a1c1c]/30',
-              'outline-none focus:ring-2 focus:ring-[#d79922]/30',
-              'transition-shadow',
-            )}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1a1c1c]/30 hover:text-[#1a1c1c] transition-colors"
-              aria-label="Clear search"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
+        {/* Search — shared SearchInput with container-focus pattern */}
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search collections…"
+          label="Search collections"
+        />
 
         {/* Sub-toolbar */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -404,8 +484,8 @@ export function CollectionsGrid({
                 className={cn(
                   'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                   showHidden
-                    ? 'bg-[#1a1c1c]/[0.06] text-[#1a1c1c]'
-                    : 'text-[#1a1c1c]/40 hover:text-[#1a1c1c] hover:bg-[#f3f3f4]',
+                    ? 'bg-[#1a1c1c]/[0.06] text-on-surface'
+                    : 'text-on-surface/40 hover:text-on-surface hover:bg-black/[0.04] dark:hover:bg-white/[0.05]',
                 )}
                 aria-pressed={showHidden}
               >
@@ -418,8 +498,8 @@ export function CollectionsGrid({
               className={cn(
                 'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                 selectionMode
-                  ? 'bg-[#1a1c1c]/[0.06] text-[#1a1c1c]'
-                  : 'text-[#1a1c1c]/40 hover:text-[#1a1c1c] hover:bg-[#f3f3f4]',
+                  ? 'bg-[#1a1c1c]/[0.06] text-on-surface'
+                  : 'text-on-surface/40 hover:text-on-surface hover:bg-black/[0.04] dark:hover:bg-white/[0.05]',
               )}
               aria-pressed={selectionMode}
             >
@@ -431,7 +511,7 @@ export function CollectionsGrid({
             onClick={handleGenerate}
             disabled={isGenerating}
             className={cn(
-              'flex items-center gap-1.5 text-xs font-medium text-[#1a1c1c]/40',
+              'flex items-center gap-1.5 text-xs font-medium text-on-surface/40',
               'hover:text-gallery-gold transition-colors disabled:opacity-40',
             )}
             title="Scan your media and auto-generate views from metadata"
@@ -447,8 +527,9 @@ export function CollectionsGrid({
         <div
           className={cn(
             'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
-            'flex items-center gap-3 px-4 py-3 rounded-[24px]',
-            'bg-white/90 backdrop-blur-[20px] shadow-[0px_8px_32px_rgba(26,28,28,0.18)]',
+            'flex items-center gap-3 px-5 py-3 rounded-[28px]',
+            'bg-white/95 dark:bg-[#0a0c10]/95 backdrop-blur-[20px]',
+            'shadow-[0px_8px_32px_rgba(26,28,28,0.18)]',
             'transition-all duration-200',
             selectedIds.size === 0 && 'opacity-60',
           )}
@@ -456,14 +537,31 @@ export function CollectionsGrid({
           role="toolbar"
           aria-label="Bulk actions"
         >
-          <span className="text-sm font-medium text-[#1a1c1c] min-w-[80px] text-center">
-            {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Tap to select'}
-          </span>
-          <div className="w-px h-4 bg-[#d5c4af]/40" />
+          {/* Selection summary — count + first two names for orientation at scale */}
+          <div className="flex flex-col justify-center min-w-[100px]">
+            <span className="text-[10px] font-bold tracking-widest text-gallery-gold uppercase font-rubik leading-none mb-1">
+              {selectedIds.size > 0 ? `${selectedIds.size} Selected` : 'Select mode'}
+            </span>
+            {selectedIds.size > 0 && (
+              <span className="text-xs text-on-surface/60 truncate max-w-[160px] leading-tight">
+                {(() => {
+                  const names = allCollections
+                    .filter((c) => selectedIds.has(c.id))
+                    .map((c) => c.name)
+                  if (names.length === 0) return null
+                  if (names.length <= 2) return names.join(', ')
+                  return `${names[0]}, ${names[1]} +${names.length - 2}`
+                })()}
+              </span>
+            )}
+          </div>
+
+          <div className="w-px h-8 bg-[#d5c4af]/40 shrink-0" />
+
           <button
             onClick={handleBulkHide}
             disabled={selectedIds.size === 0 || isBulkWorking}
-            className="flex items-center gap-1.5 text-sm text-[#1a1c1c]/70 hover:text-[#1a1c1c] disabled:opacity-40 transition-colors px-2 py-1 rounded-[12px] hover:bg-[#f3f3f4]"
+            className="flex items-center gap-1.5 text-sm text-on-surface/70 hover:text-on-surface disabled:opacity-40 transition-colors px-2 py-1 rounded-[12px] hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
           >
             <HideIcon size={14} />
             Hide
@@ -476,9 +574,12 @@ export function CollectionsGrid({
             <Trash2 size={14} />
             Delete
           </button>
+
+          <div className="w-px h-8 bg-[#d5c4af]/40 shrink-0" />
+
           <button
             onClick={exitSelectionMode}
-            className="ml-1 p-1 rounded-full text-[#1a1c1c]/40 hover:text-[#1a1c1c] hover:bg-[#f3f3f4] transition-colors"
+            className="p-1.5 rounded-full text-on-surface/40 hover:text-on-surface hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors"
             aria-label="Exit selection"
           >
             <X size={14} />
@@ -497,7 +598,7 @@ export function CollectionsGrid({
                 setSelectedIds(new Set(allCollections.map((c) => c.id)))
               }
             }}
-            className="text-xs text-[#1a1c1c]/50 hover:text-gallery-gold transition-colors"
+            className="text-xs text-on-surface/50 hover:text-gallery-gold transition-colors"
           >
             {selectedIds.size === allCollections.length ? 'Deselect all' : 'Select all'}
           </button>
@@ -505,9 +606,13 @@ export function CollectionsGrid({
       )}
 
       {/* ── Section A: Recent strip ────────────────────────────────────────── */}
-      {!search && !selectionMode && (
+      {/* Hidden during search (irrelevant to results) but kept mounted during
+          selection so cards never reshuffle and remain visible as an anchor. */}
+      {!search && (
         <RecentStrip
           allCollections={allCollections}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
           cardProps={recentCardProps}
         />
       )}
@@ -515,7 +620,7 @@ export function CollectionsGrid({
       {/* ── Section B: Grouped collections ────────────────────────────────── */}
       {groups.length === 0 && search ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <p className="text-sm text-[#1a1c1c]/50">
+          <p className="text-sm text-on-surface/50">
             No views matching <em>&ldquo;{search}&rdquo;</em>
           </p>
           <button
@@ -533,6 +638,11 @@ export function CollectionsGrid({
               label={group.label}
               count={group.items.length}
               defaultExpanded={group.defaultExpanded}
+              headerAction={
+                group.key === 'manual' && !selectionMode ? (
+                  <NewCollectionInlineButton onCreateManual={handleNewManualCollection} />
+                ) : undefined
+              }
             >
               {group.items.map((c) => (
                 <CollectionCard
@@ -548,17 +658,16 @@ export function CollectionsGrid({
                   onToggleSelect={toggleSelect}
                 />
               ))}
-              {/* New Collection card lives inside MANUAL group */}
-              {group.key === 'manual' && !selectionMode && (
-                <NewCollectionCard onClick={handleNewCollection} />
-              )}
             </CollectionGroupSection>
           ))}
 
-          {/* If no MANUAL group, add New Collection card after all groups */}
+          {/* If no MANUAL group yet, show standalone "+ New Collection" header action */}
           {!hasManualGroup && !selectionMode && (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-2">
-              <NewCollectionCard onClick={handleNewCollection} />
+            <div className="flex items-center justify-between py-2.5">
+              <span className="text-[10px] tracking-widest font-medium text-on-surface/40 uppercase select-none">
+                MANUAL
+              </span>
+              <NewCollectionInlineButton onCreateManual={handleNewManualCollection} />
             </div>
           )}
         </div>
