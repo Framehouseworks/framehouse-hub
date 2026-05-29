@@ -94,7 +94,7 @@ test.describe('Media lifecycle (e2e)', () => {
       // The Upload button is disabled until a session is selected.
       // Wait for the session combobox to be visible (workbench rendered),
       // pick the first option, then wait for the button to enable and click.
-      const ingestBtn = page.locator('button:has-text("Upload")')
+      const ingestBtn = page.getByRole('button', { name: /^Upload \d+ File/i })
       const sessionInput = page.locator('input[aria-label="Session"]')
       await sessionInput.waitFor({ state: 'visible', timeout: 15_000 })
       await sessionInput.click()
