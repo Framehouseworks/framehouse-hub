@@ -87,22 +87,22 @@ test.describe('Media lifecycle (e2e)', () => {
       await page.waitForURL(/\/dashboard/, { timeout: 60_000 })
 
       // 2. Trigger the upload picker, populate the hidden input.
-      await page.locator('button:has-text("Ingest New Work")').first().click()
+      await page.locator('button:has-text("Ingest")').first().click()
       await page.locator('input[type="file"]').setInputFiles(stagedFixture)
 
-      // 3. IngestionWorkbench → commit. Wait for button to be enabled (async
-      // file staging/validation gates it), then select a session (required
-      // since FRH-47) and commit. The seed creates 'Seed: Main Portfolio' for
-      // the creative user so the combobox always has at least one option.
-      const ingestBtn = page.locator('button:has-text("Start Ingest")')
-      await expect(ingestBtn).toBeEnabled({ timeout: 15_000 })
-
-      // Open session combobox and pick the first available option.
-      await page.locator('input[aria-label="Session"]').click()
+      // 3. IngestionWorkbench → pick session → commit.
+      // The Upload button is disabled until a session is selected.
+      // Wait for the session combobox to be visible (workbench rendered),
+      // pick the first option, then wait for the button to enable and click.
+      const ingestBtn = page.getByRole('button', { name: /^Upload \d+ File/i })
+      const sessionInput = page.locator('input[aria-label="Session"]')
+      await sessionInput.waitFor({ state: 'visible', timeout: 15_000 })
+      await sessionInput.click()
       const firstSessionOption = page.locator('[role="listbox"] [role="option"]').first()
       await firstSessionOption.waitFor({ state: 'visible', timeout: 10_000 })
       await firstSessionOption.click()
 
+      await expect(ingestBtn).toBeEnabled({ timeout: 10_000 })
       await ingestBtn.click()
 
       const newDoc = await page.evaluate(async (filename: string) => {
