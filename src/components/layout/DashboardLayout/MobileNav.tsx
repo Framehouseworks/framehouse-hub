@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import {
   Archive,
   Plus,
-  LayoutGrid,
   Camera,
   FolderRoot,
   Settings,
@@ -19,16 +18,16 @@ import { cn } from '@/utilities/cn'
 import { useUpload } from '@/providers/UploadProvider'
 
 // Primary floating nav — 2 left · FAB · 2 right
+// /dashboard redirects to /dashboard/library — treat both as the Library home
 const PRIMARY_NAV = [
-  { icon: Archive, href: '/dashboard', label: 'Home', exact: true },
-  { icon: LayoutGrid, href: '/dashboard/library', label: 'Library', exact: true },
+  { icon: Archive, href: '/dashboard/library', label: 'Library', exact: true },
+  { icon: Camera, href: '/dashboard/library/sessions', label: 'Sessions', exact: false },
   { icon: FolderRoot, href: '/dashboard/library/collections', label: 'Collections', exact: false },
   { icon: MoreHorizontal, href: null as string | null, label: 'More', exact: false },
 ] as const
 
 // Items surfaced inside the "More" bottom sheet
 const MORE_NAV = [
-  { icon: Camera, href: '/dashboard/library/sessions', label: 'Sessions' },
   { icon: Share2, href: '/dashboard/shared', label: 'Shared' },
   { icon: Settings, href: '/dashboard/settings', label: 'Settings' },
   { icon: User, href: '/account', label: 'Profile' },
@@ -37,6 +36,10 @@ const MORE_NAV = [
 const MORE_ROUTES = MORE_NAV.map((i) => i.href)
 
 function isPathActive(pathname: string, href: string, exact: boolean): boolean {
+  // Library root covers /dashboard (redirect source) and /dashboard/library only
+  if (href === '/dashboard/library') {
+    return pathname === '/dashboard' || pathname === '/dashboard/library'
+  }
   if (exact) return pathname === href
   return pathname === href || pathname.startsWith(href + '/')
 }
@@ -114,7 +117,7 @@ export const MobileNav: React.FC = () => {
         </div>
 
         {/* Items grid */}
-        <div className="px-3 pb-4 grid grid-cols-4 gap-1">
+        <div className="px-3 pb-4 grid grid-cols-3 gap-1">
           {MORE_NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
