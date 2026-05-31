@@ -20,7 +20,7 @@ import { useUpload } from '@/providers/UploadProvider'
 // Primary floating nav — 2 left · FAB · 2 right
 // /dashboard redirects to /dashboard/library — treat both as the Library home
 const PRIMARY_NAV = [
-  { icon: Archive, href: '/dashboard/library', label: 'Library', exact: true },
+  { icon: Archive, href: '/dashboard/library', label: 'Archive', exact: true },
   { icon: Camera, href: '/dashboard/library/sessions', label: 'Sessions', exact: false },
   { icon: FolderRoot, href: '/dashboard/library/collections', label: 'Collections', exact: false },
   { icon: MoreHorizontal, href: null as string | null, label: 'More', exact: false },
