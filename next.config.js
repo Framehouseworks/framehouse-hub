@@ -20,6 +20,11 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
         protocol: 'https',
       },
+      // GCS signed URLs (cloud media thumbnails/proxies)
+      {
+        hostname: 'storage.googleapis.com',
+        protocol: 'https',
+      },
     ],
   },
   output: 'standalone',
