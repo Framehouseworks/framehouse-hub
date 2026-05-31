@@ -2,10 +2,12 @@ import React from 'react'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { MobileNav } from './MobileNav'
+import { ScrollResetEffect } from './ScrollResetEffect'
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex min-h-screen bg-background">
+      <ScrollResetEffect />
       {/* Sidebar - Desktop Only */}
       <Sidebar />
 

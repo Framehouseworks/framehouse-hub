@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { CheckSquare, MinusSquare, Square } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import type { DateMode } from '@/lib/groupMedia'
@@ -28,17 +28,12 @@ export const GroupHeader: React.FC<GroupHeaderProps> = ({
   isSelectionMode,
   onSelectGroup,
 }) => {
-  const [isHovered, setIsHovered] = useState(false)
-
   const modeLabel =
-    labelType === 'date' ? (dateMode === 'capture' ? 'by capture date' : 'by upload date') : null
+    labelType === 'date' ? (dateMode === 'capture' ? 'by shot date' : 'by added date') : null
 
   const selectedCount = groupItemIds.filter((id) => selectedIds.has(id)).length
   const allSelected = selectedCount === groupItemIds.length && groupItemIds.length > 0
   const someSelected = selectedCount > 0 && !allSelected
-
-  // Checkbox is always visible in selection mode; revealed on hover otherwise.
-  const showCheckbox = isSelectionMode || isHovered
 
   const ariaChecked = allSelected ? true : someSelected ? 'mixed' : false
 
@@ -47,37 +42,45 @@ export const GroupHeader: React.FC<GroupHeaderProps> = ({
       className={isFirst ? 'mb-6' : 'mt-16 mb-6'}
       role="rowheader"
       aria-label={`${label} — ${count} ${count === 1 ? 'asset' : 'assets'}${modeLabel ? `, ${modeLabel}` : ''}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {!isFirst && (
         <div className="h-px w-full bg-black/[0.04] dark:bg-white/[0.06] mb-6" aria-hidden="true" />
       )}
-      <div className="flex items-center gap-3">
-        {/* Group select checkbox — subtle, discoverable, not advertised */}
-        <button
-          role="checkbox"
-          aria-checked={ariaChecked}
-          aria-label={`Select all ${count} ${count === 1 ? 'item' : 'items'} in ${label}`}
-          onClick={() => onSelectGroup(groupItemIds, allSelected)}
+      <div className="flex items-center">
+        {/*
+         * Checkbox slides in only when selection mode is active.
+         * Animating width+margin (not opacity alone) collapses the layout space
+         * so the heading is flush-left when idle — no dead space on desktop or mobile.
+         */}
+        <div
           className={cn(
-            'flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold focus-visible:ring-offset-1',
-            allSelected || someSelected
-              ? 'text-gallery-gold'
-              : 'text-on-surface/25 hover:text-on-surface/50',
-            showCheckbox ? 'opacity-100' : 'opacity-0 pointer-events-none',
+            'flex-shrink-0 overflow-hidden transition-all duration-200 ease-out',
+            isSelectionMode ? 'w-5 mr-3 opacity-100' : 'w-0 mr-0 opacity-0',
           )}
-          tabIndex={showCheckbox ? 0 : -1}
         >
-          {allSelected ? (
-            <CheckSquare size={15} />
-          ) : someSelected ? (
-            <MinusSquare size={15} />
-          ) : (
-            <Square size={15} />
-          )}
-        </button>
+          <button
+            role="checkbox"
+            aria-checked={ariaChecked}
+            aria-label={`Select all ${count} ${count === 1 ? 'item' : 'items'} in ${label}`}
+            onClick={() => onSelectGroup(groupItemIds, allSelected)}
+            tabIndex={isSelectionMode ? 0 : -1}
+            className={cn(
+              'w-5 h-5 rounded-md flex items-center justify-center transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold focus-visible:ring-offset-1',
+              allSelected || someSelected
+                ? 'text-gallery-gold'
+                : 'text-on-surface/25 hover:text-on-surface/50',
+            )}
+          >
+            {allSelected ? (
+              <CheckSquare size={15} />
+            ) : someSelected ? (
+              <MinusSquare size={15} />
+            ) : (
+              <Square size={15} />
+            )}
+          </button>
+        </div>
 
         <h2
           className={
@@ -89,7 +92,7 @@ export const GroupHeader: React.FC<GroupHeaderProps> = ({
           {label}
         </h2>
         <span
-          className="font-mono text-[10px] tracking-widest text-on-surface/35 uppercase"
+          className="ml-3 font-mono text-[10px] tracking-widest text-on-surface/35 uppercase"
           aria-hidden="true"
         >
           {count} {count === 1 ? 'item' : 'items'}
