@@ -2,9 +2,10 @@ import { notFound } from 'next/navigation'
 import { auth } from '@/utilities/auth'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
-import { MediaGrid } from '@/components/Gallery/MediaGrid'
 import type { Media, SmartCollection } from '@/payload-types'
 import type { Where } from 'payload'
+import { CollectionExpandedView } from '@/components/Collections/CollectionExpandedView'
+import { extractCollectionChips } from '@/app/(dashboard)/actions/collections'
 
 // FRH-47: Extended SmartCollection fields added in migration 20260527_120000_smart_collections_v2.
 type SmartCollectionV2 = SmartCollection & {
@@ -15,11 +16,10 @@ type SmartCollectionV2 = SmartCollection & {
   coverAsset?: number | Media | null
   manualIncludes?: (number | Media)[]
   manualExcludes?: (number | Media)[]
+  description?: string
 }
 
 export const dynamic = 'force-dynamic'
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function CollectionDetailPage({
   params,
@@ -60,12 +60,10 @@ export default async function CollectionDetailPage({
     .map((m) => (typeof m === 'object' ? m.id : m))
     .filter(Boolean) as number[]
 
-  // Manual include docs (fully populated via depth:1)
   const manualIncludeDocs = ((collection.manualIncludes || []) as (Media | number)[])
     .map((m) => (typeof m === 'object' ? m : null))
     .filter(Boolean) as Media[]
 
-  // Effective WHERE for auto-matched assets (exclude manual excludes)
   const effectiveWhere: Where = {
     and: [
       { owner: { equals: user.id } },
@@ -74,29 +72,33 @@ export default async function CollectionDetailPage({
     ],
   }
 
-  // Fetch first page of auto-matched assets only — MediaGrid handles pagination
-  const { docs: autoMedia, totalDocs: totalAutoCount } = await payload.find({
-    collection: 'media',
-    where: effectiveWhere,
-    sort: '-captureDate,-createdAt',
-    limit: 48,
-    depth: 0,
-  })
+  const [{ docs: autoMedia, totalDocs: totalAutoCount }, chipData] = await Promise.all([
+    payload.find({
+      collection: 'media',
+      where: effectiveWhere,
+      sort: '-captureDate,-createdAt',
+      limit: 48,
+      depth: 0,
+    }),
+    extractCollectionChips(collection.id, filterQuery, manualExcludeIds),
+  ])
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-180px)]">
-      <MediaGrid
-        initialMedia={autoMedia as Media[]}
-        collectionContext={{
-          id: collection.id,
-          name: collection.name,
-          isSystemGenerated: collection.isSystemGenerated ?? false,
-          manualIncludeIds,
-          manualIncludeDocs,
-          hasFilterQuery,
-          autoMatchedCount: totalAutoCount,
-        }}
-      />
-    </div>
+    <CollectionExpandedView
+      collectionId={collection.id}
+      collectionName={collection.name}
+      collectionIcon={collection.icon ?? undefined}
+      isSystemGenerated={collection.isSystemGenerated ?? false}
+      description={collection.description ?? undefined}
+      updatedAt={collection.updatedAt ?? undefined}
+      filterQuery={filterQuery}
+      manualIncludeIds={manualIncludeIds}
+      manualIncludeDocs={manualIncludeDocs}
+      manualExcludeIds={manualExcludeIds}
+      hasFilterQuery={hasFilterQuery}
+      initialMedia={autoMedia as Media[]}
+      initialTotalCount={totalAutoCount}
+      chipData={chipData}
+    />
   )
 }
