@@ -166,9 +166,12 @@ jobs:
             --project-id "${{ vars.NEON_PROJECT_ID }}" \
             --force 2>/dev/null || true
 
+          # Neon branch naming: env_name 'prod' maps to Neon branch 'production'; 'dev' stays 'dev'.
+          NEON_PARENT="${{ inputs.env_name == 'prod' && 'production' || inputs.env_name }}"
+
           pnpm exec neonctl branches create \
             --name "$BRANCH" \
-            --parent "${{ inputs.env_name }}" \
+            --parent "$NEON_PARENT" \
             --project-id "${{ vars.NEON_PROJECT_ID }}"
 
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT

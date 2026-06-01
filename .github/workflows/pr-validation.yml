@@ -351,7 +351,7 @@ jobs:
 
           pnpm exec neonctl branches create \
             --name "$BRANCH_NAME" \
-            --parent prod \
+            --parent production \
             --project-id "${{ vars.NEON_PROJECT_ID }}"
 
           # xargs trims leading whitespace (neonctl output quirk — mirrors setup-eventarc.sh fix)
