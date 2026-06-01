@@ -28,6 +28,9 @@ jobs:
   deploy_worker_prod:
     name: Deploy Worker Prod
     uses: ./.github/workflows/_deploy-worker.yml
+    permissions:
+      id-token: write
+      contents: read
     with:
       env_name: prod
       gcs_bucket: framehouse-hub-prod
