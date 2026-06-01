@@ -108,6 +108,7 @@ jobs:
           path: .next/
           retention-days: 3
           if-no-files-found: error
+          include-hidden-files: true
 
   # ─────────────────────────────────────────────────────────────────────────────
   # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
