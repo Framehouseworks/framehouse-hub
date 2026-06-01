@@ -72,6 +72,18 @@ jobs:
       contents: read
 
     steps:
+      - name: Validate required variables
+        run: |
+          MISSING=""
+          [ -z "$GCS_PROJECT_ID" ] && MISSING="$MISSING GCP_PROJECT_ID"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required repository variables:$MISSING"
+            echo "Set them at: Settings → Secrets and variables → Actions → Variables"
+            exit 1
+          fi
+        env:
+          GCS_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -89,7 +101,7 @@ jobs:
       - name: Compute image metadata
         id: img
         run: |
-          REGISTRY="us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/worker"
+          REGISTRY="us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/worker"
           if [ "${{ inputs.env_name }}" = "prod" ]; then
             SHA7="${GITHUB_SHA:0:7}"
             echo "tag=sha-${SHA7}" >> $GITHUB_OUTPUT
@@ -106,7 +118,7 @@ jobs:
         uses: ./.github/actions/deploy-cloudrun
         with:
           service: ${{ inputs.service }}
-          image: us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/worker
+          image: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/worker
           tag: ${{ steps.img.outputs.tag }}
           extra_tags: ${{ steps.img.outputs.extra_tags }}
           region: ${{ inputs.region }}
@@ -136,7 +148,7 @@ jobs:
         run: |
           STATUS=$(gcloud run services describe "${{ inputs.service }}" \
             --region="${{ inputs.region }}" \
-            --project="${{ vars.GCS_PROJECT_ID }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
             --format="value(status.conditions[0].status)" 2>/dev/null)
           if [[ "$STATUS" != "True" ]]; then
             echo "::error::Worker service health check failed. status.conditions[0].status=$STATUS"

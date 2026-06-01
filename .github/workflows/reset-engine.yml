@@ -121,7 +121,7 @@ jobs:
           PAYLOAD_SECRET: ${{ steps.secrets.outputs.payload_secret }}
           PROCESSOR_CALLBACK_SECRET: ${{ steps.secrets.outputs.processor_callback_secret }}
           GCS_BUCKET: framehouse-hub-${{ inputs.environment }}
-          GCS_PROJECT_ID: ${{ vars.GCS_PROJECT_ID }}
+          GCS_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           NODE_ENV: production
           NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'prod' && 'https://hub.framehouseworks.com' || 'https://dev.framehouseworks.com' }}
         run: |

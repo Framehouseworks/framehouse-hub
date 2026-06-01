@@ -85,14 +85,14 @@ jobs:
       # Better to fail here than mid-deploy with a cryptic Cloud Run error.
       - name: Verify target image exists in Artifact Registry
         run: |
-          IMAGE="us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app"
+          IMAGE="us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app"
           TAG="sha-${{ inputs.target_sha }}"
           echo "Checking for $IMAGE:$TAG ..."
           if ! gcloud artifacts tags list \
             --package="app" \
             --repository="framehouse-hub" \
             --location="us-central1" \
-            --project="${{ vars.GCS_PROJECT_ID }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
             --filter="tag=$TAG" \
             --format="value(tag)" | grep -q "$TAG"; then
             echo "### 🛑 Rollback Aborted" >> $GITHUB_STEP_SUMMARY
@@ -112,7 +112,7 @@ jobs:
         uses: ./.github/actions/deploy-cloudrun
         with:
           service: framehouse-hub-prod
-          image: us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app
+          image: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app
           tag: sha-${{ inputs.target_sha }}
           region: us-central1
           skip_build: 'true'
@@ -128,7 +128,7 @@ jobs:
             SEED_SECRET=SEED_SECRET:latest
           env_vars: |
             GCS_BUCKET=framehouse-hub-prod
-            GCS_PROJECT_ID=${{ vars.GCS_PROJECT_ID }}
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             NEXT_PUBLIC_SERVER_URL=https://hub.framehouseworks.com
 
       - name: Smoke test
