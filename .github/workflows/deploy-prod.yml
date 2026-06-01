@@ -33,6 +33,9 @@ jobs:
   deploy_prod:
     name: Deploy Prod
     uses: ./.github/workflows/_deploy-app.yml
+    permissions:
+      id-token: write
+      contents: read
     # environment: production is declared inside _deploy-app.yml's deploy job.
     # The environment gate (reviewer approval + wait window) blocks execution there.
     with:

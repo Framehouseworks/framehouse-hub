@@ -32,6 +32,9 @@ jobs:
   deploy_dev:
     name: Deploy Dev
     uses: ./.github/workflows/_deploy-app.yml
+    permissions:
+      id-token: write
+      contents: read
     with:
       env_name: dev
       docker_tag: dev

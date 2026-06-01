@@ -32,6 +32,9 @@ jobs:
   deploy_worker_dev:
     name: Deploy Worker Dev
     uses: ./.github/workflows/_deploy-worker.yml
+    permissions:
+      id-token: write
+      contents: read
     with:
       env_name: dev
       gcs_bucket: framehouse-hub-dev
