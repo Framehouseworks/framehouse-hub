@@ -97,13 +97,15 @@ jobs:
           PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
-      # Retention 1 day — only needed within this PR run by the e2e job.
+      # Retention 3 days — must survive re-runs of failed e2e jobs across day boundaries.
+      # 1 day was too short: on a failed-job re-run the next day quality_gate doesn't
+      # re-run, so the artifact must still be available from the original run.
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-pr-${{ github.run_id }}
           path: .next/
-          retention-days: 1
+          retention-days: 3
 
   # ─────────────────────────────────────────────────────────────────────────────
   # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
@@ -145,12 +147,13 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # E2E — sharded Playwright across 2 parallel runners
-  # Downloads .next artifact from quality_gate — avoids ~4 min rebuild.
-  # DISABLE_WORKER=1 skips the Go worker; callback is synthesised in the test.
+  # E2E SHARD — Playwright split across 2 parallel runners via matrix strategy.
+  # Each shard runs half the test suite (--shard=N/2), halving wall-clock time.
+  # Downloads .next artifact from quality_gate — avoids ~4 min rebuild per shard.
+  # DISABLE_WORKER=1 skips the Go worker; the callback is synthesised in tests.
   # ─────────────────────────────────────────────────────────────────────────────
-  e2e:
-    name: E2E (${{ matrix.shard }})
+  e2e_shard:
+    name: E2E / Shard ${{ matrix.shard }} of 2
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [quality_gate, integration_tests]
@@ -271,8 +274,8 @@ jobs:
     name: Merge E2E Reports
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [e2e]
-    if: needs.e2e.result == 'failure'
+    needs: [e2e_shard]
+    if: needs.e2e_shard.result == 'failure'
     permissions:
       contents: read
       checks: write
@@ -299,7 +302,7 @@ jobs:
         run: pnpm exec playwright merge-reports --reporter=html ./all-blob-reports/
 
       - name: Upload merged HTML report
-        if: needs.e2e.result == 'failure'
+        if: needs.e2e_shard.result == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.run_id }}
@@ -315,7 +318,7 @@ jobs:
     name: Remote Migration Check (Neon)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    needs: [e2e]
+    needs: [e2e_shard]
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     permissions:
       contents: read
