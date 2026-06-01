@@ -34,7 +34,7 @@ jobs:
     with:
       env_name: prod
       gcs_bucket: framehouse-hub-prod
-      callback_url: https://hub.framehouseworks.com
+      callback_url: https://framehouseworks.com
       service: framehouse-hub-worker-prod
       region: us-central1
       runtime_service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
