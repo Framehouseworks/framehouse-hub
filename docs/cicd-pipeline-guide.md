@@ -197,8 +197,8 @@ flowchart TD
     PR --> G[guardrail\n1 min]
     PR --> QG[quality_gate\n8 min]
     PR --> IT[integration_tests\n10 min]
-    QG --> E1[e2e shard 1\n20 min]
-    QG --> E2[e2e shard 2\n20 min]
+    QG --> E1[e2e_shard — Shard 1 of 2\n20 min]
+    QG --> E2[e2e_shard — Shard 2 of 2\n20 min]
     IT --> E1
     IT --> E2
     E1 --> ME[merge_e2e_reports\nonly on failure]
@@ -230,9 +230,9 @@ Runs in order:
 #### `integration_tests` (up to 10 min)
 Runs vitest integration tests (`tests/int/**/*.int.spec.ts`). Postgres is managed by vitest's globalSetup — no services block needed. Uploads JUnit XML for 7-day retention.
 
-#### `e2e` (up to 20 min, sharded ×2)
-Runs Playwright tests split across 2 parallel runners (shard 1/2 and 2/2):
-- Downloads pre-built `.next/` artifact from `quality_gate`
+#### `e2e_shard` (up to 20 min, ×2 parallel runners)
+Runs Playwright tests split across 2 parallel runners via a matrix strategy (`shard: [1, 2]`). Each runner processes half the test suite using Playwright's built-in `--shard=N/2` flag. Wall-clock time is halved; total CPU cost is unchanged. GitHub displays these as "E2E / Shard 1 of 2" and "E2E / Shard 2 of 2" in the checks list.
+- Downloads pre-built `.next/` artifact from `quality_gate` (artifact retained 3 days to survive re-runs of failed shards the following day)
 - Spins up Postgres service container
 - Applies DB migrations
 - **Verifies schema drift** — `migrate:create --name check_drift` must produce no new files
@@ -570,7 +570,7 @@ flowchart TD
 |---|---|---|
 | `deploy-dev` | deploy-dev.yml, reset-engine (dev) | Serialises dev deploys + resets |
 | `deploy-prod` | deploy-prod.yml, deploy-worker-prod.yml, rollback-prod.yml, reset-engine (prod) | Serialises all prod operations |
-| `pr-validation-{PR#}` | pr-validation.yml | Cancels stale runs on new push |
+| `pr-validation-{PR#}` | pr-validation.yml | Cancels stale runs on new push to the same PR |
 
 > **Why share rollback and deploy in one concurrency group?** If a deploy and a rollback run simultaneously, they'd race to update Cloud Run traffic routing. The concurrency group ensures only one operation runs at a time. The rollback queues behind the deploy, or vice versa.
 
@@ -634,7 +634,8 @@ SEED_SECRET=SEED_SECRET:latest
 | `tsc` fails | Type error in new code | Fix type error locally |
 | `generate:importmap` / `generate:types` dirty | Schema changed without regenerating | Run `pnpm generate:types && pnpm generate:importmap` and commit |
 | `migrate:create check_drift` dirty | Migration not committed | Run `pnpm payload migrate:create` and commit output |
-| E2E shard fails | UI regression or test flake | Download the merged HTML report artifact, inspect traces |
+| `e2e_shard` fails — "Artifact not found" | Build artifact expired (retention is 3 days); this happens when a re-run of failed e2e shards occurs after the artifact window | Push a new commit to trigger a fresh quality_gate build, or re-run ALL jobs (not just failed) |
+| `e2e_shard` fails — test assertion | UI regression or test flake | Download the merged HTML report artifact from `merge_e2e_reports`, inspect Playwright traces |
 | `remote_migrations` fails — "parent branch not found" | Neon parent branch doesn't exist | Verify `prod` branch exists in Neon console |
 
 ### Deploy failing
