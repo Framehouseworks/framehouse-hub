@@ -25,10 +25,10 @@ export const EnterpriseCTA: React.FC<EnterpriseCTAProps> = ({
   ctaLabel = "Contact Sales"
 }) => {
   return (
-    <LayoutSection className="bg-white dark:bg-[#0a0a0b] py-24 md:py-32 pt-0">
+    <LayoutSection className="bg-white dark:bg-[#0a0a0b]">
       <GutterContainer>
         <div className={cn(
-          "relative p-12 md:p-24 rounded-[32px] overflow-hidden text-center flex flex-col items-center transition-all duration-700",
+          "relative p-8 sm:p-12 md:p-20 lg:p-24 rounded-[24px] sm:rounded-[32px] overflow-hidden text-center flex flex-col items-center transition-all duration-700",
           "bg-gallery-surface dark:bg-[#111112] border border-black/[0.03] dark:border-white/[0.03] shadow-sm"
         )}>
           {/* Subtle Red Radial Glow */}

@@ -1,296 +1,224 @@
 'use client'
 
-import { cn } from '@/utilities/cn'
-import { motion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
-import { useRef } from 'react'
-import React from 'react'
-import { EtherealTextReveal } from '../EtherealTextReveal'
-
-const StepTag = ({
-  label,
-  color,
-  progress,
-  threshold,
-  xPosition
-}: {
-  label: string,
-  color: string,
-  progress: MotionValue<number>,
-  threshold: number,
-  xPosition: string
-}) => {
-  const opacity = useTransform(progress, [threshold - 0.05, threshold], [0, 1])
-
-  return (
-    <motion.div
-      style={{ opacity, left: xPosition }}
-      className={cn(
-        "absolute top-[25px] -translate-x-1/2 -translate-y-1/2 px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase text-white shadow-xl backdrop-blur-md border border-white/20 z-50 transition-colors bg-opacity-90 min-w-[100px] text-center",
-        color
-      )}
-    >
-      {label}
-    </motion.div>
-  )
-}
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from 'framer-motion'
+import React, { useRef } from 'react'
 
 import { GutterContainer } from '@/components/layout/GutterContainer'
-import { LayoutSection } from '@/components/layout/LayoutSection'
+import { EtherealTextReveal } from '../EtherealTextReveal'
 
+// ─── Animation timing ────────────────────────────────────────────────────────
+// All thresholds [0..1]:
+//   0 = section top at viewport top  (sticky just locked)
+//   1 = section bottom at viewport top (sticky released, 150 vh scrolled)
+// No spring — direct scroll coupling ensures the animation always finishes
+// before the sticky block releases.
+const T = {
+  horizLeft:  { draw: [0.00, 0.10], show: [0.00, 0.03] },
+  horizRight: { draw: [0.10, 0.20], show: [0.10, 0.13] },
+  pills:      { upload: 0.05, organise: 0.14, share: 0.20 },
+  // Trunk leads slightly so it's ready when arcs arrive
+  trunk:      { draw: [0.15, 0.84], show: [0.13, 0.15] },
+  arcs:       { draw: [0.20, 0.58], show: [0.20, 0.23] },
+  pulse:      { travel: [0.58, 0.92], show: [0.58, 0.63] },
+}
+
+// ─── SVG layout constants ─────────────────────────────────────────────────────
+const VB = { w: 1000, h: 500 }
+// Pills centred at x=80 / 500 / 920 so rect edges clear the viewBox boundary
+const P = { w: 126, h: 30, rx: 15, upload: 80, org: 500, share: 920, cy: 25 }
+const SW = 2 // stroke-width
+
+// ─── SVGPill — rect + label in SVG space, aligns precisely with paths ─────────
+type SVGPillProps = { label: string; cx: number; fill: string; opacity: MotionValue<number> }
+
+const SVGPill = ({ label, cx, fill, opacity }: SVGPillProps) => (
+  <motion.g style={{ opacity }}>
+    <rect x={cx - P.w / 2} y={P.cy - P.h / 2} width={P.w} height={P.h} rx={P.rx} fill={fill} />
+    <text
+      x={cx}
+      y={P.cy}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fill="white"
+      fontSize={11}
+      letterSpacing={2.5}
+      style={{ fontFamily: 'var(--font-rubik), monospace' }}
+    >
+      {label.toUpperCase()}
+    </text>
+  </motion.g>
+)
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 export type ProductOverviewProps = {
   heading?: string
   revealText?: string
-  steps?: {
-    upload: string
-    organise: string
-    share: string
-  }
+  steps?: { upload: string; organise: string; share: string }
 }
 
-export const DEFAULT_CONTENT: Required<ProductOverviewProps> = {
+const DEFAULT_CONTENT: Required<ProductOverviewProps> = {
   heading: 'Meet the lifecycle of your media',
-  revealText: 'Framehouse Hub powers the world\'s most ambitious creative teams, from independent studios to global production houses.',
-  steps: {
-    upload: 'Upload',
-    organise: 'Organise',
-    share: 'Share',
-  }
+  revealText:
+    "Framehouse Hub powers the world's most ambitious creative teams, from independent studios to global production houses.",
+  steps: { upload: 'Upload', organise: 'Organise', share: 'Share' },
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
-  const { 
-    heading = DEFAULT_CONTENT.heading, 
+  const {
+    heading    = DEFAULT_CONTENT.heading,
     revealText = DEFAULT_CONTENT.revealText,
-    steps = DEFAULT_CONTENT.steps
+    steps      = DEFAULT_CONTENT.steps,
   } = props
 
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const shouldReduceMotion = useReducedMotion()
 
-  // Center-to-Center Scroll logic: 0 when start hits 50%, 1 when end hits 50%
+  // Direct scrollYProgress — no spring. At scroll = 150 vh (container end),
+  // progress = 1.0 and the last event (T.pulse[1] = 0.92) is already done.
   const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start 0.5", "end 0.5"]
+    target: scrollRef,
+    offset: ['start start', 'end start'],
   })
 
-  // Smoothspring for fluid motion
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 60,
-    damping: 25,
-    restDelta: 0.001
-  })
+  // All derived values at the top level — never inside child components.
+  const horizLeftDraw  = useTransform(scrollYProgress, T.horizLeft.draw,  [0, 1])
+  const horizLeftShow  = useTransform(scrollYProgress, T.horizLeft.show,  [0, 1])
+  const horizRightDraw = useTransform(scrollYProgress, T.horizRight.draw, [0, 1])
+  const horizRightShow = useTransform(scrollYProgress, T.horizRight.show, [0, 1])
 
-  // Timing Constants (Defect-Corrected Sequencing)
-  const T_PILL_UPLOAD = 0.05
-  const T_PILL_ORGANISE = 0.10
-  const T_PILL_SHARE = 0.15
+  const pillUpload   = useTransform(scrollYProgress, [T.pills.upload - 0.04,   T.pills.upload],   [0, 1])
+  const pillOrganise = useTransform(scrollYProgress, [T.pills.organise - 0.04, T.pills.organise], [0, 1])
+  const pillShare    = useTransform(scrollYProgress, [T.pills.share - 0.04,    T.pills.share],    [0, 1])
 
-  const T_HORIZ_A = [0, 0.08]
-  const T_HORIZ_B = [0.08, 0.15]
-  const T_PARA = [0.15, 0.4]
-  const T_TRUNK_FULL = [0.2, 0.85]
-  const T_PULSE_MOTION = [0.4, 0.9]
-  const _T_TAGLINE = [0.9, 1.0]
+  const trunkDraw = useTransform(scrollYProgress, T.trunk.draw, [0, 1])
+  const trunkShow = useTransform(scrollYProgress, T.trunk.show, [0, 1])
+  const arcsDraw  = useTransform(scrollYProgress, T.arcs.draw,  [0, 1])
+  const arcsShow  = useTransform(scrollYProgress, T.arcs.show,  [0, 1])
 
-  const horizA = useTransform(smoothProgress, T_HORIZ_A, [0, 1])
-  const horizA_Opacity = useTransform(smoothProgress, [0, 0.01], [0, 1])
+  const pulseCY      = useTransform(scrollYProgress, T.pulse.travel, [P.cy, 445])
+  const pulseOpacity = useTransform(scrollYProgress, T.pulse.show,   [0, 1])
 
-  const horizB = useTransform(smoothProgress, T_HORIZ_B, [0, 1])
-  const horizB_Opacity = useTransform(smoothProgress, [0.08, 0.09], [0, 1])
-
-  const parabolicProgress = useTransform(smoothProgress, T_PARA, [0, 1])
-  const parabolicOpacity = useTransform(smoothProgress, [0.15, 0.16], [0, 1])
-
-  const trunkProgress = useTransform(smoothProgress, T_TRUNK_FULL, [0, 1])
-  const trunkOpacity = useTransform(smoothProgress, [0.19, 0.2], [0, 1])
-
-  // Pulse Journey: Radius-safe end at y=262 relative to start at y=180 (total y=442). 
-  // Trunk is y=180 to y=450 (total 270px). Safety buffer of 8px.
-  const pulseOpacity = useTransform(smoothProgress, [0.4, 0.45], [0, 1])
-  const pulseY = useTransform(smoothProgress, T_PULSE_MOTION, [0, 262])
-
-  // Unified Styling
-  const strokeW = 2.5
+  // Reduced-motion: static fully-drawn diagram from first render
+  const staticPath = shouldReduceMotion ? { pathLength: 1, opacity: 1 } : undefined
+  const arc = staticPath ?? { pathLength: arcsDraw, opacity: arcsShow }
 
   return (
-    <LayoutSection
-      ref={containerRef}
-      className="min-h-[100vh] flex flex-col items-center justify-start bg-background"
-    >
-      <GutterContainer className="relative z-10 flex flex-col items-center justify-start flex-grow w-full">
-        {/* Header Content */}
-        <div className="text-center z-20 mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-3xl font-mono text-transparent bg-clip-text bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent uppercase tracing-tighter leading-none mb-4">
-            {heading}
-          </h2>
-        </div>
+    <div className="bg-background">
+      {/*
+        Outer container is 150 vh. Inner sticky pins the diagram while the user
+        scrolls through the animation range, then releases naturally.
+        150 vh × last event (0.92) = 138 vh — animation always completes
+        before the sticky releases at 150 vh.
+      */}
+      <div ref={scrollRef} style={{ minHeight: '150vh' }}>
+        <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden bg-background">
 
-        {/* Step Diagram Container - Vertically Compressed for Viewport Compatibility */}
-        <div className="w-full h-[350px] md:h-[500px] relative">
-          {/* Minimalist Pills */}
-          <StepTag label={steps.upload} color="bg-[#bb1800]" progress={smoothProgress} threshold={T_PILL_UPLOAD} xPosition="5%" />
-          <StepTag label={steps.organise} color="bg-[#14192A]" progress={smoothProgress} threshold={T_PILL_ORGANISE} xPosition="50%" />
-          <StepTag label={steps.share} color="bg-[#445aa5]" progress={smoothProgress} threshold={T_PILL_SHARE} xPosition="95%" />
-
-          {/* SVG Diagram Layer */}
-          <svg
-            viewBox="0 0 1000 500"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-full h-full overflow-visible"
-            preserveAspectRatio="xMidYMin meet"
-          >
-            {/* SVG Filters with userSpaceOnUse to resolve Invisibility Defects */}
-            <defs>
-              <filter id="glow-red-down" filterUnits="userSpaceOnUse" x="0" y="0" width="1000" height="800">
-                <feDropShadow dx="0" dy="15" stdDeviation="10" floodColor="#bb1800" floodOpacity="0.5" />
-              </filter>
-              <filter id="glow-blue-down" filterUnits="userSpaceOnUse" x="0" y="0" width="1000" height="800">
-                <feDropShadow dx="0" dy="15" stdDeviation="10" floodColor="#445aa5" floodOpacity="0.5" />
-              </filter>
-              <filter id="glow-neutral-down" filterUnits="userSpaceOnUse" x="0" y="0" width="1000" height="800">
-                <feDropShadow dx="0" dy="15" stdDeviation="8" floodColor="currentColor" floodOpacity="0.2" />
-              </filter>
-
-              {/* Mask to ensure "Downward Only" shadow cutoff */}
-              <mask id="bottom-mask">
-                <rect x="0" y="25" width="1000" height="800" fill="white" />
-              </mask>
-            </defs>
-
-            {/* Edge-to-Edge Divider Baseline */}
-            <motion.path
-              d="M 0 25 L 1000 25"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              className="text-muted-foreground/20"
-            />
-
-            {/* Arcs and Trunks - Explicit Color Mapping for Contrast */}
-            <g mask="url(#bottom-mask)">
-              {/* Horizontal Connectors */}
-              <motion.path
-                d="M 100 25 L 450 25"
-                stroke="#bb1800"
-                strokeWidth={strokeW}
-                filter="url(#glow-red-down)"
-                style={{ pathLength: horizA, opacity: horizA_Opacity }}
-              />
-              <motion.path
-                d="M 550 25 L 900 25"
-                stroke="#445aa5"
-                strokeWidth={strokeW}
-                filter="url(#glow-blue-down)"
-                style={{ pathLength: horizB, opacity: horizB_Opacity }}
-              />
-
-              {/* 7-Path Gallery Fan */}
-              {/* Outer Arcs */}
-              <motion.path
-                d="M 50 25 Q 250 25, 500 420"
-                stroke="#bb1800"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-red-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-              <motion.path
-                d="M 950 25 Q 750 25, 500 420"
-                stroke="#445aa5"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-blue-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-
-              {/* Middle Arcs */}
-              <motion.path
-                d="M 200 25 Q 400 25, 500 300"
-                stroke="#bb1800"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-red-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-              <motion.path
-                d="M 800 25 Q 600 25, 500 300"
-                stroke="#445aa5"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-blue-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-
-              {/* Inner Arcs */}
-              <motion.path
-                d="M 350 25 Q 500 25, 500 180"
-                stroke="#bb1800"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-red-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-              <motion.path
-                d="M 650 25 Q 500 25, 500 180"
-                stroke="#445aa5"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-blue-down)"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-
-              {/* Center Connect */}
-              <motion.path
-                d="M 500 25 L 500 180"
-                stroke="currentColor"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-neutral-down)"
-                className="text-foreground"
-                style={{ pathLength: parabolicProgress, opacity: parabolicOpacity }}
-              />
-
-              {/* Fluid Trunk Backbone */}
-              <motion.path
-                d="M 500 180 L 500 450"
-                stroke="currentColor"
-                strokeWidth={strokeW}
-                strokeLinecap="round"
-                filter="url(#glow-neutral-down)"
-                className="text-foreground"
-                style={{
-                  pathLength: trunkProgress,
-                  opacity: trunkOpacity
-                }}
-              />
-            </g>
-          </svg>
-
-          {/* Traveling Pulse (Glow Circle) - Persistent Radius-Safe Destination */}
-          <div className="absolute top-[180px] left-1/2 -translate-x-1/2 w-4 h-[270px] pointer-events-none z-[60]">
-            <motion.div
-              style={{
-                opacity: pulseOpacity,
-                y: pulseY,
-                willChange: 'transform, opacity'
-              }}
-              className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white
-                          shadow-[0_0_20px_rgba(255,255,255,1),0_0_40px_#bb1800]
-                          dark:shadow-[0_0_30px_#bb1800,0_0_60px_#bb1800]"
-            />
+          {/* Ambient backdrop */}
+          <div className="pointer-events-none absolute inset-0 z-0 opacity-[0.05] dark:opacity-[0.1]" aria-hidden>
+            <div className="absolute left-1/2 top-1/2 h-[90%] w-[90%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(circle,rgba(187,24,0,0.1)_0%,rgba(0,162,255,0.05)_50%,transparent_100%)] blur-[120px]" />
           </div>
-        </div>
 
+          <GutterContainer className="relative z-10 flex w-full flex-col items-center gap-6">
+            {/* Section heading */}
+            <h2 className="bg-gradient-to-b from-[#F13C1F] via-[#F13C1F] via-40% to-transparent bg-clip-text text-center font-mono text-2xl uppercase tracking-tighter leading-none text-transparent md:text-3xl">
+              {heading}
+            </h2>
+
+            {/*
+              SVG — visible at every viewport width.
+              w-full lets the SVG fill the container horizontally.
+              The viewBox aspect ratio (1000 × 500 = 2:1) drives natural height.
+              preserveAspectRatio="xMidYMin meet" ensures no distortion.
+              max-height guards against overflow on short/landscape viewports.
+              Everything — pills, paths, pulse — lives in SVG space so they
+              scale together at any width with no alignment code needed.
+            */}
+            <svg
+              viewBox={`0 0 ${VB.w} ${VB.h}`}
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              preserveAspectRatio="xMidYMin meet"
+              className="w-full"
+              style={{ maxHeight: 'calc(100vh - 140px)' }}
+              aria-label={`${heading}: ${steps.upload}, ${steps.organise}, ${steps.share}`}
+            >
+              <defs>
+                <filter id="po-glow" x="-300%" y="-300%" width="700%" height="700%">
+                  <feDropShadow dx="0" dy="0" stdDeviation="10" floodColor="#bb1800" floodOpacity="0.85" />
+                </filter>
+              </defs>
+
+              {/* Dashed horizon */}
+              <path
+                d={`M 0 ${P.cy} L ${VB.w} ${P.cy}`}
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                opacity="0.15"
+              />
+
+              {/* Horizontal connectors */}
+              <motion.path
+                d={`M ${P.upload + P.w / 2} ${P.cy} L 450 ${P.cy}`}
+                stroke="#bb1800" strokeWidth={SW}
+                style={staticPath ?? { pathLength: horizLeftDraw, opacity: horizLeftShow }}
+              />
+              <motion.path
+                d={`M 550 ${P.cy} L ${P.share - P.w / 2} ${P.cy}`}
+                stroke="#445aa5" strokeWidth={SW}
+                style={staticPath ?? { pathLength: horizRightDraw, opacity: horizRightShow }}
+              />
+
+              {/* Pills */}
+              <SVGPill label={steps.upload}   cx={P.upload} fill="#bb1800" opacity={pillUpload}   />
+              <SVGPill label={steps.organise} cx={P.org}    fill="#14192A" opacity={pillOrganise} />
+              <SVGPill label={steps.share}    cx={P.share}  fill="#445aa5" opacity={pillShare}    />
+
+              {/* Fan arcs — outer */}
+              <motion.path d={`M ${P.upload} ${P.cy} Q 250 ${P.cy}, 500 420`} stroke="#bb1800" strokeWidth={SW} strokeLinecap="round" style={arc} />
+              <motion.path d={`M ${P.share}  ${P.cy} Q 750 ${P.cy}, 500 420`} stroke="#445aa5" strokeWidth={SW} strokeLinecap="round" style={arc} />
+              {/* Fan arcs — middle */}
+              <motion.path d="M 200 25 Q 400 25, 500 300" stroke="#bb1800" strokeWidth={SW} strokeLinecap="round" style={arc} />
+              <motion.path d="M 800 25 Q 600 25, 500 300" stroke="#445aa5" strokeWidth={SW} strokeLinecap="round" style={arc} />
+              {/* Fan arcs — inner */}
+              <motion.path d="M 350 25 Q 500 25, 500 180" stroke="#bb1800" strokeWidth={SW} strokeLinecap="round" style={arc} />
+              <motion.path d="M 650 25 Q 500 25, 500 180" stroke="#445aa5" strokeWidth={SW} strokeLinecap="round" style={arc} />
+
+              {/* Single continuous trunk — starts at baseline, no seam */}
+              <motion.path
+                d={`M 500 ${P.cy} L 500 450`}
+                stroke="currentColor" strokeWidth={SW} strokeLinecap="round"
+                style={staticPath ?? { pathLength: trunkDraw, opacity: trunkShow }}
+              />
+
+              {/* Traveling pulse — cx/cy in SVG space, zero alignment code */}
+              {!shouldReduceMotion && (
+                <motion.circle
+                  cx={500} r={6} fill="white"
+                  filter="url(#po-glow)"
+                  cy={pulseCY}
+                  style={{ opacity: pulseOpacity }}
+                />
+              )}
+            </svg>
+          </GutterContainer>
+        </div>
+      </div>
+
+      {/* Text reveal — normal flow directly below the sticky block */}
+      <GutterContainer>
         <EtherealTextReveal
           text={revealText}
-          className="text-xl md:text-4xl font-light leading-relaxed mt-8 md:mt-12 pb-8"
+          className="py-10 text-xl font-light leading-relaxed md:py-16 md:text-4xl"
         />
       </GutterContainer>
-
-      {/* Lighting Backdrop */}
-      <div className="absolute inset-0 z-0 opacity-[0.05] dark:opacity-[0.1] pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] bg-[radial-gradient(circle,rgba(187,24,0,0.1)_0%,rgba(0,162,255,0.05)_50%,transparent_100%)] blur-[120px]" />
-      </div>
-    </LayoutSection>
+    </div>
   )
 }
