@@ -15,17 +15,21 @@ import { EtherealTextReveal } from '../EtherealTextReveal'
 // ─── Animation timing ────────────────────────────────────────────────────────
 // All thresholds [0..1]:
 //   0 = section top at viewport top  (sticky just locked)
-//   1 = section bottom at viewport top (sticky released, 150 vh scrolled)
-// No spring — direct scroll coupling ensures the animation always finishes
-// before the sticky block releases.
+//   1 = section bottom at viewport bottom (sticky releases, 250 vh scrolled)
+//
+// Scroll mechanics: container is 350 vh, sticky is h-screen (100vh).
+// offset ['start start', 'end end'] tracks exactly the sticky lifetime:
+//   progress 0 → container top at viewport top (sticky pins)
+//   progress 1 → container bottom at viewport bottom (sticky releases)
+// Effective scroll travel = 350vh - 100vh = 250vh.
+// All animation ends by 0.96 → 240 vh, leaving ~10 vh of hold before release.
 const T = {
-  horizLeft:  { draw: [0.00, 0.10], show: [0.00, 0.03] },
-  horizRight: { draw: [0.10, 0.20], show: [0.10, 0.13] },
-  pills:      { upload: 0.05, organise: 0.14, share: 0.20 },
-  // Trunk leads slightly so it's ready when arcs arrive
-  trunk:      { draw: [0.15, 0.84], show: [0.13, 0.15] },
-  arcs:       { draw: [0.20, 0.58], show: [0.20, 0.23] },
-  pulse:      { travel: [0.58, 0.92], show: [0.58, 0.63] },
+  horizLeft:  { draw: [0.00, 0.13], show: [0.00, 0.04] },
+  horizRight: { draw: [0.13, 0.26], show: [0.13, 0.17] },
+  pills:      { upload: 0.06, organise: 0.18, share: 0.26 },
+  trunk:      { draw: [0.20, 0.82], show: [0.16, 0.20] },
+  arcs:       { draw: [0.26, 0.60], show: [0.26, 0.29] },
+  pulse:      { travel: [0.60, 0.96], show: [0.60, 0.65] },
 }
 
 // ─── SVG layout constants ─────────────────────────────────────────────────────
@@ -80,11 +84,12 @@ export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldReduceMotion = useReducedMotion()
 
-  // Direct scrollYProgress — no spring. At scroll = 150 vh (container end),
-  // progress = 1.0 and the last event (T.pulse[1] = 0.92) is already done.
+  // 'end end': progress=1 when container bottom reaches viewport bottom,
+  // which is exactly when sticky h-screen releases. Progress tracks the
+  // full sticky lifetime (0 = pinned, 1 = just released).
   const { scrollYProgress } = useScroll({
     target: scrollRef,
-    offset: ['start start', 'end start'],
+    offset: ['start start', 'end end'],
   })
 
   // All derived values at the top level — never inside child components.
@@ -112,12 +117,11 @@ export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
   return (
     <div className="bg-background">
       {/*
-        Outer container is 150 vh. Inner sticky pins the diagram while the user
-        scrolls through the animation range, then releases naturally.
-        150 vh × last event (0.92) = 138 vh — animation always completes
-        before the sticky releases at 150 vh.
+        Container is 350 vh. Sticky h-screen pins for 250 vh of effective scroll.
+        offset 'end end' aligns progress=1 with sticky release.
+        Last animation event at 0.85 = 212 vh; 38 vh hold before release.
       */}
-      <div ref={scrollRef} style={{ minHeight: '150vh' }}>
+      <div ref={scrollRef} style={{ minHeight: '350vh' }}>
         <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden bg-background">
 
           {/* Ambient backdrop */}
@@ -216,7 +220,7 @@ export const ProductOverview: React.FC<ProductOverviewProps> = (props) => {
       <GutterContainer>
         <EtherealTextReveal
           text={revealText}
-          className="py-10 text-xl font-light leading-relaxed md:py-16 md:text-4xl"
+          className="text-xl font-light leading-relaxed md:text-4xl"
         />
       </GutterContainer>
     </div>
