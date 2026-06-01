@@ -1,0 +1,181 @@
+name: Rollback Prod
+# Emergency production rollback — re-deploys a previously-built image by git SHA.
+#
+# IMPORTANT: This does NOT reverse database migrations. It re-deploys old code
+# against the current schema. If a migration was destructive, use the Neon
+# pre-migration snapshot branch for data recovery (separate operation).
+#
+# Safety layers:
+#   1. GitHub Environment "prod" — requires reviewer approval + 2h wait window
+#   2. Image existence check — fails fast if the target SHA was evicted by AR cleanup
+#   3. Audit record written to GCS after every rollback
+#
+# Image retention: the AR cleanup policy (keep-10 / delete-30d) retains at minimum
+# the last 10 prod SHA tags. Rollback to images older than that requires rebuilding
+# from the target git commit via a hotfix branch + deploy-prod.yml workflow_dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: '7-character git SHA of the image to roll back to (e.g. abc1234)'
+        type: string
+        required: true
+      reason:
+        description: 'Reason for rollback — written to the audit record'
+        type: string
+        required: true
+
+# Shared with deploy-prod.yml — serialises rollback with any in-progress deploy
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ── 1. Fast validation — runs BEFORE the environment gate fires ───────────────
+  # Catches invalid target_sha immediately so reviewers are never prompted for
+  # a rollback that would fail at step 1. No GCP auth or checkout needed.
+  validate:
+    name: Validate inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Validate target_sha format
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+        run: |
+          if ! [[ "$TARGET_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::target_sha must be 7–40 lowercase hex chars. Got: $TARGET_SHA"
+            exit 1
+          fi
+          echo "SHA format valid: $TARGET_SHA"
+
+  # ── 2. Rollback — gated by the prod environment ──────────────────────────────
+  # Only runs after validate passes AND a required reviewer approves.
+  rollback_prod:
+    name: Rollback Prod → sha-${{ inputs.target_sha }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [validate]
+    environment: prod
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Authenticate to GCP
+        uses: ./.github/actions/gcp-auth
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # Fail fast if the target image no longer exists in Artifact Registry.
+      # Better to fail here than mid-deploy with a cryptic Cloud Run error.
+      - name: Verify target image exists in Artifact Registry
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app"
+          TAG="sha-${{ inputs.target_sha }}"
+          echo "Checking for $IMAGE:$TAG ..."
+          if ! gcloud artifacts tags list \
+            --package="app" \
+            --repository="framehouse-hub" \
+            --location="us-central1" \
+            --project="${{ vars.GCP_PROJECT_ID }}" \
+            --filter="tag=$TAG" \
+            --format="value(tag)" | grep -q "$TAG"; then
+            echo "### 🛑 Rollback Aborted" >> $GITHUB_STEP_SUMMARY
+            echo "Image tag \`$TAG\` not found in Artifact Registry." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The image may have been evicted by the cleanup policy (keep-10 / delete-30d)." >> $GITHUB_STEP_SUMMARY
+            echo "To rebuild: create a hotfix branch from the target commit and trigger deploy-prod.yml." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "Image $IMAGE:$TAG confirmed in Artifact Registry."
+
+      # Deploy old code against current schema — NO migration step, NO image rebuild.
+      # skip_build: 'true' is CRITICAL here: without it, the composite would build a
+      # new image from current-branch code and tag it as sha-{target_sha}, overwriting
+      # the historical image with completely different code — defeating the rollback.
+      - name: Deploy rollback revision
+        uses: ./.github/actions/deploy-cloudrun
+        with:
+          service: framehouse-hub-prod
+          image: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app
+          tag: sha-${{ inputs.target_sha }}
+          region: us-central1
+          skip_build: 'true'
+          cache_scope: app-rollback
+          service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+          min_instances: '0'
+          max_instances: '4'
+          revision_suffix: rollback-${{ inputs.target_sha }}
+          secrets: |
+            DATABASE_URI=DATABASE_URI_PROD:latest
+            PAYLOAD_SECRET=PAYLOAD_SECRET_PROD:latest
+            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_PROD:latest
+            SEED_SECRET=SEED_SECRET:latest
+          env_vars: |
+            GCS_BUCKET=framehouse-hub-prod
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            NEXT_PUBLIC_SERVER_URL=https://hub.framehouseworks.com
+
+      - name: Smoke test
+        run: |
+          curl -fsS \
+            --retry 8 \
+            --retry-delay 15 \
+            --retry-all-errors \
+            --retry-connrefused \
+            "https://hub.framehouseworks.com/api/healthz" \
+            | jq -e '.db == "ok"'
+          echo "Rollback smoke test passed."
+
+      - name: Write rollback audit record
+        env:
+          TARGET_SHA: ${{ inputs.target_sha }}
+          ROLLBACK_REASON: ${{ inputs.reason }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          python3 - <<'PYEOF'
+          import json, os
+          record = {
+            'event': 'rollback',
+            'env': 'prod',
+            'target_sha': os.environ['TARGET_SHA'],
+            'actor': os.environ['GITHUB_ACTOR'],
+            'run_id': os.environ['GITHUB_RUN_ID'],
+            'workflow': os.environ['GITHUB_WORKFLOW'],
+            'image': f"app:sha-{os.environ['TARGET_SHA']}",
+            'timestamp': os.popen('date -u +%Y-%m-%dT%H:%M:%SZ').read().strip(),
+            'reason': os.environ['ROLLBACK_REASON'],
+            'smoke_test': 'pass'
+          }
+          with open('/tmp/rollback-record.json', 'w') as f:
+            json.dump(record, f, indent=2)
+          PYEOF
+          gcloud storage cp /tmp/rollback-record.json \
+            "gs://framehouse-hub-prod/audit/rollbacks/${DATE}/${{ github.run_id }}.json"
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "### Rollback Prod — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target SHA | \`${{ inputs.target_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Note | DB migrations were NOT reversed — code-only rollback |" >> $GITHUB_STEP_SUMMARY

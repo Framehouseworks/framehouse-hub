@@ -1,0 +1,179 @@
+name: Build, Push and Deploy to Cloud Run
+description: >-
+  Optionally builds and pushes a Docker image to Artifact Registry, then optionally
+  deploys it to Cloud Run with explicit free-tier-safe resource constraints.
+  Both phases are independently skippable via skip_build / skip_deploy inputs,
+  enabling dry-run deploys (build only) and rollbacks (deploy only, no rebuild).
+
+  REQUIREMENT: gcp-auth composite must have run in the same job before this action.
+
+inputs:
+  service:
+    description: Cloud Run service name (e.g. framehouse-hub-dev)
+    required: true
+  image:
+    description: >-
+      Full image path WITHOUT tag
+      (e.g. us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app)
+    required: true
+  tag:
+    description: Primary Docker image tag (e.g. dev, sha-abc1234)
+    required: true
+  region:
+    description: GCP region for both Artifact Registry and Cloud Run
+    required: false
+    default: us-central1
+  build_context:
+    description: Docker build context path relative to repo root
+    required: false
+    default: .
+  dockerfile:
+    description: Dockerfile path relative to repo root
+    required: false
+    default: Dockerfile
+  build_args:
+    description: Docker build-args (KEY=VALUE, newline-separated)
+    required: false
+    default: ''
+  cache_scope:
+    description: >-
+      GHA cache scope key for Docker layer cache. Use distinct scopes per
+      service+environment to prevent cross-contamination (e.g. app-dev, worker-prod).
+    required: true
+  extra_tags:
+    description: >-
+      Additional image tags, newline-separated (e.g. registry/repo/app:latest).
+      Ignored when skip_build is true.
+    required: false
+    default: ''
+  service_account:
+    description: >-
+      GCP service account email for the Cloud Run revision runtime identity.
+      Must be explicitly set — never rely on the Compute Engine default SA.
+    required: true
+  min_instances:
+    description: Minimum Cloud Run instances. 0 = scale-to-zero (free-tier safe).
+    required: false
+    default: '0'
+  max_instances:
+    description: Maximum Cloud Run instances. Cap burst to control free-tier usage.
+    required: false
+    default: '4'
+  memory:
+    description: Memory per Cloud Run instance
+    required: false
+    default: 512Mi
+  cpu:
+    description: CPUs per Cloud Run instance
+    required: false
+    default: '1'
+  concurrency:
+    description: Maximum concurrent requests per instance
+    required: false
+    default: '4'
+  timeout:
+    description: Cloud Run request timeout (covers full media processing pipeline)
+    required: false
+    default: 300s
+  revision_suffix:
+    description: >-
+      Immutable Cloud Run revision suffix. Use git SHA7 for prod so each revision
+      is uniquely addressable for rollback. Leave empty for dev (mutable).
+    required: false
+    default: ''
+  no_allow_unauthenticated:
+    description: >-
+      Set to 'true' to block unauthenticated requests. Required for the Go worker
+      service — only Eventarc's invoker SA should reach it.
+    required: false
+    default: 'false'
+  secrets:
+    description: >-
+      Secret Manager secret bindings (KEY=SECRET_NAME:version, newline-separated).
+      Preferred over env_vars for all sensitive values — Secret Manager mounts
+      are not visible in Cloud Run Console revision details.
+    required: false
+    default: ''
+  env_vars:
+    description: >-
+      Plain (non-sensitive) environment variables (KEY=VALUE, newline-separated).
+      Do NOT put secrets here.
+    required: false
+    default: ''
+  skip_build:
+    description: >-
+      Set to 'true' to skip Docker build and push entirely. Use for rollbacks where
+      the target image already exists in Artifact Registry — rebuilding would
+      overwrite the historical image with current-branch code.
+    required: false
+    default: 'false'
+  skip_deploy:
+    description: >-
+      Set to 'true' to skip the Cloud Run deploy step. Build and push still run.
+      Use for dry-run validation of the image without touching the live service.
+    required: false
+    default: 'false'
+
+outputs:
+  image_digest:
+    description: Content-addressable image digest (sha256:...) of the pushed image. Empty when skip_build is true.
+    value: ${{ steps.build.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    # skip_build: 'true' → skip both setup-buildx and build-push.
+    # Used by rollback-prod.yml to redeploy an existing historical image
+    # without overwriting it with a new build from current-branch code.
+    - if: ${{ inputs.skip_build != 'true' }}
+      uses: docker/setup-buildx-action@v3
+
+    - id: build
+      if: ${{ inputs.skip_build != 'true' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.build_context }}
+        file: ${{ inputs.dockerfile }}
+        push: true
+        tags: |
+          ${{ inputs.image }}:${{ inputs.tag }}
+          ${{ inputs.extra_tags }}
+        build-args: ${{ inputs.build_args }}
+        cache-from: type=gha,scope=${{ inputs.cache_scope }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.cache_scope }}
+
+    # Build the flags string in a shell step so conditional flags (revision-suffix,
+    # no-allow-unauthenticated) are handled cleanly without YAML expression gymnastics.
+    # Always runs — flags are needed by the deploy step even in skip_build mode.
+    - id: cr-flags
+      if: ${{ inputs.skip_deploy != 'true' }}
+      shell: bash
+      run: |
+        FLAGS=""
+        FLAGS="$FLAGS --service-account=${{ inputs.service_account }}"
+        FLAGS="$FLAGS --min-instances=${{ inputs.min_instances }}"
+        FLAGS="$FLAGS --max-instances=${{ inputs.max_instances }}"
+        FLAGS="$FLAGS --memory=${{ inputs.memory }}"
+        FLAGS="$FLAGS --cpu=${{ inputs.cpu }}"
+        FLAGS="$FLAGS --concurrency=${{ inputs.concurrency }}"
+        FLAGS="$FLAGS --timeout=${{ inputs.timeout }}"
+        if [ -n "${{ inputs.revision_suffix }}" ]; then
+          FLAGS="$FLAGS --revision-suffix=${{ inputs.revision_suffix }}"
+        fi
+        if [ "${{ inputs.no_allow_unauthenticated }}" = "true" ]; then
+          FLAGS="$FLAGS --no-allow-unauthenticated"
+        fi
+        echo "value=$FLAGS" >> $GITHUB_OUTPUT
+
+    # skip_deploy: 'true' → skip Cloud Run update. Use for dry-run image validation.
+    - if: ${{ inputs.skip_deploy != 'true' }}
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ inputs.service }}
+        image: ${{ inputs.image }}:${{ inputs.tag }}
+        region: ${{ inputs.region }}
+        env_vars_update_strategy: overwrite
+        secrets_update_strategy: overwrite
+        flags: ${{ steps.cr-flags.outputs.value }}
+        secrets: ${{ inputs.secrets }}
+        env_vars: ${{ inputs.env_vars }}

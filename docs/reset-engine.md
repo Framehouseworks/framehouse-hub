@@ -1,67 +1,81 @@
 # Reset Engine
 
-## Quick Reference
+**Workflow:** `.github/workflows/reset-engine.yml`  
+**Trigger:** `workflow_dispatch` only — never fires automatically.
 
-| Scenario | Command |
-|---|---|
-| Local dev DB is broken / stale | `./scripts/verify-local.sh` |
-| Tear down local verify container | `./scripts/verify-local.sh down` |
-| Nuke cloud dev env from CI | GitHub Actions → **Reset Engine** → `dev` + `NUKE-DEV` |
-| Nuke cloud prod env | GitHub Actions → **Reset Engine** → `prod` + `NUKE-PROD` (requires reviewer) |
-| Debug: reset without seeding | `./scripts/reset.sh --target local --database-uri <uri> --skip-seed --no-confirm` |
+Two modes:
 
----
-
-## When to Use
-
-**Use Reset Engine when:**
-- A schema migration broke the dev environment and the app won't start.
-- You changed the seed data structure and need a clean baseline to test against.
-- Preparing for a demo and the DB has dirty test data.
-- A feature branch left orphaned rows that conflict with new constraints.
-- CI is failing due to stale cloud state (use dev reset, never prod).
-
-**Do NOT use Reset Engine when:**
-- You just need to apply new migrations — run `pnpm payload migrate` instead.
-- You want to test a migration rollback — use a local ephemeral DB via `verify-local.sh`.
-- The issue is a code bug, not data state — reset won't help and wastes time.
-- Any real user data exists in prod — reset is **total destruction**, no recovery.
+| Mode | Phrase | Wipes | Environments |
+|------|--------|-------|--------------|
+| **Fast reset** — DB only | `RESET-DEV` | Neon schema → migrate → seed | `dev` only |
+| **Full reset** — DB + storage | `NUKE-DEV` / `NUKE-PROD` | Neon schema + GCS bucket → migrate → seed | `dev`, `prod` |
 
 ---
 
-## How to Use
+## Quick reference
 
-### Local reset (most common)
+| Scenario | Action |
+|----------|--------|
+| Broken local DB | `./scripts/verify-local.sh` |
+| Stale dev data, keep media files | Actions → Reset Engine · `dev` · `RESET-DEV` · `preserve_storage=true` |
+| Full dev wipe (DB + GCS) | Actions → Reset Engine · `dev` · `NUKE-DEV` |
+| Full prod wipe (break-glass only) | Actions → Reset Engine · `prod` · `NUKE-PROD` · reviewer required |
 
-Spins an ephemeral Postgres container, wipes it, migrates, seeds, tears down. Zero cloud cost.
+---
+
+## When to use
+
+**Use when:**
+- Schema migration broke an environment and the app won't start.
+- Preparing for a demo with dirty test data.
+- A feature branch left orphaned rows conflicting with new constraints.
+- CI is failing due to stale cloud state (always use dev, never prod).
+- You want a fresh DB but need to preserve existing media uploads (fast reset).
+
+**Do not use when:**
+- You only need to apply new migrations — run `pnpm payload migrate`.
+- The issue is a code bug — reset won't help and wastes minutes.
+- Any real user data is in prod — reset is total destruction with no recovery.
+- You want to test migration rollback — use `verify-local.sh` against a local ephemeral DB.
+
+---
+
+## How to use
+
+### Local reset
 
 ```bash
-./scripts/verify-local.sh
-```
-
-Keep the DB running to poke around with `pnpm dev`:
-
-```bash
-./scripts/verify-local.sh --keep-open
-# prints: DATABASE_URI=postgres://... pnpm run dev
-./scripts/verify-local.sh down   # when done
+./scripts/verify-local.sh              # ephemeral Postgres → migrate → seed → teardown
+./scripts/verify-local.sh --keep-open  # keep DB running; prints DATABASE_URI for pnpm dev
+./scripts/cleanup-local.sh             # tear down a --keep-open session
 ```
 
 ---
 
-### Cloud dev reset (GitHub Actions)
+### Cloud dev — fast reset (preserve GCS media)
 
-1. Go to **Actions → Reset Engine → Run workflow** in GitHub.
-2. Set `environment` = `dev`.
-3. Set `confirm_phrase` = `NUKE-DEV` (exact case, no spaces).
-4. Click **Run workflow**.
+Drops and reseeds the DB only. GCS media files are untouched. Use for post-demo cleanup or stale seed data.
 
-What happens:
-- Wrong phrase → job fails immediately, nothing touched.
-- Correct phrase → Neon dev schema dropped → `gs://framehouse-hub-dev` emptied → migrations applied → seed runs → `/api/healthz` polled.
-- Total wall-clock: ~3 min.
+1. **Actions → Reset Engine → Run workflow**
+2. `environment` = `dev`
+3. `confirm_phrase` = `RESET-DEV`
+4. `preserve_storage` = `true`
+5. `redeploy` = `false` (set `true` to trigger a fresh deploy after)
 
-After completion, the seeded system admin is available:
+Wall-clock: ~2 min.
+
+---
+
+### Cloud dev — full reset (DB + GCS)
+
+1. **Actions → Reset Engine → Run workflow**
+2. `environment` = `dev`
+3. `confirm_phrase` = `NUKE-DEV`
+4. `preserve_storage` = `false` (default)
+
+Wall-clock: ~3 min.
+
+Post-reset access:
 ```
 Email:    sys.admin@framehouseworks.com
 Password: password123
@@ -70,224 +84,123 @@ URL:      https://dev.framehouseworks.com/admin
 
 ---
 
-### Cloud prod reset (break-glass only)
+### Cloud prod — full reset (break-glass only)
 
-> Requires a **GitHub environment reviewer** to approve before any step runs. Default: deny unless explicitly needed.
+> **Requires a GitHub environment reviewer to approve** before any step runs. No fast reset on prod — storage and DB must stay in sync.
 
-1. Go to **Actions → Reset Engine → Run workflow**.
-2. Set `environment` = `prod`.
-3. Set `confirm_phrase` = `NUKE-PROD`.
-4. A reviewer must approve in the Actions UI before destruction begins.
+Follow the same steps as full dev reset. Use `prod` + `NUKE-PROD`.
 
-After reset, prod has only seed data — no real user accounts, no uploaded media. Only use during initial provisioning or a catastrophic data incident.
+Post-reset prod has only seed data — no real user accounts, no uploaded media.
 
 ---
 
-## Seeded Baseline (post-reset state)
+## Safety layers
 
-After any reset, the environment contains exactly what `src/seed/index.ts` defines:
+1. **Phrase guard** — all `${{ inputs.* }}` values passed via shell `env:`, never interpolated directly into shell commands (injection-safe). Wrong phrase → `exit 1` before any GCP auth.
+2. **preserve_storage restriction** — `preserve_storage=true` is rejected for `prod` by the phrase guard step.
+3. **GitHub Environment gate** — the `prod` environment requires reviewer approval + 2h wait window before any step runs.
+4. **Concurrency group** — shares `deploy-dev` / `deploy-prod` with deploy workflows; queues behind any in-progress deploy.
+
+---
+
+## Post-reset state
+
+After any reset, the environment contains exactly what `src/seed/index.ts` defines. See [`seed-guide.md`](seed-guide.md) for full fixture details.
 
 | Account | Role | Password |
-|---|---|---|
-| `sys.admin@framehouseworks.com` | System Admin | `password123` |
-| Seeded creative users | Creative | (see seed file) |
-| Seeded viewers | Viewer | (see seed file) |
+|---------|------|----------|
+| `sys.admin@framehouseworks.com` | Admin | `password123` |
+| `creative@framehouseworks.com` | Creative | `password123` |
+| `alex.chen@framehouseworks.com` | Creative | `password123` |
+| `maya.patel@framehouseworks.com` | Creative | `password123` |
+| `leo.strand@framehouseworks.com` | Creative | `password123` |
+| `viewer@framehouseworks.com` | Viewer | `password123` |
 
-Media: fixture items with pre-built derivatives. GCS bytes are **not** re-uploaded by the seed (known limitation — upload manually via dashboard after cloud reset).
+**GCS media bytes are not re-uploaded by the seed.** Upload fixture media manually via the dashboard after a full cloud reset.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[GitHub Actions UI] -->|workflow_dispatch| B[reset-engine.yml]
+    B --> C{Phrase guard\nenv-var safe comparison}
+    C -->|mismatch| X[exit 1 — nothing touched]
+    C -->|pass| D[GH Environment gate\nprod = reviewer + 2h]
+    D --> E[GCP Auth via WIF\nOIDC keyless]
+    E --> F[Resolve secrets\nSecret Manager]
+    F --> G{preserve_storage?}
+    G -->|true — dev only| H[scripts/reset.sh\n--skip-storage]
+    G -->|false| I[scripts/reset.sh\nfull wipe]
+    H --> J[Smoke test /api/healthz\nassert db ok]
+    I --> J
+    J --> K{redeploy?}
+    K -->|true| L[gh workflow run\ndeploy-dev/prod.yml]
+    K -->|false| M[Step summary written]
+```
+
+### Job structure
+
+Single `purge` job, sequential steps:
+
+| Step | What it does |
+|------|-------------|
+| Phrase guard | Env-var comparison — injection-safe. `preserve_storage=true` rejected for prod |
+| Setup Node + pnpm | Composite action: checkout + pnpm + node + install |
+| GCP Auth | OIDC WIF — no static keys |
+| Resolve secrets | `get-secretmanager-secrets` for DB URI, Payload secret, callback secret |
+| Run reset | `scripts/reset.sh --target {env} [--skip-storage] --no-confirm` |
+| Smoke test | `curl /api/healthz` — asserts `{"db":"ok"}` |
+| Trigger redeploy | `gh workflow run deploy-{env}.yml` (only if `redeploy=true`) |
+| Step summary | Table written to `$GITHUB_STEP_SUMMARY` |
+
+### Permissions (job-scoped)
+
+```yaml
+permissions:
+  id-token: write    # GCP OIDC token
+  contents: read     # composite action checkout
+  actions: write     # gh workflow run (redeploy trigger)
+```
+
+---
+
+## Secrets and variables
+
+| Name | Source | Purpose |
+|------|--------|---------|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | GitHub Secret | OIDC WIF provider |
+| `GCP_SERVICE_ACCOUNT_EMAIL` | GitHub Secret | SA to impersonate |
+| `DATABASE_URI_{DEV\|PROD}` | Secret Manager | DB connection string |
+| `PAYLOAD_SECRET_{DEV\|PROD}` | Secret Manager | Payload CMS initialisation |
+| `PROCESSOR_CALLBACK_SECRET_{DEV\|PROD}` | Secret Manager | Worker callback signing |
+| `GCS_PROJECT_ID` | GitHub Variable | GCP project ID |
+| `NODE_VERSION` | GitHub Variable | Node.js version |
+| `PNPM_VERSION` | GitHub Variable | pnpm version |
+
+---
+
+## Failure modes and idempotency
+
+| Failure | Behaviour |
+|---------|-----------|
+| Phrase mismatch | `exit 1` before any GCP call. Nothing touched. |
+| `gcloud storage rm` on empty bucket | Exit code swallowed (`|| true`). Safe to re-run. |
+| Schema drop after partial migration | Re-creates `public` schema. Idempotent. |
+| Seed failure | DB is migrated-but-empty. Re-triggering the workflow recovers. |
+| Manual cancel mid-step | Re-trigger is safe — every step is idempotent. |
 
 ---
 
 ## Troubleshooting
 
 | Symptom | Fix |
-|---|---|
-| `Confirmation phrase mismatch` | Check exact casing: `NUKE-DEV` not `nuke-dev` |
-| `DATABASE_URI not resolved` | Pass `--database-uri` explicitly or check Secret Manager binding |
-| `schema drop failed` | Check DB connectivity; Neon may be paused — wake it via console first |
-| `gcloud storage rm` fails | SA missing `roles/storage.objectAdmin` on bucket — check IAM |
-| Seed fails, DB empty | Re-trigger the workflow — schema + bucket are already clean, idempotent |
-| Prod job stuck at "Waiting for review" | Expected — a reviewer must approve in GitHub Actions UI |
-
----
-
-## User Story
-As dev, me want single trigger to kill environment state and rebirth it fresh.
-Me want cloud match local cleanup layout.
-Me want zero data footprint leftover.
-
-## Product Journey (The Core Loop)
-1. Environment messy or feature update broke old data structure.
-2. Dev go to GitHub Actions.
-3. Dev choose Reset Workflow.
-4. Dev MUST enter safety input unlock phrase ("NUKE-DEV" or "NUKE-PROD"). Accidental click impossible.
-5. Automation wakes up ($0 free tier limits preserved).
-6. Database drop schema instantly.
-7. Storage bucket empty completely.
-8. Native seed runner injects clean mock baseline data.
-9. System fresh, ready for next demo or test cycle.
-
-## Absolute Boundaries (Acceptance Criteria)
-* **Dev Purge**: Kill Neon Dev database schema + empty Dev storage bucket + run seed.
-* **Prod Purge**: Kill Neon Prod database schema + empty Prod storage bucket + run seed.
-* **Local Parity**: Workflow wraps native local cleanup scripts (`cleanup-local.sh`, `psql drop`, `pnpm seed`). Flexible to scale when new features modify the seed.
-* **Anti-Oops Guard**: Input string check mandatory before destructive script run. Wrong phrase = workflow fail instantly.
-* **Free Tier Safe**: Bucket object delete only (no bucket recreation fees). Compute fits within free GitHub Action minutes and free Neon tier capacities.
-
----
-
-## Architecture
-
-### Topology
-
-```mermaid
-flowchart TD
-    A[Dev: GH Actions UI] -->|workflow_dispatch<br/>env + phrase| B[reset-engine.yml]
-    B --> C{Phrase Guard<br/>NUKE-DEV / NUKE-PROD<br/>matches env?}
-    C -->|fail| X[Exit 1 instantly]
-    C -->|pass| D[Job: purge]
-    D --> E[GCP Auth<br/>WIF + SA]
-    D --> F[Neon: drop schema]
-    D --> G[GCS: bulk object delete]
-    F --> H[pnpm payload migrate]
-    G --> H
-    H --> I[pnpm seed]
-    I --> J[Healthcheck]
-```
-
-### Workflow file: `.github/workflows/reset-engine.yml`
-
-* **Trigger**: `workflow_dispatch` only. Inputs:
-  * `environment` — choice `[dev, prod]`.
-  * `confirm_phrase` — string. Required.
-* **Permissions**: `id-token: write`, `contents: read` (WIF only; no static GCP keys).
-* **Concurrency**: `group: reset-${{ inputs.environment }}`, `cancel-in-progress: false` — prevent parallel nukes on same env.
-* **Environment gating**: GH `environment: ${{ inputs.environment }}` so prod requires a reviewer approval rule (configured in repo settings).
-
-### Job structure (single job, sequential steps)
-
-```mermaid
-flowchart LR
-    S1[guard] --> S2[checkout + pnpm] --> S3[gcp-auth] --> S4[resolve-secrets]
-    S4 --> S5[reset-core<br/>scripts/reset.sh] --> S6[healthz]
-```
-
-| Step | Action | Reuses |
-|---|---|---|
-| `guard` | Shell `if` matches `confirm_phrase` against `NUKE-${ENV^^}`. Fail-fast `exit 1`. | — |
-| `checkout + pnpm` | Standard `actions/checkout@v4`, `pnpm/action-setup`, `setup-node` cache. | Pattern from `deploy-dev.yml`. |
-| `gcp-auth` | `google-github-actions/auth@v2` via `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`. | Same as deploy workflows. |
-| `resolve-secrets` | Read `DATABASE_URI_${ENV}`, `PAYLOAD_SECRET_${ENV}`, `PROCESSOR_CALLBACK_SECRET_${ENV}` via `google-github-actions/get-secretmanager-secrets`. Export `GCS_BUCKET=framehouse-hub-${env}`, `GCS_PROJECT_ID=framehouse-hub`. | Secret pattern from `deploy-*.yml`. |
-| `reset-core` | Single call: `scripts/reset.sh --target ${env} --no-confirm` (handles drop-schema → empty-bucket → migrate → seed). | Shared with `verify-local.sh`. |
-| `healthz` | `curl -fsS https://<service>/api/healthz` for chosen env. | Required by devops rules. |
-
-### Phrase guard (snippet contract)
-
-```bash
-EXPECTED="NUKE-${ENVIRONMENT^^}"
-if [[ "$CONFIRM_PHRASE" != "$EXPECTED" ]]; then
-  echo "::error::Confirmation phrase mismatch. Expected: $EXPECTED"
-  exit 1
-fi
-```
-
-### Script consolidation (single source of truth)
-
-Today's script layout has overlapping concerns and one near-trivial script. The Reset Engine introduces a chance to collapse them around a single reusable **reset core**.
-
-**Current inventory**
-
-| Script | Role | Verdict |
-|---|---|---|
-| `scripts/verify-local.sh` | Spin ephemeral Postgres → migrate → seed → teardown | **Refactor**: delegate the migrate+seed body to the new core |
-| `scripts/cleanup-local.sh` | `docker stop/rm frh-verify-db` (7 LOC) | **Deprecate**: fold into `verify-local.sh --down` subcommand; keep a thin shim that warns + forwards for one release cycle |
-| `scripts/dev-with-worker.sh` | Local dev runtime (Next + Go worker) | **Keep as-is** — unrelated to reset |
-| `scripts/infra/setup-eventarc.sh` | One-shot GCP wiring | **Keep** — infra provisioning, not lifecycle |
-| `scripts/infra/set-cleanup-policy.sh` | Artifact Registry retention | **Keep** — infra provisioning |
-
-**New: `scripts/reset.sh` (reset core)**
-
-Single executable owning the destructive lifecycle. Workflow + local both call it.
-
-* **Args**:
-  * `--target local|dev|prod` (required).
-  * `--database-uri <uri>` (optional; derived for `local`, fetched from Secret Manager for `dev`/`prod`).
-  * `--bucket <name>` (optional; derived `framehouse-hub-${target}` for cloud, skipped for local).
-  * `--skip-storage` (local default; cloud optional).
-  * `--skip-seed` (debug aid).
-  * `--no-confirm` (CI/non-interactive; otherwise prompts for `NUKE-${TARGET^^}`).
-* **Steps** (idempotent, ordered):
-  1. Confirm phrase (unless `--no-confirm`).
-  2. `psql "$DATABASE_URI" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`.
-  3. If cloud target: `gcloud storage rm --recursive "gs://${BUCKET}/**" --quiet || true`.
-  4. `pnpm payload migrate`.
-  5. `pnpm seed` (unless `--skip-seed`).
-* **Exit codes**: `0` success, `1` phrase mismatch, `2` env unresolved, `3` step failure (with stderr surfaced).
-* **Logging**: numbered step banners identical to `verify-local.sh` style so output is visually consistent across local/CI.
-
-**`verify-local.sh` after refactor**
-
-* Spins ephemeral container (unchanged).
-* Exports `DATABASE_URI`, then **invokes** `scripts/reset.sh --target local --database-uri ... --skip-storage --no-confirm` instead of inlining migrate+seed.
-* Adds subcommands: `verify-local.sh up` (default), `verify-local.sh down` (replaces `cleanup-local.sh`).
-
-**`cleanup-local.sh` after refactor**
-
-* Becomes a 3-line deprecation shim: prints `"⚠ cleanup-local.sh is deprecated, use verify-local.sh down"` and execs the new subcommand. Remove in the PR that lands FRH-56 (or whichever ticket follows).
-
-**Resulting topology**
-
-```mermaid
-flowchart LR
-    L[verify-local.sh up] --> R[scripts/reset.sh]
-    CI[reset-engine.yml] --> R
-    DEV[dev: scripts/reset.sh --target dev] --> R
-    R --> DROP[psql DROP SCHEMA]
-    R --> WIPE[gcloud storage rm]
-    R --> MIG[pnpm payload migrate]
-    R --> SEED[pnpm seed]
-```
-
-One destructive code path, three callers — eliminates drift between local and cloud reset behaviour.
-
-### Secrets & vars matrix
-
-| Name | Source | Used by |
-|---|---|---|
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` | GH secret | gcp-auth |
-| `GCP_SERVICE_ACCOUNT_EMAIL` | GH secret | gcp-auth |
-| `DATABASE_URI_{ENV}` | Secret Manager | drop-schema, migrate, seed |
-| `PAYLOAD_SECRET_{ENV}` | Secret Manager | migrate, seed |
-| `PROCESSOR_CALLBACK_SECRET_{ENV}` | Secret Manager | seed (worker callback URL signing) |
-| `GCS_BUCKET` | Computed `framehouse-hub-${env}` | empty-bucket, seed |
-| `GCS_PROJECT_ID` | Literal `framehouse-hub` | empty-bucket, seed |
-
-Runtime SA needs (verify before first prod run): `roles/storage.objectAdmin` on the bucket, `roles/secretmanager.secretAccessor` on the three secrets. No new IAM bindings beyond what deploy workflows already require.
-
-### Free-tier guardrails
-
-* Single Ubuntu runner, ~3 min wall-clock per reset → negligible against 2 000 free GH minutes/mo.
-* `gcloud storage rm` is per-object Class A ops — cost = number of objects × $0 within free 5 GB / 5 k ops monthly budget. Bucket retained ⇒ no recreate fees, no CORS/Eventarc redo.
-* Neon: schema DROP is in-place; no branch creation, no compute hours added.
-* No worker invocation; no Cloud Run cold start charges.
-
-### Failure modes & idempotency
-
-* Phrase mismatch → exit before any destructive call.
-* `gcloud storage rm` on empty bucket → swallow exit 1 (the `|| true`).
-* Schema drop after partial migration → safe (re-creates `public`).
-* Seed failure → leaves DB migrated-but-empty; re-running workflow recovers.
-* Manual abort mid-step → re-trigger is safe; every step is idempotent.
-
-### Out of scope (deferred)
-
-* Resetting Neon **branches** (current design resets schema in-place on `dev`/`prod` branch). Branch swap-and-delete is a v2 if Neon compute time becomes a concern.
-* Restoring uploaded fixture bytes to GCS — known follow-up in `CLAUDE.md` ("Cloud-aware seed for media").
-* Multi-bucket / multi-region — single `us-central1` bucket per env per current infra.
-
-### Verification
-
-1. Dry-run on dev: trigger workflow with `environment=dev`, `confirm_phrase=NUKE-DEV`. Assert: admin login works, seeded users present, `gs://framehouse-hub-dev` empty, `/api/healthz` 200.
-2. Negative test: trigger with `confirm_phrase=nuke-dev` (wrong case) → workflow fails at guard step, no GCP auth performed.
-3. Local parity: `scripts/reset.sh --target local --database-uri <ephemeral> --no-confirm` (or `verify-local.sh up`) produces identical end-state. Same script invoked by CI guarantees no drift.
-4. Deprecation: `scripts/cleanup-local.sh` prints deprecation notice and still tears down the container (one release of grace).
-5. Prod gate: trigger with `environment=prod` → blocks on GH environment reviewer approval before any step runs.
+|---------|-----|
+| `Confirmation phrase mismatch` | Exact casing: `NUKE-DEV`, `NUKE-PROD`, `RESET-DEV` |
+| `preserve_storage is only allowed for dev` | Prod always requires full reset — omit `preserve_storage` |
+| `DATABASE_URI not resolved` | Check Secret Manager binding; SA needs `roles/secretmanager.secretAccessor` |
+| Schema drop failed | Neon may be paused — wake via console first |
+| `gcloud storage rm` fails | SA missing `roles/storage.objectAdmin` on bucket |
+| Seed fails, DB empty | Re-trigger — schema and bucket are already clean, seed is idempotent |
+| Prod stuck at "Waiting for review" | Expected — approve in the GitHub Actions UI |
