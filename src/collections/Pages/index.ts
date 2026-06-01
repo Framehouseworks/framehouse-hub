@@ -4,15 +4,18 @@ import { adminOnly } from '@/access/adminOnly'
 import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { About3 } from '@/blocks/About3/config'
 import { Archive } from '@/blocks/ArchiveBlock/config'
+import { ArticleGrid } from '@/blocks/ArticleGrid/config'
 import { Banner } from '@/blocks/Banner/config'
 import { CallToAction } from '@/blocks/CallToAction/config'
 import { Carousel } from '@/blocks/Carousel/config'
 import { Content } from '@/blocks/Content/config'
+import { DownloadGrid } from '@/blocks/DownloadGrid/config'
 import { FormBlock } from '@/blocks/Form/config'
 import { MediaBlock } from '@/blocks/MediaBlock/config'
 import { Pricing } from '@/blocks/Pricing/config'
 import { SprocketDivider } from '@/blocks/SprocketDivider/config'
 import { ThreeItemGrid } from '@/blocks/ThreeItemGrid/config'
+import { TutorialGrid } from '@/blocks/TutorialGrid/config'
 import { hero } from '@/fields/hero'
 import { slugField } from '@/fields/slug'
 import { lockCoreField, protectCoreRecord } from '@/utilities/protectRecords'
@@ -103,6 +106,9 @@ export const Pages: CollectionConfig = {
                 Pricing,
                 SprocketDivider,
                 About3,
+                ArticleGrid,
+                DownloadGrid,
+                TutorialGrid,
               ],
               required: true,
             },
@@ -159,7 +165,7 @@ export const Pages: CollectionConfig = {
   hooks: {
     afterChange: [revalidatePage],
     afterDelete: [revalidateDelete],
-    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features', 'hub'], 'This is a core system page and cannot be deleted.')],
+    beforeDelete: [protectCoreRecord(['pricing', 'about', 'features', 'hub', 'learn', 'company'], 'This is a core system page and cannot be deleted.')],
   },
   versions: {
     drafts: {

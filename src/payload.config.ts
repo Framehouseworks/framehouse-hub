@@ -17,10 +17,13 @@ import sharp from 'sharp'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { Articles } from '@/collections/Articles'
 import { Categories } from '@/collections/Categories'
+import { Downloads } from '@/collections/Downloads'
 import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
+import { Tutorials } from '@/collections/Tutorials'
 import { Users } from '@/collections/Users'
 import { SmartCollections } from '@/collections/SmartCollections'
 import { Sessions } from '@/collections/Sessions'
@@ -83,6 +86,9 @@ export default buildConfig({
     Users,
     Pages,
     Categories,
+    Articles,
+    Downloads,
+    Tutorials,
     Media,
     Portfolios,
     SmartCollections,

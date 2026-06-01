@@ -318,6 +318,374 @@ export const aboutPageData = {
   },
 }
 
+export const learnPageData = {
+  title: 'Learn',
+  slug: 'learn',
+  _status: 'published',
+  isProtected: true,
+  hero: {
+    type: 'lowImpact',
+    richText: {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'heading',
+            tag: 'h1',
+            version: 1,
+            children: [{ text: 'Learn Framehouse Hub', type: 'text', version: 1 }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+          },
+          {
+            type: 'paragraph',
+            version: 1,
+            children: [
+              {
+                text: 'Guides, tutorials, and free resources for creatives building their digital archive.',
+                type: 'text',
+                version: 1,
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1,
+      },
+    },
+  },
+  layout: [
+    {
+      blockType: 'tutorialGrid',
+      blockName: 'tutorials',
+      heading: 'Platform Tutorials',
+      subheading: 'Step-by-step guides for uploading, organising, and publishing your work.',
+      backgroundColor: 'white',
+    },
+    {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'white',
+      speed: 'slow',
+    },
+    {
+      blockType: 'articleGrid',
+      blockName: 'articles',
+      heading: 'Articles & Guides',
+      subheading: 'Insights, workflows, and ideas from the Framehouse team.',
+      viewAllLabel: 'View all articles',
+      backgroundColor: 'surface_low',
+    },
+    {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'surface_low',
+      speed: 'medium',
+    },
+    {
+      blockType: 'downloadGrid',
+      blockName: 'downloads',
+      heading: 'Free Downloads',
+      subheading: 'LUTs, templates, and presets — free for registered users.',
+      backgroundColor: 'white',
+    },
+  ],
+  meta: {
+    title: 'Learn | Framehouse Hub',
+    description:
+      'Tutorials, articles, and free downloads to help creatives get the most from Framehouse Hub.',
+  },
+}
+
+export const companyPageData = {
+  title: 'Company',
+  slug: 'company',
+  _status: 'published',
+  isProtected: true,
+  hero: {
+    type: 'lowImpact',
+    richText: {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'heading',
+            tag: 'h1',
+            version: 1,
+            children: [{ text: 'Framehouse Works', type: 'text', version: 1 }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+          },
+          {
+            type: 'paragraph',
+            version: 1,
+            children: [
+              {
+                text: 'Building the infrastructure for creative professionals to own, organise, and present their work.',
+                type: 'text',
+                version: 1,
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1,
+      },
+    },
+  },
+  layout: [
+    {
+      blockType: 'content',
+      layoutStyle: 'side_by_side',
+      backgroundColor: 'surface_low',
+      columns: [
+        {
+          size: 'oneThird',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [{ text: 'WHO WE ARE', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+        {
+          size: 'twoThirds',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'Framehouse Works is a small, focused team building professional-grade digital asset management for creative businesses. We started because every tool we tried was either too complex, too expensive, or too generic. Framehouse Hub is what we built instead.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+      ],
+    },
+    {
+      blockType: 'content',
+      layoutStyle: 'side_by_side',
+      backgroundColor: 'white',
+      columns: [
+        {
+          size: 'twoThirds',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: "We believe your creative work deserves better than cluttered folders and forgotten hard drives. Every asset you produce has value — it should be easy to find, properly attributed, and professionally presented. That's the problem we're solving.",
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+        {
+          size: 'oneThird',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [{ text: 'OUR BELIEF', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+      ],
+    },
+    {
+      blockType: 'sprocketDivider',
+      backgroundColor: 'white',
+      speed: 'slow',
+    },
+    {
+      blockType: 'content',
+      layoutStyle: 'side_by_side',
+      backgroundColor: 'surface_low',
+      columns: [
+        {
+          size: 'oneThird',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [{ text: 'HOW WE WORK', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+        {
+          size: 'twoThirds',
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: "We ship incrementally and take feedback seriously. The product is built in public and shaped directly by the creatives using it. If you have a perspective on how creative asset management should work, we want to hear it.",
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+      ],
+    },
+    {
+      blockType: 'content',
+      style: 'mission',
+      layoutStyle: 'default',
+      backgroundColor: 'white',
+      columns: [
+        {
+          size: 'full',
+          enableLink: true,
+          link: {
+            label: 'Explore the Platform',
+            url: '/hub',
+            type: 'custom',
+            appearance: 'default',
+          },
+          richText: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'BUILT FOR CREATIVES. PRICED FOR REALITY.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: "We're not building enterprise software with a creative skin on top. We're building from the ground up for photographers, videographers, and creative studios — with a pricing model that actually makes sense.",
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+      ],
+    },
+  ],
+  meta: {
+    title: 'Company | Framehouse Works',
+    description:
+      'Framehouse Works is building professional-grade digital asset management for creative businesses.',
+  },
+}
+
 export const hubPageData = {
   title: 'Hub',
   slug: 'hub',
