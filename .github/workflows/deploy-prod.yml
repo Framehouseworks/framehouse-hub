@@ -45,7 +45,7 @@ jobs:
       docker_tag: sha-${{ github.sha }}
       extra_tags: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app:latest
       gcs_bucket: framehouse-hub-prod
-      public_url: https://hub.framehouseworks.com
+      public_url: https://framehouseworks.com
       cloud_run_service: framehouse-hub-prod
       cloud_run_region: us-central1
       runtime_service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}

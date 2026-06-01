@@ -129,7 +129,7 @@ jobs:
           env_vars: |
             GCS_BUCKET=framehouse-hub-prod
             GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
-            NEXT_PUBLIC_SERVER_URL=https://hub.framehouseworks.com
+            NEXT_PUBLIC_SERVER_URL=https://framehouseworks.com
 
       - name: Smoke test
         run: |
@@ -138,7 +138,7 @@ jobs:
             --retry-delay 15 \
             --retry-all-errors \
             --retry-connrefused \
-            "https://hub.framehouseworks.com/api/healthz" \
+            "https://framehouseworks.com/api/healthz" \
             | jq -e '.db == "ok"'
           echo "Rollback smoke test passed."
 

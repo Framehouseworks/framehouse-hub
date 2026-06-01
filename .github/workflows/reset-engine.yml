@@ -123,7 +123,7 @@ jobs:
           GCS_BUCKET: framehouse-hub-${{ inputs.environment }}
           GCS_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           NODE_ENV: production
-          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'prod' && 'https://hub.framehouseworks.com' || 'https://dev.framehouseworks.com' }}
+          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'prod' && 'https://framehouseworks.com' || 'https://dev.framehouseworks.com' }}
         run: |
           ARGS="--target $INPUT_ENVIRONMENT --no-confirm"
           if [[ "$INPUT_PRESERVE_STORAGE" == "true" ]]; then
@@ -136,7 +136,7 @@ jobs:
           INPUT_ENVIRONMENT: ${{ inputs.environment }}
         run: |
           if [[ "$INPUT_ENVIRONMENT" == "prod" ]]; then
-            URL="https://hub.framehouseworks.com/api/healthz"
+            URL="https://framehouseworks.com/api/healthz"
           else
             URL="https://dev.framehouseworks.com/api/healthz"
           fi

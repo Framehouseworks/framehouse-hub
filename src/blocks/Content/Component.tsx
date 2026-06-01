@@ -56,8 +56,9 @@ export const ContentBlock: React.FC<
                   }}
                   className={cn(
                     "flex flex-col items-center",
-                    "[&_h1]:text-6xl [&_h1]:md:text-8xl [&_h1]:lg:text-9xl [&_h1]:font-rubik [&_h1]:tracking-tighter [&_h1]:uppercase [&_h1]:mb-12 [&_h1]:leading-[0.9]",
-                    "[&_p]:text-xl [&_p]:md:text-3xl [&_p]:text-on_surface/60 [&_p]:dark:text-on_surface/40 [&_p]:max-w-[850px] [&_p]:mx-auto [&_p]:leading-[1.4] font-inter"
+                    "[&_h1]:text-4xl [&_h1]:sm:text-5xl [&_h1]:md:text-7xl [&_h1]:lg:text-8xl [&_h1]:font-rubik [&_h1]:tracking-tighter [&_h1]:uppercase [&_h1]:mb-8 [&_h1]:md:mb-12 [&_h1]:leading-[0.95] [&_h1]:md:leading-[0.9]",
+                    "[&_h2]:text-3xl [&_h2]:sm:text-4xl [&_h2]:md:text-6xl [&_h2]:lg:text-7xl [&_h2]:font-rubik [&_h2]:tracking-tighter [&_h2]:uppercase [&_h2]:mb-8 [&_h2]:md:mb-12 [&_h2]:leading-[0.95]",
+                    "[&_p]:text-base [&_p]:md:text-xl [&_p]:lg:text-2xl [&_p]:text-on_surface/60 [&_p]:dark:text-on_surface/40 [&_p]:max-w-[850px] [&_p]:mx-auto [&_p]:leading-[1.5] font-inter"
                   )}
                 >
                   {richText && <RichText data={richText} enableGutter={false} enableProse={false} />}
@@ -78,7 +79,7 @@ export const ContentBlock: React.FC<
   return (
     <section className={sectionClasses}>
       <div className="container">
-        <div className="grid grid-cols-4 lg:grid-cols-12 gap-y-24 lg:gap-y-12 gap-x-16 lg:gap-x-24 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-y-8 md:gap-y-12 lg:gap-y-12 lg:gap-x-24 items-center">
           {columns &&
             columns.length > 0 &&
             columns.map((col, index) => {
@@ -90,13 +91,13 @@ export const ContentBlock: React.FC<
               return (
                 <div
                   className={cn(
-                    'flex flex-col justify-center min-h-full',
+                    'flex flex-col justify-center min-h-full min-w-0',
                     {
-                      'col-span-12 lg:col-span-4': isFirstInAsymmetric,
-                      'col-span-12 lg:col-span-8': layoutStyle === 'asymmetric' && index !== 0,
-                      'col-span-12 lg:col-span-5': isFirstInSideBySide,
-                      'col-span-12 lg:col-span-7 font-inter': isSideBySide && index !== 0,
-                      [`col-span-12 lg:col-span-${colsSpanClasses[size!]}`]:
+                      'lg:col-span-4': isFirstInAsymmetric,
+                      'lg:col-span-8': layoutStyle === 'asymmetric' && index !== 0,
+                      'lg:col-span-5': isFirstInSideBySide,
+                      'lg:col-span-7 font-inter': isSideBySide && index !== 0,
+                      [`lg:col-span-${colsSpanClasses[size!]}`]:
                         layoutStyle !== 'asymmetric' && !isSideBySide,
                     },
                     (isFirstInAsymmetric || isFirstInSideBySide) &&
@@ -128,7 +129,7 @@ export const ContentBlock: React.FC<
                   </motion.div>
 
                   {enableLink && (
-                    <div className="mt-14">
+                    <div className="mt-8 lg:mt-14">
                       <CMSLink {...link} appearance="outline" className="font-rubik text-[10px] uppercase tracking-[0.4em] h-12 px-10 rounded-full" />
                     </div>
                   )}
