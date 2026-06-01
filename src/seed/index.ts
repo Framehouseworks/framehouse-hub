@@ -1108,6 +1108,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 subItems: [
                   { link: { label: 'About Us', url: '/about', type: 'custom' } },
                   { link: { label: 'Hub', url: '/hub', type: 'custom' } },
+                  { link: { label: 'Product', url: '/product', type: 'custom' } },
                 ],
               }
             }
@@ -1137,6 +1138,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         data: {
           navItems: [
             { link: { label: 'About', url: '/about', type: 'custom' } },
+            { link: { label: 'Product', url: '/product', type: 'custom' } },
             { link: { label: 'Platform', url: '/hub', type: 'custom' } },
             { link: { label: 'Pricing', url: '/pricing', type: 'custom' } },
             { link: { label: 'Login', url: '/login', type: 'custom' } },

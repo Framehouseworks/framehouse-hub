@@ -114,11 +114,13 @@ export interface Config {
     header: Header;
     footer: Footer;
     pricing: Pricing;
+    'product-page': ProductPage;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     pricing: PricingSelect<false> | PricingSelect<true>;
+    'product-page': ProductPageSelect<false> | ProductPageSelect<true>;
   };
   locale: null;
   user: User & {
@@ -2200,6 +2202,81 @@ export interface Pricing {
   createdAt?: string | null;
 }
 /**
+ * Controls all editable copy on the /product marketing page.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-page".
+ */
+export interface ProductPage {
+  id: number;
+  /**
+   * Main headline. Keep it under 8 words for visual balance.
+   */
+  heroHeading?: string | null;
+  /**
+   * One or two supporting sentences.
+   */
+  heroSubheading?: string | null;
+  heroPrimaryLabel?: string | null;
+  heroSecondaryLabel?: string | null;
+  overviewHeading?: string | null;
+  /**
+   * High-level capability cards shown below the hero.
+   */
+  overviewItems?:
+    | {
+        label: string;
+        description: string;
+        icon?: ('upload' | 'folder' | 'grid' | 'share') | null;
+        id?: string | null;
+      }[]
+    | null;
+  storageHeading?: string | null;
+  storageSubheading?: string | null;
+  storageActiveLabel?: string | null;
+  storageActiveDescription?: string | null;
+  storageArchiveLabel?: string | null;
+  storageArchiveDescription?: string | null;
+  orgHeading?: string | null;
+  orgSubheading?: string | null;
+  orgFeatures?:
+    | {
+        label: string;
+        description: string;
+        id?: string | null;
+      }[]
+    | null;
+  portfolioHeading?: string | null;
+  portfolioSubheading?: string | null;
+  portfolioBody?: string | null;
+  /**
+   * Shows a "Coming Soon" treatment on this section. Uncheck when the feature ships.
+   */
+  portfolioComingSoon?: boolean | null;
+  sharingHeading?: string | null;
+  sharingSubheading?: string | null;
+  sharingBody?: string | null;
+  /**
+   * Shows a "Coming Soon" treatment on this section. Uncheck when the feature ships.
+   */
+  sharingComingSoon?: boolean | null;
+  workflowHeading?: string | null;
+  /**
+   * Exactly 4 workflow steps.
+   */
+  workflowSteps?:
+    | {
+        label: string;
+        description: string;
+        id?: string | null;
+      }[]
+    | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
@@ -2307,6 +2384,61 @@ export interface PricingSelect<T extends boolean = true> {
   metaTitle?: T;
   metaDescription?: T;
   metaImage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-page_select".
+ */
+export interface ProductPageSelect<T extends boolean = true> {
+  heroHeading?: T;
+  heroSubheading?: T;
+  heroPrimaryLabel?: T;
+  heroSecondaryLabel?: T;
+  overviewHeading?: T;
+  overviewItems?:
+    | T
+    | {
+        label?: T;
+        description?: T;
+        icon?: T;
+        id?: T;
+      };
+  storageHeading?: T;
+  storageSubheading?: T;
+  storageActiveLabel?: T;
+  storageActiveDescription?: T;
+  storageArchiveLabel?: T;
+  storageArchiveDescription?: T;
+  orgHeading?: T;
+  orgSubheading?: T;
+  orgFeatures?:
+    | T
+    | {
+        label?: T;
+        description?: T;
+        id?: T;
+      };
+  portfolioHeading?: T;
+  portfolioSubheading?: T;
+  portfolioBody?: T;
+  portfolioComingSoon?: T;
+  sharingHeading?: T;
+  sharingSubheading?: T;
+  sharingBody?: T;
+  sharingComingSoon?: T;
+  workflowHeading?: T;
+  workflowSteps?:
+    | T
+    | {
+        label?: T;
+        description?: T;
+        id?: T;
+      };
+  metaTitle?: T;
+  metaDescription?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

@@ -30,6 +30,7 @@ import { Waitlist } from '@/collections/Waitlist'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
 import { Pricing } from '@/globals/Pricing'
+import { ProductPage } from '@/globals/ProductPage'
 import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
@@ -170,7 +171,7 @@ export default buildConfig({
       },
     },
   ],
-  globals: [Header, Footer, Pricing],
+  globals: [Header, Footer, Pricing, ProductPage],
   plugins: [
     ...plugins,
     // storage-adapter-placeholder
