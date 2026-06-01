@@ -15,7 +15,7 @@ on:
       dry_run:
         description: 'Build and push only — skip Cloud Run deploy'
         type: boolean
-        default: true
+        default: false
 
 # Shared with deploy-prod.yml — enforces app-first ordering when both trigger
 concurrency:

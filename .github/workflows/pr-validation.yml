@@ -54,6 +54,10 @@ jobs:
       contents: read
       checks: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -113,6 +117,10 @@ jobs:
       contents: read
       checks: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -171,6 +179,10 @@ jobs:
           --health-retries 5
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -266,6 +278,10 @@ jobs:
       checks: write
       pull-requests: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -304,6 +320,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -322,7 +342,7 @@ jobs:
 
           pnpm exec neonctl branches create \
             --name "$BRANCH_NAME" \
-            --parent production \
+            --parent prod \
             --project-id "${{ vars.NEON_PROJECT_ID }}"
 
           # xargs trims leading whitespace (neonctl output quirk — mirrors setup-eventarc.sh fix)

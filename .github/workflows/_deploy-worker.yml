@@ -121,6 +121,7 @@ jobs:
           concurrency: '4'
           timeout: 300s
           no_allow_unauthenticated: 'true'
+          skip_deploy: ${{ inputs.dry_run && 'true' || 'false' }}
           secrets: |
             PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_${{ steps.img.outputs.secret_env }}:latest
           env_vars: |
@@ -135,6 +136,7 @@ jobs:
         run: |
           STATUS=$(gcloud run services describe "${{ inputs.service }}" \
             --region="${{ inputs.region }}" \
+            --project="${{ vars.GCS_PROJECT_ID }}" \
             --format="value(status.conditions[0].status)" 2>/dev/null)
           if [[ "$STATUS" != "True" ]]; then
             echo "::error::Worker service health check failed. status.conditions[0].status=$STATUS"
