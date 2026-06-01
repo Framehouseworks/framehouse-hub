@@ -1,172 +1,66 @@
 name: Production Release (Main)
+# Deploys to the production environment on every merge to main.
+# Gated by the GitHub Environment "production" — requires 1 reviewer approval
+# and a 2-hour wait window before any step executes. This applies to both
+# push triggers and workflow_dispatch manual triggers.
+#
+# Images are tagged with the git SHA (immutable) plus :latest alias.
+# Each revision is named with the SHA7 suffix for direct addressability during rollback.
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/pull_request_template.md'
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Skip destructive steps (Database Migration & Cloud Run Update)'
+        description: 'Skip destructive steps (migration + Cloud Run deploy). Build and push only.'
         type: boolean
         default: true
 
+# cancel-in-progress: false — never cancel a prod deploy mid-flight.
+# rollback-prod.yml shares this group to serialize with deploys.
 concurrency:
-  group: deploy-prod-${{ github.ref_name }}
-  cancel-in-progress: false # We generally don't want to cancel prod deployments mid-run
+  group: deploy-prod
+  cancel-in-progress: false
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-
-permissions:
-  id-token: write
-  contents: read
+permissions: {}
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: framehouse_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Initialize Database Schema (Local)
-        run: pnpm run payload migrate
-        env:
-          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
-          PAYLOAD_SECRET: ci_secret
-
-      - name: Production Build Check
-        run: pnpm run build
-        env:
-          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
-          PAYLOAD_SECRET: ci_secret
-          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
-
-  # Main Deployment Pipeline: Blueprint for production environment
-  # Currently GATED until production infrastructure is established.
-  deploy-prod:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: validate
-    # Gated: Change 'false' to 'true' once production infrastructure is ready
-    env:
-      ENV_NAME: prod
-      DOCKER_TAG: latest
-      GCS_BUCKET: framehouse-hub-prod
-      PUBLIC_URL: https://hub.framehouseworks.com
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Google Auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-
-      - name: Docker Login
-        uses: docker/login-action@v3
-        with:
-          registry: us-central1-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js (Migration Runner)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Initialize Remote Database Schema (Prod)
-        if: github.event.inputs.dry_run != 'true'
-        run: |
-          if [[ "$RAW_URI" != *"sslmode="* ]]; then
-            export DATABASE_URI="${RAW_URI}?sslmode=require"
-          else
-            export DATABASE_URI="$RAW_URI"
-          fi
-
-          echo "Applying migrations to persistent prod database..."
-          pnpm run payload migrate
-        env:
-          NODE_ENV: production
-          RAW_URI: ${{ secrets.DATABASE_URI_PROD }}
-          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_PROD }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Image (Prod)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
-          build-args: |
-            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
-            GCS_BUCKET=${{ env.GCS_BUCKET }}
-            GCS_PROJECT_ID=framehouse-hub
-          cache-from: type=gha,scope=${{ github.workflow }}
-          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
-
-      - name: Deploy to Cloud Run (Prod)
-        if: github.event.inputs.dry_run != 'true'
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: framehouse-hub-${{ env.ENV_NAME }}
-          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
-          region: us-central1
-          # Corrected strategy: 'overwrite' is the valid value for a clean reset
-          env_vars_update_strategy: overwrite
-          secrets_update_strategy: overwrite
-          secrets: |
-            DATABASE_URI=DATABASE_URI_PROD:latest
-            PAYLOAD_SECRET=PAYLOAD_SECRET_PROD:latest
-            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_PROD:latest
-          env_vars: |
-            GCS_BUCKET=${{ env.GCS_BUCKET }}
-            GCS_PROJECT_ID=framehouse-hub
-            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
-            SEED_SECRET=${{ secrets.SEED_SECRET }}
-            COMING_SOON=true
+  deploy_prod:
+    name: Deploy Prod
+    uses: ./.github/workflows/_deploy-app.yml
+    permissions:
+      id-token: write
+      contents: read
+    # environment: production is declared inside _deploy-app.yml's deploy job.
+    # The environment gate (reviewer approval + wait window) blocks execution there.
+    with:
+      env_name: prod
+      # Full SHA tag — _deploy-app.yml's meta step extracts SHA7 for the revision suffix.
+      # We use the full SHA here for uniqueness; the meta step computes sha7 internally.
+      docker_tag: sha-${{ github.sha }}
+      extra_tags: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app:latest
+      gcs_bucket: framehouse-hub-prod
+      public_url: https://hub.framehouseworks.com
+      cloud_run_service: framehouse-hub-prod
+      cloud_run_region: us-central1
+      runtime_service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+      run_min_instances: '0'
+      run_max_instances: '4'
+      # Immutable revision suffix — SHA7 computed by _deploy-app's meta step.
+      # Enables direct traffic targeting: gcloud run services update-traffic framehouse-hub-prod --to-revisions=sha-{sha7}=100
+      # Pass empty here; meta step inside _deploy-app computes sha7 and uses it.
+      revision_suffix: ''
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      DATABASE_URI: ${{ secrets.DATABASE_URI_PROD }}
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_PROD }}
+      PROCESSOR_CALLBACK_SECRET: ${{ secrets.PROCESSOR_CALLBACK_SECRET_PROD }}
+      SEED_SECRET: ${{ secrets.SEED_SECRET }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}

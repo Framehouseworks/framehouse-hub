@@ -22,7 +22,7 @@ const navItems = [
   {
     label: 'LIBRARY',
     items: [
-      { name: 'All Media', icon: Archive, href: '/dashboard/library' },
+      { name: 'Archive', icon: Archive, href: '/dashboard/library' },
       { name: 'Sessions', icon: Camera, href: '/dashboard/library/sessions' },
       { name: 'Collections', icon: FolderRoot, href: '/dashboard/library/collections' },
       { name: 'Shared', icon: LayoutGrid, href: '/dashboard/shared' },

@@ -1,0 +1,333 @@
+name: _Deploy App (Reusable)
+# Reusable workflow — called by deploy-dev.yml and deploy-prod.yml.
+# Underscore prefix marks this as an internal utility; it is never triggered directly.
+#
+# Responsibilities (in order):
+#   1. Compute run metadata (SHA7, env suffix, snapshot branch name, timestamp)
+#   2. Create a Neon point-in-time snapshot BEFORE any migration (recovery path if migration fails)
+#   3. Apply Payload migrations to the live Neon environment database
+#   4. Build + push Docker image to Artifact Registry (layer-cached per env)
+#   5. Deploy to Cloud Run with explicit resource flags and Secret Manager mounts
+#   6. Smoke-test /api/healthz — requires {"db":"ok"} (deep health check, not shallow 200)
+#   7. Write a structured audit record to GCS (who, what, when, from which SHA)
+#   8. Delete the pre-migration snapshot on success; retain it on failure for data recovery
+#
+# PREREQUISITE: SEED_SECRET must be stored in GCP Secret Manager as "SEED_SECRET"
+#   before deploying. Add via:
+#   gcloud secrets create SEED_SECRET --data-file=<(echo -n "$VALUE") --project=framehouse-hub
+
+on:
+  workflow_call:
+    inputs:
+      env_name:
+        type: string
+        required: true
+        description: Target environment — dev or prod
+      docker_tag:
+        type: string
+        required: true
+        description: Primary Docker image tag (e.g. dev, sha-abc1234)
+      extra_tags:
+        type: string
+        required: false
+        default: ''
+        description: Newline-separated additional image tags (e.g. registry/repo/app:latest)
+      gcs_bucket:
+        type: string
+        required: true
+        description: Target GCS bucket name (framehouse-hub-dev or framehouse-hub-prod)
+      public_url:
+        type: string
+        required: true
+        description: Canonical public URL — sets NEXT_PUBLIC_SERVER_URL and smoke test target
+      cloud_run_service:
+        type: string
+        required: true
+        description: Cloud Run service name to deploy to
+      cloud_run_region:
+        type: string
+        required: false
+        default: us-central1
+        description: GCP region — must match bucket region for free-tier (avoid cross-region egress)
+      runtime_service_account:
+        type: string
+        required: true
+        description: GCP SA email for Cloud Run revision runtime identity (--service-account flag)
+      run_min_instances:
+        type: string
+        required: false
+        default: '0'
+        description: Cloud Run minimum instances (0 = scale-to-zero, free-tier safe)
+      run_max_instances:
+        type: string
+        required: false
+        default: '4'
+        description: Cloud Run maximum instances (cap burst)
+      revision_suffix:
+        type: string
+        required: false
+        default: ''
+        description: Cloud Run revision suffix — use git SHA7 for prod immutable revisions
+      extra_allowed_origins:
+        type: string
+        required: false
+        default: ''
+        description: EXTRA_ALLOWED_ORIGINS value (dev Cloud Run direct URL for CORS)
+      additional_env_vars:
+        type: string
+        required: false
+        default: ''
+        description: Additional plain env vars to pass to Cloud Run (KEY=VALUE, newline-separated)
+      dry_run:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Skip all destructive steps (migration, Cloud Run deploy, audit record).
+          Build and push still run to validate the image.
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        required: true
+      GCP_SERVICE_ACCOUNT_EMAIL:
+        required: true
+      DATABASE_URI:
+        required: true
+        description: Neon connection string for this environment
+      PAYLOAD_SECRET:
+        required: true
+      PROCESSOR_CALLBACK_SECRET:
+        required: true
+      SEED_SECRET:
+        required: true
+      NEON_API_KEY:
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy — ${{ inputs.env_name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The environment gate is the primary production safety control.
+    # "prod" requires reviewer approval + 2h wait window (configured in GitHub settings).
+    # "dev" has no gate — auto-proceeds.
+    # This applies to both push triggers and workflow_dispatch manual triggers.
+    environment: ${{ inputs.env_name == 'prod' && 'prod' || 'dev' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # ── 0. Preflight — fail fast on missing required repository variables ─────
+      - name: Validate required variables
+        run: |
+          MISSING=""
+          [ -z "$GCS_PROJECT_ID" ] && MISSING="$MISSING GCP_PROJECT_ID"
+          [ -z "$NODE_VERSION" ]   && MISSING="$MISSING NODE_VERSION"
+          [ -z "$PNPM_VERSION" ]   && MISSING="$MISSING PNPM_VERSION"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required repository variables:$MISSING"
+            echo "Set them at: Settings → Secrets and variables → Actions → Variables"
+            exit 1
+          fi
+        env:
+          GCS_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          NODE_VERSION: ${{ vars.NODE_VERSION }}
+          PNPM_VERSION: ${{ vars.PNPM_VERSION }}
+
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      # ── 3. Metadata ──────────────────────────────────────────────────────────
+      - name: Compute run metadata
+        id: meta
+        run: |
+          echo "sha7=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          # Uppercase env name for Secret Manager secret names (DEV / PROD)
+          ENV_UPPER=$(echo "${{ inputs.env_name }}" | tr '[:lower:]' '[:upper:]')
+          echo "env_upper=$ENV_UPPER" >> $GITHUB_OUTPUT
+          echo "snapshot_branch=pre-migration-${{ inputs.env_name }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+      # ── 4. Toolchain ─────────────────────────────────────────────────────────
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
+
+      # ── 3. GCP auth (OIDC keyless) ───────────────────────────────────────────
+      - name: Authenticate to GCP
+        uses: ./.github/actions/gcp-auth
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # ── 4. Pre-migration Neon snapshot ───────────────────────────────────────
+      # Creates a copy-on-write point-in-time snapshot of the live DB before any
+      # migration runs. If migration fails, the snapshot is retained for data recovery.
+      # On success, the snapshot is deleted to stay within the 10-branch free-tier limit.
+      - name: Create pre-migration Neon snapshot
+        id: snapshot
+        if: ${{ !inputs.dry_run }}
+        run: |
+          BRANCH="${{ steps.meta.outputs.snapshot_branch }}"
+
+          # Delete stale snapshot with same name (idempotent re-runs)
+          pnpm exec neonctl branches delete "$BRANCH" \
+            --project-id "${{ vars.NEON_PROJECT_ID }}" \
+            --force 2>/dev/null || true
+
+          # Neon branch naming: env_name 'prod' maps to Neon branch 'production'; 'dev' stays 'dev'.
+          NEON_PARENT="${{ inputs.env_name == 'prod' && 'production' || inputs.env_name }}"
+
+          pnpm exec neonctl branches create \
+            --name "$BRANCH" \
+            --parent "$NEON_PARENT" \
+            --project-id "${{ vars.NEON_PROJECT_ID }}"
+
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "created=true" >> $GITHUB_OUTPUT
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+
+      # ── 5. Database migrations ───────────────────────────────────────────────
+      # Migration runs BEFORE Docker build+push. If it fails, the old Cloud Run
+      # revision continues serving and no image is pushed.
+      - name: Apply database migrations
+        if: ${{ !inputs.dry_run }}
+        run: |
+          RAW="${{ secrets.DATABASE_URI }}"
+          [[ "$RAW" != *"sslmode="* ]] && URI="${RAW}?sslmode=require" || URI="$RAW"
+          echo "::add-mask::$URI"
+          DATABASE_URI="$URI" NODE_ENV=production pnpm payload migrate
+        env:
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+
+      # ── 6. Build, push and deploy ────────────────────────────────────────────
+      # Build+push always runs (validates the image on dry_run too).
+      # Cloud Run deploy is skipped on dry_run via skip_deploy: 'true'.
+      # Secrets mounted from GCP Secret Manager — not visible in Cloud Run Console.
+      - name: Build, push and deploy to Cloud Run
+        id: deploy
+        uses: ./.github/actions/deploy-cloudrun
+        with:
+          service: ${{ inputs.cloud_run_service }}
+          image: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app
+          tag: ${{ inputs.docker_tag }}
+          extra_tags: |
+            ${{ inputs.extra_tags }}
+            us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app:sha-${{ steps.meta.outputs.sha7 }}
+          region: ${{ inputs.cloud_run_region }}
+          build_args: |
+            NEXT_PUBLIC_SERVER_URL=${{ inputs.public_url }}
+            GCS_BUCKET=${{ inputs.gcs_bucket }}
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+          cache_scope: app-${{ inputs.env_name }}
+          service_account: ${{ inputs.runtime_service_account }}
+          min_instances: ${{ inputs.run_min_instances }}
+          max_instances: ${{ inputs.run_max_instances }}
+          # For prod: sha7 gives an immutable, rollback-addressable revision name.
+          # For dev: empty suffix → Cloud Run auto-generates the revision name.
+          revision_suffix: ${{ inputs.env_name == 'prod' && steps.meta.outputs.sha7 || inputs.revision_suffix }}
+          skip_deploy: ${{ inputs.dry_run && 'true' || 'false' }}
+          secrets: |
+            DATABASE_URI=DATABASE_URI_${{ steps.meta.outputs.env_upper }}:latest
+            PAYLOAD_SECRET=PAYLOAD_SECRET_${{ steps.meta.outputs.env_upper }}:latest
+            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_${{ steps.meta.outputs.env_upper }}:latest
+            SEED_SECRET=SEED_SECRET:latest
+          env_vars: |
+            GCS_BUCKET=${{ inputs.gcs_bucket }}
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            NEXT_PUBLIC_SERVER_URL=${{ inputs.public_url }}
+            EXTRA_ALLOWED_ORIGINS=${{ inputs.extra_allowed_origins }}
+            ${{ inputs.additional_env_vars }}
+
+      # ── 7. Smoke test ────────────────────────────────────────────────────────
+      # Skipped on dry_run — no new revision was deployed, so there is nothing to test.
+      # Requires {"db":"ok"} — a shallow 200 is not sufficient (must include a DB ping).
+      # No hardcoded sleep — --retry-connrefused handles transient connection refused during warm-up.
+      - name: Smoke test — verify deployment health
+        if: ${{ !inputs.dry_run }}
+        run: |
+          curl -fsS \
+            --retry 8 \
+            --retry-delay 15 \
+            --retry-all-errors \
+            --retry-connrefused \
+            "${{ inputs.public_url }}/api/healthz" \
+            | jq -e '.db == "ok"'
+          echo "Smoke test passed."
+
+      # ── 8. Audit record ──────────────────────────────────────────────────────
+      # Written to GCS for immutable deploy history (90-day lifecycle retention).
+      # Uses Python heredoc with os.environ — avoids shell/expression injection risk
+      # from caller-controlled inputs (docker_tag, env_name).
+      - name: Write deploy audit record
+        if: ${{ !inputs.dry_run && success() }}
+        env:
+          AUDIT_ENV: ${{ inputs.env_name }}
+          AUDIT_TAG: ${{ inputs.docker_tag }}
+          AUDIT_TIMESTAMP: ${{ steps.meta.outputs.timestamp }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          python3 - <<'PYEOF'
+          import json, os
+          record = {
+            'event': 'deploy',
+            'env': os.environ['AUDIT_ENV'],
+            'sha': os.environ['GITHUB_SHA'],
+            'actor': os.environ['GITHUB_ACTOR'],
+            'run_id': os.environ['GITHUB_RUN_ID'],
+            'workflow': os.environ['GITHUB_WORKFLOW'],
+            'image': f"app:{os.environ['AUDIT_TAG']}",
+            'timestamp': os.environ['AUDIT_TIMESTAMP'],
+            'smoke_test': 'pass'
+          }
+          with open('/tmp/deploy-record.json', 'w') as f:
+            json.dump(record, f, indent=2)
+          PYEOF
+          gcloud storage cp /tmp/deploy-record.json \
+            "gs://framehouse-hub-${{ inputs.env_name }}/audit/deploys/${DATE}/${{ github.run_id }}.json"
+
+      # ── 9. Snapshot lifecycle ────────────────────────────────────────────────
+      # Runs always() so cancelled jobs also clean up the snapshot and don't leak
+      # toward the 10-branch Neon free-tier limit.
+      # Failure state retains the branch for data recovery; success/cancelled deletes it.
+      - name: Snapshot lifecycle
+        if: ${{ !inputs.dry_run && always() && steps.snapshot.outputs.created == 'true' }}
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          SNAPSHOT_BRANCH: ${{ steps.snapshot.outputs.branch }}
+        run: |
+          if [[ "${{ job.status }}" == "failure" ]]; then
+            echo "### Pre-Migration Snapshot Retained" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Neon branch \`$SNAPSHOT_BRANCH\` kept for data recovery." >> $GITHUB_STEP_SUMMARY
+            echo "Delete once resolved: \`pnpm exec neonctl branches delete $SNAPSHOT_BRANCH --project-id ${{ vars.NEON_PROJECT_ID }} --force\`" >> $GITHUB_STEP_SUMMARY
+          else
+            pnpm exec neonctl branches delete "$SNAPSHOT_BRANCH" \
+              --project-id "${{ vars.NEON_PROJECT_ID }}" \
+              --force
+          fi
+
+      # ── 10. Step summary ─────────────────────────────────────────────────────
+      - name: Step summary
+        if: always()
+        run: |
+          echo "### Deploy — \`${{ inputs.env_name }}\` — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | \`${{ inputs.cloud_run_service }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`app:${{ inputs.docker_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Digest | \`${{ steps.deploy.outputs.image_digest || 'N/A' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ inputs.public_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SHA | \`${{ steps.meta.outputs.sha7 }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry run | \`${{ inputs.dry_run }}\` |" >> $GITHUB_STEP_SUMMARY
