@@ -49,10 +49,11 @@ jobs:
   quality_gate:
     name: Quality Gate
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 15
     permissions:
       contents: read
       checks: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,6 +107,7 @@ jobs:
           name: build-pr-${{ github.run_id }}
           path: .next/
           retention-days: 3
+          if-no-files-found: error
 
   # ─────────────────────────────────────────────────────────────────────────────
   # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
@@ -118,6 +120,7 @@ jobs:
     permissions:
       contents: read
       checks: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -165,6 +168,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      actions: write
 
     services:
       postgres:
@@ -280,6 +284,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
