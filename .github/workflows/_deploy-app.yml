@@ -120,13 +120,30 @@ jobs:
       contents: read
 
     steps:
-      # ── 0. Checkout ──────────────────────────────────────────────────────────
+      # ── 0. Preflight — fail fast on missing required repository variables ─────
+      - name: Validate required variables
+        run: |
+          MISSING=""
+          [ -z "$GCS_PROJECT_ID" ] && MISSING="$MISSING GCP_PROJECT_ID"
+          [ -z "$NODE_VERSION" ]   && MISSING="$MISSING NODE_VERSION"
+          [ -z "$PNPM_VERSION" ]   && MISSING="$MISSING PNPM_VERSION"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required repository variables:$MISSING"
+            echo "Set them at: Settings → Secrets and variables → Actions → Variables"
+            exit 1
+          fi
+        env:
+          GCS_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          NODE_VERSION: ${{ vars.NODE_VERSION }}
+          PNPM_VERSION: ${{ vars.PNPM_VERSION }}
+
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 1
 
-      # ── 1. Metadata ──────────────────────────────────────────────────────────
+      # ── 3. Metadata ──────────────────────────────────────────────────────────
       - name: Compute run metadata
         id: meta
         run: |
@@ -137,7 +154,7 @@ jobs:
           echo "snapshot_branch=pre-migration-${{ inputs.env_name }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
           echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
 
-      # ── 2. Toolchain ─────────────────────────────────────────────────────────
+      # ── 4. Toolchain ─────────────────────────────────────────────────────────
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
         with:
@@ -201,16 +218,16 @@ jobs:
         uses: ./.github/actions/deploy-cloudrun
         with:
           service: ${{ inputs.cloud_run_service }}
-          image: us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app
+          image: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app
           tag: ${{ inputs.docker_tag }}
           extra_tags: |
             ${{ inputs.extra_tags }}
-            us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app:sha-${{ steps.meta.outputs.sha7 }}
+            us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/framehouse-hub/app:sha-${{ steps.meta.outputs.sha7 }}
           region: ${{ inputs.cloud_run_region }}
           build_args: |
             NEXT_PUBLIC_SERVER_URL=${{ inputs.public_url }}
             GCS_BUCKET=${{ inputs.gcs_bucket }}
-            GCS_PROJECT_ID=${{ vars.GCS_PROJECT_ID }}
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
           cache_scope: app-${{ inputs.env_name }}
           service_account: ${{ inputs.runtime_service_account }}
           min_instances: ${{ inputs.run_min_instances }}
@@ -226,7 +243,7 @@ jobs:
             SEED_SECRET=SEED_SECRET:latest
           env_vars: |
             GCS_BUCKET=${{ inputs.gcs_bucket }}
-            GCS_PROJECT_ID=${{ vars.GCS_PROJECT_ID }}
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             NEXT_PUBLIC_SERVER_URL=${{ inputs.public_url }}
             EXTRA_ALLOWED_ORIGINS=${{ inputs.extra_allowed_origins }}
             ${{ inputs.additional_env_vars }}
