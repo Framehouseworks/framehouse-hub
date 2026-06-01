@@ -1,4 +1,21 @@
 name: Reset Engine
+# Environment reset with two modes:
+#
+#   preserve_storage: false (default) — FULL RESET
+#     Drops DB schema, empties GCS bucket, migrates, seeds.
+#     Phrase required: NUKE-DEV or NUKE-PROD
+#     Use when: starting clean after a corrupted state, major schema changes, storage cleanup.
+#
+#   preserve_storage: true — FAST RESET (replaces reset-dev.yml)
+#     Drops and reseeds the DB only — GCS media files are kept.
+#     Phrase required: RESET-DEV (dev only — prod requires full reset for storage consistency)
+#     Use when: post-demo cleanup, failed test run, branch switch with stale seed data.
+#
+# Safety layers:
+#   1. Confirmation phrase guard — phrase depends on mode and environment
+#   2. GitHub Environment gate — "prod" requires reviewer approval + 2h wait window
+#   3. Shared concurrency group — queues behind any in-progress deploy
+#   4. preserve_storage: true is restricted to dev — prod full reset requires storage wipe
 
 on:
   workflow_dispatch:
@@ -9,89 +26,153 @@ on:
         options: [dev, prod]
         required: true
       confirm_phrase:
-        description: 'Safety phrase: NUKE-DEV or NUKE-PROD'
+        description: 'Full reset: NUKE-DEV or NUKE-PROD | Fast reset (dev): RESET-DEV'
         type: string
         required: true
+      preserve_storage:
+        description: 'Preserve GCS media files (fast DB-only reset). Dev only.'
+        type: boolean
+        default: false
+      redeploy:
+        description: 'Trigger deploy after reset to restore latest app revision'
+        type: boolean
+        default: true
 
 concurrency:
-  group: reset-${{ inputs.environment }}
+  group: ${{ inputs.environment == 'prod' && 'deploy-prod' || 'deploy-dev' }}
   cancel-in-progress: false
+
+permissions: {}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   purge:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: ${{ inputs.environment }}
+    name: Reset — ${{ inputs.environment }}${{ inputs.preserve_storage == true && ' (preserve storage)' || '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Environment gate: "prod" requires reviewer approval + 2h wait window
+    environment: ${{ inputs.environment == 'prod' && 'prod' || 'dev' }}
+    permissions:
+      id-token: write
+      contents: read
+      actions: write    # required for: gh workflow run (redeploy trigger)
 
     steps:
-      - name: Confirm phrase guard
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      # phrase logic:
+      #   preserve_storage=false → expected phrase = NUKE-{ENV^^}  (destructive, data + storage)
+      #   preserve_storage=true  → expected phrase = RESET-DEV     (routine, data only, dev only)
+      # Inputs are passed via env vars — never interpolated directly into shell to prevent injection.
+      - name: Confirmation phrase guard
+        env:
+          CONFIRM_PHRASE: ${{ inputs.confirm_phrase }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_PRESERVE_STORAGE: ${{ inputs.preserve_storage }}
         run: |
-          EXPECTED="NUKE-${{ inputs.environment }}"
-          EXPECTED="${EXPECTED^^}"
-          if [[ "${{ inputs.confirm_phrase }}" != "$EXPECTED" ]]; then
+          if [[ "$INPUT_PRESERVE_STORAGE" == "true" ]]; then
+            if [[ "$INPUT_ENVIRONMENT" != "dev" ]]; then
+              echo "::error::preserve_storage is only allowed for dev. Prod requires a full reset."
+              exit 1
+            fi
+            EXPECTED="RESET-DEV"
+          else
+            EXPECTED="NUKE-${INPUT_ENVIRONMENT^^}"
+          fi
+          if [[ "$CONFIRM_PHRASE" != "$EXPECTED" ]]; then
             echo "::error::Confirmation phrase mismatch. Expected: $EXPECTED"
+            echo "### Reset Aborted" >> $GITHUB_STEP_SUMMARY
+            echo "Confirmation phrase did not match. No changes were made." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-          echo "Guard passed."
+          echo "Guard passed for $EXPECTED."
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
         with:
-          version: 10
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Google Auth
-        uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: ./.github/actions/gcp-auth
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
 
-      - name: Resolve Secrets
+      - name: Resolve secrets from Secret Manager
         id: secrets
         uses: google-github-actions/get-secretmanager-secrets@v2
         with:
           secrets: |-
-            database_uri:framehouse-hub/DATABASE_URI_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
-            payload_secret:framehouse-hub/PAYLOAD_SECRET_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
-            processor_callback_secret:framehouse-hub/PROCESSOR_CALLBACK_SECRET_${{ inputs.environment == 'dev' && 'DEV' || 'PROD' }}
+            database_uri:framehouse-hub/DATABASE_URI_${{ inputs.environment == 'prod' && 'PROD' || 'DEV' }}
+            payload_secret:framehouse-hub/PAYLOAD_SECRET_${{ inputs.environment == 'prod' && 'PROD' || 'DEV' }}
+            processor_callback_secret:framehouse-hub/PROCESSOR_CALLBACK_SECRET_${{ inputs.environment == 'prod' && 'PROD' || 'DEV' }}
 
-      - name: Run Reset Core
-        run: bash scripts/reset.sh --target ${{ inputs.environment }} --no-confirm
+      - name: Run reset
         env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_PRESERVE_STORAGE: ${{ inputs.preserve_storage }}
           DATABASE_URI: ${{ steps.secrets.outputs.database_uri }}
           PAYLOAD_SECRET: ${{ steps.secrets.outputs.payload_secret }}
           PROCESSOR_CALLBACK_SECRET: ${{ steps.secrets.outputs.processor_callback_secret }}
           GCS_BUCKET: framehouse-hub-${{ inputs.environment }}
-          GCS_PROJECT_ID: framehouse-hub
+          GCS_PROJECT_ID: ${{ vars.GCS_PROJECT_ID }}
           NODE_ENV: production
-          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'dev' && 'https://dev.framehouseworks.com' || 'https://hub.framehouseworks.com' }}
-
-      - name: Health Check
+          NEXT_PUBLIC_SERVER_URL: ${{ inputs.environment == 'prod' && 'https://hub.framehouseworks.com' || 'https://dev.framehouseworks.com' }}
         run: |
-          if [[ "${{ inputs.environment }}" == "dev" ]]; then
-            URL="https://dev.framehouseworks.com/api/healthz"
+          ARGS="--target $INPUT_ENVIRONMENT --no-confirm"
+          if [[ "$INPUT_PRESERVE_STORAGE" == "true" ]]; then
+            ARGS="$ARGS --skip-storage"
+          fi
+          bash scripts/reset.sh $ARGS
+
+      - name: Smoke test
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if [[ "$INPUT_ENVIRONMENT" == "prod" ]]; then
+            URL="https://hub.framehouseworks.com/api/healthz"
           else
             URL="https://dev.framehouseworks.com/api/healthz"
           fi
-          echo "Checking $URL"
-          curl -fsS --retry 5 --retry-delay 5 --retry-connrefused "$URL"
-          echo ""
-          echo "✅ Health check passed."
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$URL" | jq -e '.db == "ok"'
+          echo "Health check passed."
+
+      - name: Trigger redeploy
+        if: ${{ inputs.redeploy == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          if [[ "$INPUT_ENVIRONMENT" == "prod" ]]; then
+            RUN_URL=$(gh workflow run deploy-prod.yml --ref main --json url -q .url 2>/dev/null || echo "")
+            echo "Triggered deploy-prod.yml${RUN_URL:+ — $RUN_URL}"
+          else
+            RUN_URL=$(gh workflow run deploy-dev.yml --ref dev --json url -q .url 2>/dev/null || echo "")
+            echo "Triggered deploy-dev.yml${RUN_URL:+ — $RUN_URL}"
+          fi
+
+      - name: Step summary
+        if: always()
+        env:
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_PRESERVE_STORAGE: ${{ inputs.preserve_storage }}
+          INPUT_REDEPLOY: ${{ inputs.redeploy }}
+        run: |
+          STORAGE_MSG="Wiped"
+          if [[ "$INPUT_PRESERVE_STORAGE" == "true" ]]; then
+            STORAGE_MSG="Preserved (fast reset)"
+          fi
+          echo "### Reset Engine — \`$INPUT_ENVIRONMENT\` — ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | \`$INPUT_ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| GCS Storage | $STORAGE_MSG |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Redeploy triggered | \`$INPUT_REDEPLOY\` |" >> $GITHUB_STEP_SUMMARY

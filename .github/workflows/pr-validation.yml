@@ -9,71 +9,61 @@ on:
       - '.github/pull_request_template.md'
   workflow_dispatch:
 
-# PR runs keyed on PR number; workflow_dispatch uses run_id so manual
-# triggers never cancel each other or live PR checks.
+# Cancel in-progress runs for the same PR when new commits are pushed.
+# workflow_dispatch uses run_id so manual triggers never cancel live PR checks.
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
-# All shared CI values defined once here — no magic strings repeated across jobs.
-# PAYLOAD_SECRET is a static CI-only stub (no real data).
-# DATABASE_URI password comes from a secret; assembled per-job via $GITHUB_ENV.
+# No workflow-level permissions — every job declares only what it needs.
+# This limits the blast radius of any supply-chain compromise in a third-party action.
+permissions: {}
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-  PNPM_VERSION: '10'
-  NODE_VERSION: '22'
-  PAYLOAD_SECRET: ci_secret
-  CI_DB_HOST: localhost
-  CI_DB_PORT: 5432
-  CI_DB_NAME: framehouse_ci
-  CI_DB_USER: postgres
 
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
-  checks: write # required for Playwright github reporter to write inline annotations
-
-# ─────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # GUARDRAIL — main only accepts merges from dev
-# ─────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
   guardrail:
     name: Guardrail
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 1
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    permissions:
+      contents: read
     steps:
       - name: Verify PR source branch
         if: github.head_ref != 'dev'
         run: |
-          echo "### 🛑 Deployment Blocked" >> $GITHUB_STEP_SUMMARY
-          echo "\`main\` only accepts merges from \`dev\`. Retarget your PR first." >> $GITHUB_STEP_SUMMARY
+          echo "### 🛑 Merge Blocked" >> $GITHUB_STEP_SUMMARY
+          echo "\`main\` only accepts merges from \`dev\`. Retarget your PR." >> $GITHUB_STEP_SUMMARY
           exit 1
 
-  # ─────────────────────────────────────────────────────────────────────
-  # QUALITY GATE — types · lint · schema · build
-  # No DB. tsc fails fast on type errors (~30s) before a 4-min build.
-  # ─────────────────────────────────────────────────────────────────────
-  quality-gate:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # QUALITY GATE — tsc · lint · schema integrity · build
+  # No DB required. tsc fast-fails on type errors (~30 s) before the 4-min build.
+  # Uploads the .next artifact so the e2e job can reuse it without rebuilding.
+  # ─────────────────────────────────────────────────────────────────────────────
+  quality_gate:
     name: Quality Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
 
       - name: TypeScript type check
         run: pnpm exec tsc --noEmit
@@ -87,50 +77,61 @@ jobs:
           pnpm run generate:types
           if [ -n "$(git status --porcelain)" ]; then
             echo "### 🛑 Schema Out of Sync" >> $GITHUB_STEP_SUMMARY
-            echo "Run \`generate:importmap\` and \`generate:types\` locally and commit." >> $GITHUB_STEP_SUMMARY
+            echo "Run \`generate:importmap\` and \`generate:types\` locally and commit the diff." >> $GITHUB_STEP_SUMMARY
             git status --porcelain
             exit 1
           fi
         env:
-          PAYLOAD_SECRET: ${{ env.PAYLOAD_SECRET }}
+          PAYLOAD_SECRET: ci_secret
 
       - name: Restore Next.js build cache
         uses: actions/cache@v4
         with:
           path: .next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.ts','src/**/*.tsx') }}
-          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+          key: nextjs-pr-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.ts','src/**/*.tsx') }}
+          restore-keys: nextjs-pr-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      - name: Production build check
+      - name: Production build
         run: pnpm run build
         env:
           IS_BUILD_PHASE: 'true'
-          PAYLOAD_SECRET: ${{ env.PAYLOAD_SECRET }}
+          PAYLOAD_SECRET: ci_secret
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
 
-  # ─────────────────────────────────────────────────────────────────────
-  # INTEGRATION TESTS — vitest, own Docker postgres (no service container)
-  # vitest globalSetup spins its own ephemeral container.
-  # --outputFile.junit= qualifier ensures JUnit XML output, not verbose text.
-  # ─────────────────────────────────────────────────────────────────────
-  integration-tests:
+      # Retention 3 days — must survive re-runs of failed e2e jobs across day boundaries.
+      # 1 day was too short: on a failed-job re-run the next day quality_gate doesn't
+      # re-run, so the artifact must still be available from the original run.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-pr-${{ github.run_id }}
+          path: .next/
+          retention-days: 3
+          if-no-files-found: error
+          include-hidden-files: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
+  # Runs in parallel with quality_gate — no dependency between them.
+  # ─────────────────────────────────────────────────────────────────────────────
+  integration_tests:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
 
       - name: Run integration tests
         run: |
@@ -139,7 +140,7 @@ jobs:
             --reporter=junit \
             --outputFile.junit=test-results/junit.xml
         env:
-          PAYLOAD_SECRET: ${{ env.PAYLOAD_SECRET }}
+          PAYLOAD_SECRET: ci_secret
 
       - name: Upload test results
         if: always()
@@ -149,25 +150,34 @@ jobs:
           path: test-results/junit.xml
           retention-days: 7
 
-  # ─────────────────────────────────────────────────────────────────────
-  # E2E — postgres service, Playwright Chromium only
-  # DATABASE_URI assembled once from env + secret password.
-  # Browser binaries cached on Playwright version hash.
-  # Dual reporters: github = inline PR annotations, html = debug artifact.
-  # frontend.e2e.spec.ts deleted (orphaned e-commerce template code).
-  # ─────────────────────────────────────────────────────────────────────
-  e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
+  # ─────────────────────────────────────────────────────────────────────────────
+  # E2E SHARD — Playwright split across 2 parallel runners via matrix strategy.
+  # Each shard runs half the test suite (--shard=N/2), halving wall-clock time.
+  # Downloads .next artifact from quality_gate — avoids ~4 min rebuild per shard.
+  # DISABLE_WORKER=1 skips the Go worker; the callback is synthesised in tests.
+  # ─────────────────────────────────────────────────────────────────────────────
+  e2e_shard:
+    name: E2E / Shard ${{ matrix.shard }} of 2
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    needs: [quality-gate, integration-tests]
+    needs: [quality_gate, integration_tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      actions: write
+
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: ${{ env.CI_DB_USER }}
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
-          POSTGRES_DB: ${{ env.CI_DB_NAME }}
+          POSTGRES_DB: framehouse_ci
         ports:
           - 5432:5432
         options: >-
@@ -178,26 +188,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Assemble DATABASE_URI once; all subsequent steps inherit via $GITHUB_ENV
-      - name: Set DATABASE_URI
+      - name: Assemble DATABASE_URI
         run: |
-          echo "DATABASE_URI=postgres://${{ env.CI_DB_USER }}:${{ secrets.CI_DB_PASSWORD }}@${{ env.CI_DB_HOST }}:${{ env.CI_DB_PORT }}/${{ env.CI_DB_NAME }}" >> $GITHUB_ENV
+          URI="postgres://postgres:${{ secrets.CI_DB_PASSWORD }}@localhost:5432/framehouse_ci"
+          echo "::add-mask::$URI"
+          echo "DATABASE_URI=$URI" >> $GITHUB_ENV
 
       - name: Apply migrations
         run: pnpm run payload migrate
+        env:
+          PAYLOAD_SECRET: ci_secret
 
       - name: Verify schema drift
         run: |
@@ -209,19 +218,15 @@ jobs:
             git status --porcelain src/migrations/
             exit 1
           fi
-
-      - name: Restore Next.js build cache
-        uses: actions/cache@v4
-        with:
-          path: .next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**/*.ts','src/**/*.tsx') }}
-          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-
-      - name: Production build
-        run: pnpm run build
         env:
-          IS_BUILD_PHASE: 'true'
-          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+          PAYLOAD_SECRET: ci_secret
+
+      # Reuse the .next artifact built by quality_gate — no rebuild needed
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-pr-${{ github.run_id }}
+          path: .next/
 
       - name: Get Playwright version
         id: pw-version
@@ -238,58 +243,101 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Install Playwright system deps (cache hit path)
+      - name: Install Playwright system deps (cache hit)
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: Run E2E tests
+      - name: Run E2E tests (shard ${{ matrix.shard }}/2)
         run: |
           pnpm exec playwright test \
             tests/e2e/admin.e2e.spec.ts \
             tests/e2e/media-lifecycle.e2e.spec.ts \
             tests/e2e/globalSearch.spec.ts \
-            --reporter=github,html
+            --shard=${{ matrix.shard }}/2 \
+            --reporter=github,blob
         env:
           CI: 'true'
           NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+          PAYLOAD_SECRET: ci_secret
           SEED_SECRET: ${{ secrets.SEED_SECRET }}
           PROCESSOR_CALLBACK_SECRET: ${{ secrets.PROCESSOR_CALLBACK_SECRET_DEV }}
           DISABLE_WORKER: '1'
 
-      - name: Upload Playwright report
-        if: failure()
+      - name: Upload blob report (shard ${{ matrix.shard }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-blob-${{ matrix.shard }}-${{ github.run_id }}
+          path: blob-report/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # MERGE E2E REPORTS — combines shard blob reports into a single HTML report
+  # Only uploaded on failure to avoid accumulating large passing-run artifacts.
+  # ─────────────────────────────────────────────────────────────────────────────
+  merge_e2e_reports:
+    name: Merge E2E Reports
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [e2e_shard]
+    if: needs.e2e_shard.result == 'failure'
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
+
+      - name: Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: playwright-blob-*-${{ github.run_id }}
+          merge-multiple: true
+          path: all-blob-reports/
+
+      - name: Merge blob reports into HTML
+        run: pnpm exec playwright merge-reports --reporter=html ./all-blob-reports/
+
+      - name: Upload merged HTML report
+        if: needs.e2e_shard.result == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
           retention-days: 7
 
-  # ─────────────────────────────────────────────────────────────────────
-  # REMOTE MIGRATIONS — Neon ephemeral, dev→main only
-  # neonctl is a devDependency — no global install.
-  # Pre-flight delete makes branch creation idempotent; a stale branch
-  # from a previous interrupted run cannot block the merge.
-  # ─────────────────────────────────────────────────────────────────────
-  remote-migrations:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # REMOTE MIGRATIONS — Neon ephemeral branch, dev→main PRs only
+  # Pre-flight delete makes branch creation idempotent across re-runs.
+  # Conserves Neon branch quota (max 10 free) by running only on dev→main.
+  # ─────────────────────────────────────────────────────────────────────────────
+  remote_migrations:
     name: Remote Migration Check (Neon)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    needs: [e2e]
+    needs: [e2e_shard]
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          node-version: ${{ vars.NODE_VERSION }}
+          pnpm-version: ${{ vars.PNPM_VERSION }}
 
       - name: Create ephemeral Neon branch (idempotent)
         id: neon
@@ -297,26 +345,25 @@ jobs:
           ID="${{ github.event.pull_request.number || github.run_id }}"
           BRANCH_NAME="gh-pr-${ID}"
 
-          # Delete any stale branch from a previous interrupted run before
-          # creating — prevents name collision errors blocking the merge.
           pnpm exec neonctl branches delete "$BRANCH_NAME" \
-            --project-id "${{ env.NEON_PROJECT_ID }}" \
+            --project-id "${{ vars.NEON_PROJECT_ID }}" \
             --force 2>/dev/null || true
 
           pnpm exec neonctl branches create \
             --name "$BRANCH_NAME" \
-            --parent production \
-            --project-id "${{ env.NEON_PROJECT_ID }}"
+            --parent prod \
+            --project-id "${{ vars.NEON_PROJECT_ID }}"
 
+          # xargs trims leading whitespace (neonctl output quirk — mirrors setup-eventarc.sh fix)
           CONNECTION_STRING=$(pnpm exec neonctl connection-string "$BRANCH_NAME" \
-            --project-id "${{ env.NEON_PROJECT_ID }}")
+            --project-id "${{ vars.NEON_PROJECT_ID }}" | xargs)
           echo "::add-mask::$CONNECTION_STRING"
           echo "db_uri=$CONNECTION_STRING" >> $GITHUB_OUTPUT
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
 
-      - name: Set Neon DATABASE_URI
+      - name: Assemble Neon DATABASE_URI
         run: |
           RAW="${{ steps.neon.outputs.db_uri }}"
           [[ "$RAW" != *"sslmode="* ]] && RAW="${RAW}?sslmode=require"
@@ -340,7 +387,7 @@ jobs:
         if: always()
         run: |
           pnpm exec neonctl branches delete "${{ steps.neon.outputs.branch_name }}" \
-            --project-id "${{ env.NEON_PROJECT_ID }}" \
+            --project-id "${{ vars.NEON_PROJECT_ID }}" \
             --force
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}

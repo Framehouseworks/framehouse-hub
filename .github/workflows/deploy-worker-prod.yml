@@ -1,8 +1,9 @@
 name: Deploy Worker (Prod)
+# Production worker deploy. Mirrors deploy-worker-dev.yml.
+# Shares the deploy-prod concurrency group to enforce app-first ordering.
+#
+# Worker images are tagged with git SHA for prod (immutable), same convention as app.
 
-# Production worker deploy. Mirrors deploy-worker-dev.yml, gated behind
-# `if: false` until prod infrastructure (Cloud Run + Eventarc trigger +
-# bucket + secrets) is provisioned. Flip the gate when ready.
 on:
   push:
     branches: [main]
@@ -12,80 +13,30 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Skip Cloud Run deploy (build & push only)'
+        description: 'Build and push only — skip Cloud Run deploy'
         type: boolean
-        default: true
+        default: false
 
+# Shared with deploy-prod.yml — enforces app-first ordering when both trigger
 concurrency:
-  group: deploy-worker-prod-${{ github.ref_name }}
+  group: deploy-prod
   cancel-in-progress: false
 
-permissions:
-  id-token: write
-  contents: read
+permissions: {}
 
 jobs:
-  deploy-worker-prod:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      REGION: us-central1
-      SERVICE: framehouse-hub-worker-prod
-      IMAGE: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/worker:latest
-      GCS_BUCKET: framehouse-hub-prod
-      CALLBACK_URL: https://hub.framehouseworks.com
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Google Auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-
-      - name: Docker Login
-        uses: docker/login-action@v3
-        with:
-          registry: us-central1-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Worker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./scripts/worker
-          file: ./scripts/worker/Dockerfile
-          push: true
-          tags: ${{ env.IMAGE }}
-          cache-from: type=gha,scope=${{ github.workflow }}
-          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
-
-      - name: Deploy to Cloud Run (Worker Prod)
-        if: github.event.inputs.dry_run != 'true'
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE }}
-          image: ${{ env.IMAGE }}
-          region: ${{ env.REGION }}
-          flags: |
-            --min-instances=0
-            --max-instances=4
-            --memory=512Mi
-            --cpu=1
-            --concurrency=4
-            --timeout=300s
-            --no-allow-unauthenticated
-          env_vars_update_strategy: overwrite
-          secrets_update_strategy: overwrite
-          secrets: |
-            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_PROD:latest
-          env_vars: |
-            GCS_BUCKET=${{ env.GCS_BUCKET }}
-            NEXT_PUBLIC_SERVER_URL=${{ env.CALLBACK_URL }}
+  deploy_worker_prod:
+    name: Deploy Worker Prod
+    uses: ./.github/workflows/_deploy-worker.yml
+    with:
+      env_name: prod
+      gcs_bucket: framehouse-hub-prod
+      callback_url: https://hub.framehouseworks.com
+      service: framehouse-hub-worker-prod
+      region: us-central1
+      runtime_service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      PROCESSOR_CALLBACK_SECRET: ${{ secrets.PROCESSOR_CALLBACK_SECRET_PROD }}

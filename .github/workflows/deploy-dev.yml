@@ -1,174 +1,54 @@
 name: Continuous Development (Dev)
+# Deploys to the dev/RC environment on every merge to dev.
+# No re-validation step — quality was proven by the PR that created this merge commit.
+# Calls _deploy-app.yml which owns: pre-migration snapshot, migrate, build+push, deploy,
+# smoke test, audit record, and snapshot cleanup.
 
 on:
   push:
     branches: [dev]
+    # Skip for doc-only commits — no need to rebuild and deploy for markdown changes
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/pull_request_template.md'
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Skip destructive steps (Database Migration & Cloud Run Update)'
+        description: 'Skip destructive steps (migration + Cloud Run deploy). Build and push only.'
         type: boolean
         default: true
 
+# cancel-in-progress: false — never cancel a deploy mid-flight.
+# Rapid pushes queue behind the running deploy; they do not abort it.
+# deploy-worker-dev.yml shares this group to enforce app-first ordering.
 concurrency:
-  group: deploy-dev-${{ github.ref_name }}
-  cancel-in-progress: true
+  group: deploy-dev
+  cancel-in-progress: false
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-
-permissions:
-  id-token: write
-  contents: read
+permissions: {}
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: framehouse_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Initialize Database Schema (Local)
-        run: pnpm run payload migrate
-        env:
-          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
-          PAYLOAD_SECRET: ci_secret
-
-      - name: Production Build Check
-        run: pnpm run build
-        env:
-          DATABASE_URI: postgres://postgres:password@localhost:5432/framehouse_ci
-          PAYLOAD_SECRET: ci_secret
-          NEXT_PUBLIC_SERVER_URL: http://localhost:3000
-
-  deploy-dev:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: validate
-    env:
-      ENV_NAME: dev
-      DOCKER_TAG: dev
-      GCS_BUCKET: framehouse-hub-dev
-      PUBLIC_URL: https://dev.framehouseworks.com
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Google Auth
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-
-      - name: Docker Login
-        uses: docker/login-action@v3
-        with:
-          registry: us-central1-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js (Migration Runner)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Initialize Remote Database Schema (Dev)
-        if: github.event.inputs.dry_run != 'true'
-        run: |
-          if [[ "$RAW_URI" != *"sslmode="* ]]; then
-            export DATABASE_URI="${RAW_URI}?sslmode=require"
-          else
-            export DATABASE_URI="$RAW_URI"
-          fi
-
-          echo "Applying migrations to persistent dev database..."
-          pnpm run payload migrate
-        env:
-          NODE_ENV: production
-          RAW_URI: ${{ secrets.DATABASE_URI_DEV }}
-          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Image (Dev)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
-          build-args: |
-            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
-            GCS_BUCKET=${{ env.GCS_BUCKET }}
-            GCS_PROJECT_ID=framehouse-hub
-          cache-from: type=gha,scope=${{ github.workflow }}
-          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
-
-      - name: Deploy to Cloud Run (Dev)
-        if: github.event.inputs.dry_run != 'true'
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: framehouse-hub-${{ env.ENV_NAME }}
-          image: us-central1-docker.pkg.dev/framehouse-hub/framehouse-hub/app:${{ env.DOCKER_TAG }}
-          region: us-central1
-          # Corrected strategy: 'overwrite' is the valid value for a clean reset
-          env_vars_update_strategy: overwrite
-          secrets_update_strategy: overwrite
-          # Secret Manager mounts. The right-hand side is the Secret Manager
-          # resource name; the left is the env var the Cloud Run revision
-          # sees. PROCESSOR_CALLBACK_SECRET must match the value mounted
-          # on framehouse-hub-worker-dev by deploy-worker-dev.yml so the
-          # worker's callback to /api/media/process-callback authenticates.
-          secrets: |
-            DATABASE_URI=DATABASE_URI_DEV:latest
-            PAYLOAD_SECRET=PAYLOAD_SECRET_DEV:latest
-            PROCESSOR_CALLBACK_SECRET=PROCESSOR_CALLBACK_SECRET_DEV:latest
-          env_vars: |
-            GCS_BUCKET=${{ env.GCS_BUCKET }}
-            GCS_PROJECT_ID=framehouse-hub
-            NEXT_PUBLIC_SERVER_URL=${{ env.PUBLIC_URL }}
-            EXTRA_ALLOWED_ORIGINS=https://framehouse-hub-dev-588985538639.us-central1.run.app
-            SEED_SECRET=${{ secrets.SEED_SECRET }}
+  deploy_dev:
+    name: Deploy Dev
+    uses: ./.github/workflows/_deploy-app.yml
+    with:
+      env_name: dev
+      docker_tag: dev
+      gcs_bucket: framehouse-hub-dev
+      public_url: https://dev.framehouseworks.com
+      cloud_run_service: framehouse-hub-dev
+      cloud_run_region: us-central1
+      runtime_service_account: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+      run_min_instances: '0'
+      run_max_instances: '4'
+      extra_allowed_origins: https://framehouse-hub-dev-588985538639.us-central1.run.app
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      DATABASE_URI: ${{ secrets.DATABASE_URI_DEV }}
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET_DEV }}
+      PROCESSOR_CALLBACK_SECRET: ${{ secrets.PROCESSOR_CALLBACK_SECRET_DEV }}
+      SEED_SECRET: ${{ secrets.SEED_SECRET }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
