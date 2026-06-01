@@ -1,9 +1,29 @@
 # CI/CD Pipeline Overhaul — Specification
 
-**Ticket:** FRH-CICD-01 
+**Ticket:** FRH-CICD-01  
 **Date:** 2026-05-31  
-**Status:** Draft — awaiting approval before implementation  
+**Status:** Implemented — branch `fix/cicd-pipeline-overhaul`  
 **Revision:** 2 — enterprise review pass, naming conventions, critical gaps added
+
+> **For current operational reference** see [`ci-pr-validation.md`](ci-pr-validation.md), [`reset-engine.md`](reset-engine.md), and [`cicd-manual-test-steps.md`](cicd-manual-test-steps.md). This document records the design rationale and original specification.
+
+---
+
+### Implementation notes (deviations from spec)
+
+The following were changed during implementation or post-implementation security review:
+
+| Item | Spec | Implemented |
+|------|------|-------------|
+| Job name separators | `quality-gate`, `integration-tests` (hyphens) | `quality_gate`, `integration_tests` (underscores — required for GH status checks with spaces) |
+| `merge_e2e_reports` trigger | `always()` | `needs.e2e.result == 'failure'` — saves runner minutes on passing PRs |
+| Python audit blocks | `python3 -c "… '${{ inputs.* }}' …"` | Heredoc + `os.environ` — injection-safe for caller-controlled inputs |
+| Reset phrase guard | Direct `${{ inputs.confirm_phrase }}` in shell | Via `env:` var — injection-safe |
+| `rollback-prod.yml` | No input validation | SHA format validated with regex before any GCP call |
+| `_deploy-worker.yml` | No environment gate | `environment: prod \| dev` — prod worker deploys require reviewer approval |
+| Smoke test warm-up | `sleep 15` + `--retry 6` | No sleep; `--retry 8 --retry-connrefused` handles connection refused during warm-up |
+| Worker health check | Not specified | `gcloud run services describe` — verifies revision is active after deploy |
+| Snapshot lifecycle | Two separate success/failure steps | Single `always()` step — cancellation also cleans up the branch |
 
 ---
 
@@ -259,9 +279,7 @@ Pattern: lowercase, full word — no abbreviation
 | Name | Notes |
 |---|---|
 | `dev` | No protection — auto-deploy |
-| `production` | Not `prod` — GitHub recommends full names; required reviewers enforced here |
-
-**Why full word?** GitHub Environments are visible in the Actions UI and deployment history. `production` is unambiguous; `prod` is an abbreviation that can be confused with other identifiers.
+| `prod` | Matches the branch name convention; required reviewers enforced here |
 
 ### 3.11 Artifact Names
 
@@ -333,7 +351,7 @@ Rules enforced in pipeline:
 - `main` accepts PRs from `dev` only (guardrail job; exits 1 if `head_ref != 'dev'`).
 - Direct pushes to `main` are blocked at GitHub branch protection level.
 - Direct pushes to `dev` are blocked at GitHub branch protection level.
-- `workflow_dispatch` on deploy workflows requires GitHub Environment approval for `production`.
+- `workflow_dispatch` on deploy workflows requires GitHub Environment approval for `prod`.
 
 ### 4.2 New Workflow Map
 
@@ -438,7 +456,7 @@ push → dev
 ```
 push → main
     │
-    ▼ (GitHub Environment: production — waits for reviewer approval)
+    ▼ (GitHub Environment: prod — waits for reviewer approval)
   ┌──────────────────────────────────────────────────────────┐
   │                   _deploy-app.yml (reusable)              │
   │  env_name: prod                                           │
@@ -463,7 +481,7 @@ push → main
 ```
 workflow_dispatch → select SHA to rollback to
     │
-    ▼ (GitHub Environment: production — requires reviewer approval)
+    ▼ (GitHub Environment: prod — requires reviewer approval)
   ┌──────────────────────────────────────────────────┐
   │              rollback-prod.yml                    │
   │                                                   │
@@ -780,7 +798,7 @@ cancel-in-progress: false
 ```
 
 **`deploy_prod` job:**
-- `environment: production` — blocks until required reviewer approves in GitHub Actions UI
+- `environment: prod` — blocks until required reviewer approves in GitHub Actions UI
 - Calls `_deploy-app.yml` with:
   - `env_name: prod`, `docker_tag: sha-${{ github.sha[0:7] }}`
   - `additional_tags: app:latest`
@@ -824,7 +842,7 @@ cancel-in-progress: false
 - `reason` (string, required) — free text; written to audit log
 
 **`rollback_prod` job:**
-- `environment: production` — requires reviewer approval
+- `environment: prod` — requires reviewer approval
 - Job-level permissions: `id-token: write`, `contents: read`
 - Steps:
   1. `gcp-auth` composite
@@ -868,7 +886,7 @@ cancel-in-progress: false
 - `redeploy` (bool, default: true)
 
 **`purge` job:**
-- `environment: ${{ inputs.environment == 'prod' && 'production' || 'dev' }}`
+- `environment: ${{ inputs.environment == 'prod' && 'prod' || 'dev' }}`
 - Job-level permissions: `id-token: write`, `contents: read`
 
 **Steps:**
@@ -900,7 +918,7 @@ cancel-in-progress: false
 | `dev` | None | — | Auto-deploy on merge to `dev` |
 | `production` | Required reviewer(s) + 2-hour deployment wait window | 1 team lead | Approval required for every deploy and every `workflow_dispatch` |
 
-**Deployment wait window:** Configuring a 2-hour window on `production` gives the team time to cancel an accidental trigger before it executes. Reviewers can override the wait by approving immediately.
+**Deployment wait window:** Configuring a 2-hour window on `prod` gives the team time to cancel an accidental trigger before it executes. Reviewers can override the wait by approving immediately.
 
 ### 6.2 Secrets Inventory
 
@@ -1160,7 +1178,7 @@ Both within free tier at MVP scale.
 ### EC-10: Prod deploy triggered via `workflow_dispatch` without approval
 **Scenario:** Developer manually triggers `deploy-prod.yml`.  
 **Risk:** Unreviewed prod deploy.  
-**Resolution:** `environment: production` blocks the job until a required reviewer approves. Applies to both push and `workflow_dispatch` triggers.
+**Resolution:** `environment: prod` blocks the job until a required reviewer approves. Applies to both push and `workflow_dispatch` triggers.
 
 ### EC-11: Docker GHA cache fills (>10 GB limit) and starts evicting
 **Scenario:** Active development with many pushes.  
@@ -1332,7 +1350,7 @@ Both within free tier at MVP scale.
 | 7 | Create `_deploy-app.yml` reusable workflow (includes pre-migration snapshot, audit record) | L | P1, P4, P14, P15, P27 |
 | 8 | Create `_deploy-worker.yml` reusable workflow | S | P15 |
 | 9 | Refactor `deploy-dev.yml` to call `_deploy-app.yml`; remove validate job; fix concurrency; add paths-ignore | S | P1, P16, P20 |
-| 10 | Refactor `deploy-prod.yml` to call `_deploy-app.yml`; add `environment: production`; fix gate | S | P2, P8 |
+| 10 | Refactor `deploy-prod.yml` to call `_deploy-app.yml`; add `environment: prod`; fix gate | S | P2, P8 |
 | 11 | Refactor `deploy-worker-dev.yml` + `deploy-worker-prod.yml` to call `_deploy-worker.yml`; align concurrency groups | S | P11, P26 |
 | 12 | Refactor `pr-validation.yml`: per-job permissions, sharded E2E, build artifact, `persist-credentials: false` | M | P12, P16, P21, P22 |
 | 13 | Fix `reset-engine.yml`: health check URL, redeploy input, concurrency group, per-job permissions | S | P7, P17 |
@@ -1341,7 +1359,7 @@ Both within free tier at MVP scale.
 | 16 | Move `SEED_SECRET` to `secrets:` block in `_deploy-app.yml` | XS | P6 |
 | 17 | Add `paths-ignore` to `deploy-dev.yml` for doc-only commits | XS | EC-16 |
 | 18 | Configure GitHub repository variables: `NODE_VERSION`, `PNPM_VERSION`, `GCS_PROJECT_ID`, `GCP_RUNTIME_SA_EMAIL`, `ARTIFACT_REGISTRY_HOST`, `NEON_PROJECT_ID` | XS | — |
-| 19 | Configure GitHub Environments: `dev` (no protection), `production` (1 reviewer + 2h wait window) | XS | P8 |
+| 19 | Configure GitHub Environments: `dev` (no protection), `prod` (1 reviewer + 2h wait window) | XS | P8 |
 | 20 | Validate all 25 edge cases manually or via `workflow_dispatch` dry-run | L | all |
 | 21 | Update `docs/ci-pr-validation.md` and this spec to reflect final implemented state | S | — |
 
@@ -1378,7 +1396,7 @@ Effort key: XS < 1h, S = 1–3h, M = 3–6h, L = 6–12h.
 | Allow bypass | No |
 | Restrict direct pushes | Yes (no one) |
 
-### Environment Settings — `production`
+### Environment Settings — `prod`
 
 | Setting | Value |
 |---|---|

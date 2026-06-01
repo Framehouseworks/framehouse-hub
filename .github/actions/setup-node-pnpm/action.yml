@@ -1,0 +1,43 @@
+name: Setup Node + pnpm
+description: >-
+  Shallow checkout (no credential persistence), install pnpm, setup Node.js with pnpm
+  store cache, and optionally run pnpm install --frozen-lockfile.
+  Every CI job that needs Node uses this action — no duplicated setup steps.
+
+inputs:
+  node-version:
+    description: Node.js version to install
+    required: true
+  pnpm-version:
+    description: pnpm version to install
+    required: true
+  skip-install:
+    description: >-
+      Set to 'true' to skip pnpm install. Use in jobs that download a pre-built
+      artifact (e.g. the e2e job downloads the .next artifact from quality-gate).
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # persist-credentials: false — revokes the default GITHUB_TOKEN after checkout.
+    # Jobs using OIDC/WIF for GCP auth don't need the GitHub token; revoking it
+    # limits the blast radius of any supply-chain compromise in a downstream action.
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        fetch-depth: 1
+
+    - uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+
+    - if: inputs.skip-install != 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile
