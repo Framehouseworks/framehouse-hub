@@ -1,6 +1,6 @@
 import type { Media, Portfolio, Session } from '@/payload-types'
 import type { PaginatedDocs, Payload } from 'payload'
-import { aboutPageData, hubPageData } from './content/hubPages'
+import { aboutPageData, companyPageData, hubPageData, learnPageData } from './content/hubPages'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -844,23 +844,928 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
     const fallbackMediaIds = mediaDocs.docs.map((doc) => doc.id)
 
-    const pagesToSeed = [aboutPageData, hubPageData]
+    // 1e. Tutorials — platform usage guides
+    try {
+      payload.logger.info('Seeding Tutorials...')
+
+      const tutorialDefs = [
+        {
+          title: 'Getting Started: Upload Your First Asset',
+          slug: 'getting-started-upload-first-asset',
+          description:
+            'Learn how to upload a photo or video to your library, understand the ingestion flow, and confirm your asset is ready.',
+          category: 'getting-started',
+          difficulty: 'beginner',
+          duration: '4 min',
+          order: 1,
+          steps: [
+            {
+              stepTitle: 'Sign in and open your Library',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'After logging in, navigate to the Library from the left-hand sidebar. This is your personal asset archive — everything you upload lives here, organised chronologically.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Click "Start Archival Ingest"',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'In the top-right of the Library, click the "Start Archival Ingest" button. A staging panel will open where you can drag and drop files or browse your device. Supported formats include JPEG, PNG, WebP, MP4, and MOV.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Add files and begin the ingest',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Once your files are staged, click "Begin Ingest". Each asset is uploaded, processed, and given a unique accession ID. You will see real-time progress in the overlay — statuses move from "Uploading" → "Processing" → "Ready".',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Confirm your asset is ready',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'When processing is complete, your asset appears in the Library grid with its thumbnail visible. Click any asset to open the detail view where you can see metadata, accession ID, and file details.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          title: 'Organising with Sessions',
+          slug: 'organising-with-sessions',
+          description:
+            'Sessions group assets from a single shoot. Learn how to create a session, assign assets, and navigate by shoot date.',
+          category: 'organise',
+          difficulty: 'beginner',
+          duration: '3 min',
+          order: 2,
+          steps: [
+            {
+              stepTitle: 'What is a Session?',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'A Session represents a single shoot or work session — a day on location, a studio portrait session, or any batch of related work. Assets ingested with a matching shoot name are automatically linked to their Session.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Create a Session',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Navigate to Sessions in the sidebar. Click "New Session", give it a name (e.g. "Spring Campaign 2025"), and set the shoot date. You can optionally assign a cover asset after you have uploaded media.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Browse and filter by Session',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'In the Library, use the Session filter in the left panel to view only assets from a specific shoot. Your sessions are sorted by shoot date, making it easy to find any job regardless of when it was ingested.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          title: 'Building Your First Portfolio',
+          slug: 'building-your-first-portfolio',
+          description:
+            'Create a portfolio, add assets to a grid layout, and choose your visibility settings.',
+          category: 'publish',
+          difficulty: 'beginner',
+          duration: '5 min',
+          order: 3,
+          steps: [
+            {
+              stepTitle: 'Create a new Portfolio',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'From the sidebar, navigate to Portfolios and click "New Portfolio". Give it a name — this is your internal label, not visible to the public. A portfolio is a curated selection of your assets presented in a grid layout.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Add assets to your grid',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Inside the portfolio editor, click "Add Grid Block". A grid block lets you select assets from your Library and set their display size (small, medium, or large). You can add multiple grid blocks to build a varied layout.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Set visibility and publish',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Portfolios have three visibility options: Private (only you), Shared (link access), and Public (visible on your profile). Set your visibility in the sidebar, then save. Public portfolios are accessible at /p/[your-slug].',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          title: 'Smart Collections: Dynamic Asset Filters',
+          slug: 'smart-collections-dynamic-asset-filters',
+          description:
+            'Smart Collections automatically populate based on rules you define — filter by media type, shoot name, status, or any metadata field.',
+          category: 'organise',
+          difficulty: 'intermediate',
+          duration: '4 min',
+          order: 4,
+          steps: [
+            {
+              stepTitle: 'What makes a collection "Smart"?',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Unlike a manual folder, a Smart Collection runs a saved query against your Library every time you open it. Any asset matching the filter appears automatically — no manual sorting required. They update in real time as you add new assets.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Create a Smart Collection',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Navigate to Smart Collections in the sidebar and click "New Collection". Give it a name and set your filter — for example, filter by mediaType = "video" to create an "All Videos" collection, or by ingestionStatus = "ready" for a "Ready to Publish" collection.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'System-generated collections',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'When you upload your first assets, Framehouse Hub automatically creates a set of Smart Collections for you — including "All Images" and one for each detected shoot name. These system collections cannot be deleted, but you can create as many custom ones as you need.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+          ],
+        },
+        {
+          title: 'Understanding Asset Metadata',
+          slug: 'understanding-asset-metadata',
+          description:
+            'Learn what metadata is extracted automatically, how accession IDs work, and how to use metadata for search and filtering.',
+          category: 'advanced',
+          difficulty: 'intermediate',
+          duration: '5 min',
+          order: 5,
+          steps: [
+            {
+              stepTitle: 'Automatic metadata extraction',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'When an asset is ingested, Framehouse Hub automatically extracts EXIF and IPTC metadata — including camera model, lens, aperture, ISO, and GPS coordinates where available. This happens during the processing step and requires no manual input.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Accession IDs',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Every asset receives a unique accession ID on ingestion — a permanent reference that never changes even if you rename the file. This is the canonical identifier for your asset across exports, portfolios, and integrations.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+            {
+              stepTitle: 'Searching and filtering by metadata',
+              stepContent: {
+                root: {
+                  type: 'root',
+                  children: [
+                    {
+                      type: 'paragraph',
+                      version: 1,
+                      children: [
+                        {
+                          text: 'Use the Library search bar to find assets by title, filename, camera model, lens, or shoot name. The search index is full-text and very fast — try searching for a camera model like "Sony A7" or a shoot name like "Campaign 2025" to see all matching assets instantly.',
+                          type: 'text',
+                          version: 1,
+                        },
+                      ],
+                      direction: 'ltr',
+                      format: '',
+                      indent: 0,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                  version: 1,
+                },
+              },
+            },
+          ],
+        },
+      ]
+
+      for (const def of tutorialDefs) {
+        const existing = await payload.find({
+          collection: 'tutorials',
+          where: { slug: { equals: def.slug } },
+          limit: 1,
+        })
+        if (existing.docs.length > 0) {
+          payload.logger.info(`  Tutorial "${def.title}" exists, skipping.`)
+          continue
+        }
+        await payload.create({
+          collection: 'tutorials',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { ...def, _status: 'published' } as any,
+          context: { disableRevalidate: true },
+        })
+        payload.logger.info(`  Created tutorial "${def.title}"`)
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding Tutorials: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // 1f. Articles — guides and platform insights
+    try {
+      payload.logger.info('Seeding Articles...')
+
+      const articleDefs = [
+        {
+          title: 'The Philosophy Behind Framehouse Hub',
+          slug: 'philosophy-behind-framehouse-hub',
+          excerpt:
+            'Why we built a DAM that feels like a gallery, not a filing cabinet — and why that distinction matters for creative work.',
+          category: 'guide',
+          readTime: 5,
+          content: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [{ text: 'Software as a showcase', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: "Most digital asset management tools are built for IT departments. They prioritise compliance, auditability, and storage cost over the experience of the person actually using them. We built Framehouse Hub for the other person in the room — the creative.",
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [{ text: 'The museum principle', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'A well-curated museum does not show you everything at once. It guides your attention, provides context, and frames each piece deliberately. That is the standard we hold our interface to. Your assets deserve to be presented, not just stored.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [{ text: 'What this means practically', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'It means the library view uses white space deliberately. It means thumbnails are large enough to evaluate composition. It means metadata is present but never dominant. And it means that publishing a portfolio feels like opening a gallery — not sharing a Dropbox link.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+        {
+          title: '5 Workflow Habits That Keep Your Archive Clean',
+          slug: '5-workflow-habits-clean-archive',
+          excerpt:
+            "Simple practices that take under a minute each and prevent the archive chaos that accumulates over years of shooting.",
+          category: 'workflow',
+          readTime: 4,
+          content: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [
+                    { text: '1. Name your session before you upload', type: 'text', version: 1 },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'Before starting an ingest, create a Session first and give it a descriptive name. Assets ingested during that session will automatically be linked, making them instantly findable even years later.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [
+                    { text: '2. Set your cover asset immediately', type: 'text', version: 1 },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: "Right after an ingest completes, pick the strongest image from the session and assign it as the cover. It takes 10 seconds and makes every future session review much faster — you won't have to remember which shoot a generic thumbnail belongs to.",
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [
+                    {
+                      text: '3. Use Smart Collections for work-in-progress',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'Create a Smart Collection filtered by ingestionStatus = "ready" and name it "Ready to Edit". This becomes a live queue of assets that have been processed but not yet added to a portfolio — your automatic to-do list.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+        {
+          title: 'How Asset Ingestion Works Under the Hood',
+          slug: 'how-asset-ingestion-works',
+          excerpt:
+            'A transparent look at what happens between clicking "Upload" and seeing your asset marked as ready.',
+          category: 'guide',
+          readTime: 6,
+          content: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [
+                    { text: 'From upload to ready in four steps', type: 'text', version: 1 },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'When you upload an asset, four distinct things happen in sequence: the file is transferred to secure storage, a document record is created in the database, a processing worker picks up the job, and the processed derivatives are linked back to your asset record.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [{ text: 'What "processing" actually means', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'The processing step generates optimised WebP derivatives of your original at two sizes — a small thumbnail and a medium proxy. These are what you see in the library grid and on the detail view. Your original is always preserved at full quality in secure cloud storage.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'heading',
+                  tag: 'h2',
+                  version: 1,
+                  children: [{ text: 'Accession and lineage', type: 'text', version: 1 }],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+                {
+                  type: 'paragraph',
+                  version: 1,
+                  children: [
+                    {
+                      text: 'On creation, every asset receives an accession ID — a UUID that serves as its permanent identifier. Unlike filenames, accession IDs are immutable. They are the stable reference for API integrations, portfolio embeds, and any downstream system that references your assets.',
+                      type: 'text',
+                      version: 1,
+                    },
+                  ],
+                  direction: 'ltr',
+                  format: '',
+                  indent: 0,
+                },
+              ],
+              direction: 'ltr',
+              format: '',
+              indent: 0,
+              version: 1,
+            },
+          },
+        },
+      ]
+
+      for (const def of articleDefs) {
+        const existing = await payload.find({
+          collection: 'articles',
+          where: { slug: { equals: def.slug } },
+          limit: 1,
+        })
+        if (existing.docs.length > 0) {
+          payload.logger.info(`  Article "${def.title}" exists, skipping.`)
+          continue
+        }
+        await payload.create({
+          collection: 'articles',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { ...def, _status: 'published', publishedOn: new Date().toISOString() } as any,
+          context: { disableRevalidate: true },
+        })
+        payload.logger.info(`  Created article "${def.title}"`)
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding Articles: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // 1g. Downloads — gated free resources
+    try {
+      payload.logger.info('Seeding Downloads...')
+
+      const downloadDefs = [
+        {
+          title: 'Cinematic Teal & Orange LUT Pack',
+          description:
+            'Three colour grades inspired by modern cinema — warm highlights, teal shadows. Compatible with Lightroom, Premiere Pro, and DaVinci Resolve.',
+          fileType: 'lut',
+          requiresAccount: true,
+          tags: [{ tag: 'colour' }, { tag: 'cinema' }, { tag: 'lightroom' }],
+        },
+        {
+          title: 'Minimal Portfolio Grid Template',
+          description:
+            'A clean three-column grid layout template for building a portfolio in Framehouse Hub. Optimised for photography and mixed-media work.',
+          fileType: 'template',
+          requiresAccount: true,
+          tags: [{ tag: 'portfolio' }, { tag: 'grid' }, { tag: 'photography' }],
+        },
+        {
+          title: 'Muted Film Preset Collection',
+          description:
+            'Five film-inspired presets with lifted shadows and desaturated midtones. Great for documentary, portrait, and street photography.',
+          fileType: 'preset',
+          requiresAccount: true,
+          tags: [{ tag: 'film' }, { tag: 'muted' }, { tag: 'portrait' }],
+        },
+      ]
+
+      for (const def of downloadDefs) {
+        const existing = await payload.find({
+          collection: 'downloads',
+          where: { title: { equals: def.title } },
+          limit: 1,
+        })
+        if (existing.docs.length > 0) {
+          payload.logger.info(`  Download "${def.title}" exists, skipping.`)
+          continue
+        }
+        await payload.create({
+          collection: 'downloads',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { ...def, _status: 'published' } as any,
+          context: { disableRevalidate: true },
+        })
+        payload.logger.info(`  Created download "${def.title}"`)
+      }
+    } catch (err) {
+      payload.logger.error(
+        `Error seeding Downloads: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    const pagesToSeed = [aboutPageData, hubPageData, learnPageData, companyPageData]
 
     // 2. Sync Pages
     for (const pageData of pagesToSeed) {
       try {
         const { slug } = pageData
 
-        // Enrich Hero with media
+        // Enrich Hero with media (only high/medium impact heroes have media field)
         if (
           pageData.hero &&
           (pageData.hero.type === 'highImpact' || pageData.hero.type === 'mediumImpact')
         ) {
+          // @ts-expect-error - conditional media injection on discriminated hero union
           pageData.hero.media = fallbackMediaIds[0]
         }
 
-        // 1. Enrich layout blocks with media if available
-        if (pageData.layout && fallbackMediaIds.length > 0) {
+        // 1. Enrich layout blocks with media if available.
+        // Company and learn pages have dedicated page components that use static
+        // bundled assets — skip media injection so no local-only fixture IDs leak in.
+        const skipMediaEnrichment = slug === 'company' || slug === 'learn'
+        if (!skipMediaEnrichment && pageData.layout && fallbackMediaIds.length > 0) {
           // @ts-expect-error - Dynamic block enrichment type mismatch
           pageData.layout = pageData.layout.map((block: Record<string, unknown>) => {
             const typedBlock = block
@@ -1085,44 +1990,32 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
     // 4. Sync Header Global
     try {
-      const header = await payload.findGlobal({
+      payload.logger.info('Rebuilding Header global nav...')
+      await payload.updateGlobal({
         slug: 'header',
+        data: ({
+          navItems: [
+            {
+              group: true,
+              menuTitle: 'Company',
+              subItems: [
+                { link: { label: 'About Us', url: '/about', type: 'custom' } },
+                { link: { label: 'Company', url: '/company', type: 'custom' } },
+                { link: { label: 'Hub', url: '/hub', type: 'custom' } },
+              ],
+            },
+            {
+              group: false,
+              link: { label: 'Learn', url: '/learn', type: 'custom' },
+            },
+            {
+              group: false,
+              link: { label: 'Pricing', url: '/pricing', type: 'custom' },
+            },
+          ],
+        }) as unknown as Parameters<typeof payload.updateGlobal>[0]['data'],
+        context: { disableRevalidate: true },
       })
-
-      if (header) {
-        payload.logger.info('Updating Header global with Company dropdown links...')
-        const updatedNavItems = (header.navItems as Record<string, unknown>[])?.map(
-          (item: Record<string, unknown>) => {
-            // If it's the "Company" item from Phase 1, ensure sub-items point to our new pages
-            const menuTitle = item.menuTitle as string | undefined
-            const link = item.link as { label?: string } | undefined
-            if (
-              menuTitle?.toLowerCase().includes('company') ||
-              link?.label?.toLowerCase().includes('company')
-            ) {
-              return {
-                ...item,
-                group: true,
-                menuTitle: menuTitle || 'Company',
-                link: null, // Clear singular link to satisfy group condition
-                subItems: [
-                  { link: { label: 'About Us', url: '/about', type: 'custom' } },
-                  { link: { label: 'Hub', url: '/hub', type: 'custom' } },
-                ],
-              }
-            }
-            return item
-          },
-        )
-
-        await payload.updateGlobal({
-          slug: 'header',
-          data: {
-            navItems: updatedNavItems,
-          },
-          context: { disableRevalidate: true },
-        })
-      }
     } catch (err) {
       payload.logger.error(
         `Error syncing Header global: ${err instanceof Error ? err.message : String(err)}`,
@@ -1136,7 +2029,8 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         slug: 'footer',
         data: {
           navItems: [
-            { link: { label: 'About', url: '/about', type: 'custom' } },
+            { link: { label: 'Company', url: '/company', type: 'custom' } },
+            { link: { label: 'Learn', url: '/learn', type: 'custom' } },
             { link: { label: 'Platform', url: '/hub', type: 'custom' } },
             { link: { label: 'Pricing', url: '/pricing', type: 'custom' } },
             { link: { label: 'Login', url: '/login', type: 'custom' } },
