@@ -60,6 +60,11 @@ jobs:
       actions: write    # required for: gh workflow run (redeploy trigger)
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
       # phrase logic:
       #   preserve_storage=false → expected phrase = NUKE-{ENV^^}  (destructive, data + storage)
       #   preserve_storage=true  → expected phrase = RESET-DEV     (routine, data only, dev only)

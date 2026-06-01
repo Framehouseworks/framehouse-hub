@@ -120,6 +120,12 @@ jobs:
       contents: read
 
     steps:
+      # ── 0. Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
       # ── 1. Metadata ──────────────────────────────────────────────────────────
       - name: Compute run metadata
         id: meta
@@ -194,7 +200,9 @@ jobs:
           service: ${{ inputs.cloud_run_service }}
           image: us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app
           tag: ${{ inputs.docker_tag }}
-          extra_tags: ${{ inputs.extra_tags }}
+          extra_tags: |
+            ${{ inputs.extra_tags }}
+            us-central1-docker.pkg.dev/${{ vars.GCS_PROJECT_ID }}/framehouse-hub/app:sha-${{ steps.meta.outputs.sha7 }}
           region: ${{ inputs.cloud_run_region }}
           build_args: |
             NEXT_PUBLIC_SERVER_URL=${{ inputs.public_url }}
