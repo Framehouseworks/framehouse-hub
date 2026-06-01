@@ -1,14 +1,17 @@
 import { About3Block } from '@/blocks/About3/Component'
 import { ArchiveBlock } from '@/blocks/ArchiveBlock/Component'
+import { ArticleGridBlock } from '@/blocks/ArticleGrid/Component'
 import { BannerBlock } from '@/blocks/Banner/Component'
 import { CallToActionBlock } from '@/blocks/CallToAction/Component'
 import { CarouselBlock } from '@/blocks/Carousel/Component'
 import { ContentBlock } from '@/blocks/Content/Component'
+import { DownloadGridBlock } from '@/blocks/DownloadGrid/Component'
 import { FormBlock } from '@/blocks/Form/Component'
 import { MediaBlock } from '@/blocks/MediaBlock/Component'
 import { PricingBlock } from '@/blocks/Pricing/Component'
 import { SprocketDividerBlock } from '@/blocks/SprocketDivider/Component'
 import { ThreeItemGridBlock } from '@/blocks/ThreeItemGrid/Component'
+import { TutorialGridBlock } from '@/blocks/TutorialGrid/Component'
 import { toKebabCase } from '@/utilities/toKebabCase'
 import React, { Fragment } from 'react'
 
@@ -17,15 +20,18 @@ import type { Page } from '../payload-types'
 const blockComponents = {
   about3: About3Block,
   archive: ArchiveBlock,
+  articleGrid: ArticleGridBlock,
   banner: BannerBlock,
   carousel: CarouselBlock,
   content: ContentBlock,
   cta: CallToActionBlock,
+  downloadGrid: DownloadGridBlock,
   formBlock: FormBlock,
   mediaBlock: MediaBlock,
   pricing: PricingBlock,
   sprocketDivider: SprocketDividerBlock,
   threeItemGrid: ThreeItemGridBlock,
+  tutorialGrid: TutorialGridBlock,
 }
 
 export const RenderBlocks: React.FC<{
