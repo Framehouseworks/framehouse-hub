@@ -70,6 +70,9 @@ export interface Config {
     users: User;
     pages: Page;
     categories: Category;
+    articles: Article;
+    downloads: Download;
+    tutorials: Tutorial;
     media: Media;
     portfolios: Portfolio;
     'smart-collections': SmartCollection;
@@ -93,6 +96,9 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    articles: ArticlesSelect<false> | ArticlesSelect<true>;
+    downloads: DownloadsSelect<false> | DownloadsSelect<true>;
+    tutorials: TutorialsSelect<false> | TutorialsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
     'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
@@ -231,6 +237,9 @@ export interface Page {
     | PricingBlock
     | SprocketDividerBlock
     | About3Block
+    | ArticleGridBlock
+    | DownloadGridBlock
+    | TutorialGridBlock
   )[];
   meta?: {
     title?: string | null;
@@ -964,6 +973,186 @@ export interface About3Block {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ArticleGridBlock".
+ */
+export interface ArticleGridBlock {
+  heading?: string | null;
+  subheading?: string | null;
+  /**
+   * Select articles to feature. Leave empty to show latest published articles.
+   */
+  articles?: (number | Article)[] | null;
+  viewAllLabel?: string | null;
+  backgroundColor?: ('white' | 'surface_low') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'articleGrid';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "articles".
+ */
+export interface Article {
+  id: number;
+  title: string;
+  /**
+   * Short description shown in article listing cards.
+   */
+  excerpt?: string | null;
+  category?: ('guide' | 'workflow' | 'news' | 'tips') | null;
+  readTime?: number | null;
+  heroImage?: (number | null) | Media;
+  publishedOn?: string | null;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  meta?: {
+    title?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+    description?: string | null;
+  };
+  slug: string;
+  slugLock?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "DownloadGridBlock".
+ */
+export interface DownloadGridBlock {
+  heading?: string | null;
+  subheading?: string | null;
+  /**
+   * Select downloads to feature.
+   */
+  downloads?: (number | Download)[] | null;
+  backgroundColor?: ('white' | 'surface_low') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'downloadGrid';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "downloads".
+ */
+export interface Download {
+  id: number;
+  title: string;
+  description?: string | null;
+  fileType: 'lut' | 'template' | 'preset' | 'other';
+  thumbnail?: (number | null) | Media;
+  /**
+   * Upload the downloadable file here.
+   */
+  downloadFile?: (number | null) | Media;
+  /**
+   * Optional. Use instead of uploading a file directly.
+   */
+  externalUrl?: string | null;
+  /**
+   * When enabled, users must be signed in to download this resource.
+   */
+  requiresAccount?: boolean | null;
+  tags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TutorialGridBlock".
+ */
+export interface TutorialGridBlock {
+  heading?: string | null;
+  subheading?: string | null;
+  /**
+   * Select tutorials to feature. Leave empty to show all published tutorials.
+   */
+  tutorials?: (number | Tutorial)[] | null;
+  backgroundColor?: ('white' | 'surface_low') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'tutorialGrid';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tutorials".
+ */
+export interface Tutorial {
+  id: number;
+  title: string;
+  /**
+   * Short summary shown on the learn page card.
+   */
+  description?: string | null;
+  category: 'getting-started' | 'organise' | 'publish' | 'advanced';
+  difficulty?: ('beginner' | 'intermediate' | 'advanced') | null;
+  duration?: string | null;
+  /**
+   * Lower numbers appear first.
+   */
+  order?: number | null;
+  heroImage?: (number | null) | Media;
+  steps?:
+    | {
+        stepTitle: string;
+        stepContent: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        stepImage?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  meta?: {
+    title?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+    description?: string | null;
+  };
+  slug: string;
+  slugLock?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "portfolios".
  */
 export interface Portfolio {
@@ -1253,6 +1442,18 @@ export interface PayloadLockedDocument {
         value: number | Category;
       } | null)
     | ({
+        relationTo: 'articles';
+        value: number | Article;
+      } | null)
+    | ({
+        relationTo: 'downloads';
+        value: number | Download;
+      } | null)
+    | ({
+        relationTo: 'tutorials';
+        value: number | Tutorial;
+      } | null)
+    | ({
         relationTo: 'media';
         value: number | Media;
       } | null)
@@ -1397,6 +1598,9 @@ export interface PagesSelect<T extends boolean = true> {
         pricing?: T | PricingBlockSelect<T>;
         sprocketDivider?: T | SprocketDividerBlockSelect<T>;
         about3?: T | About3BlockSelect<T>;
+        articleGrid?: T | ArticleGridBlockSelect<T>;
+        downloadGrid?: T | DownloadGridBlockSelect<T>;
+        tutorialGrid?: T | TutorialGridBlockSelect<T>;
       };
   meta?:
     | T
@@ -1652,6 +1856,43 @@ export interface About3BlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ArticleGridBlock_select".
+ */
+export interface ArticleGridBlockSelect<T extends boolean = true> {
+  heading?: T;
+  subheading?: T;
+  articles?: T;
+  viewAllLabel?: T;
+  backgroundColor?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "DownloadGridBlock_select".
+ */
+export interface DownloadGridBlockSelect<T extends boolean = true> {
+  heading?: T;
+  subheading?: T;
+  downloads?: T;
+  backgroundColor?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TutorialGridBlock_select".
+ */
+export interface TutorialGridBlockSelect<T extends boolean = true> {
+  heading?: T;
+  subheading?: T;
+  tutorials?: T;
+  backgroundColor?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "categories_select".
  */
 export interface CategoriesSelect<T extends boolean = true> {
@@ -1660,6 +1901,86 @@ export interface CategoriesSelect<T extends boolean = true> {
   slugLock?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "articles_select".
+ */
+export interface ArticlesSelect<T extends boolean = true> {
+  title?: T;
+  excerpt?: T;
+  category?: T;
+  readTime?: T;
+  heroImage?: T;
+  publishedOn?: T;
+  content?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        image?: T;
+        description?: T;
+      };
+  slug?: T;
+  slugLock?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "downloads_select".
+ */
+export interface DownloadsSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  fileType?: T;
+  thumbnail?: T;
+  downloadFile?: T;
+  externalUrl?: T;
+  requiresAccount?: T;
+  tags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tutorials_select".
+ */
+export interface TutorialsSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  category?: T;
+  difficulty?: T;
+  duration?: T;
+  order?: T;
+  heroImage?: T;
+  steps?:
+    | T
+    | {
+        stepTitle?: T;
+        stepContent?: T;
+        stepImage?: T;
+        id?: T;
+      };
+  meta?:
+    | T
+    | {
+        title?: T;
+        image?: T;
+        description?: T;
+      };
+  slug?: T;
+  slugLock?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
