@@ -4,14 +4,14 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { getTestPayload } from '../helpers/payload'
 
 let payload: Payload
-let adminId: string | number
-let creativeId: string | number
-let viewerId: string | number
+let adminId: number
+let creativeId: number
+let viewerId: number
 
 async function createUser(
   p: Payload,
   suffix: string,
-  roles: string[],
+  roles: ('admin' | 'creative' | 'viewer')[],
 ) {
   return p.create({
     collection: 'users',
@@ -30,9 +30,9 @@ describe('Admin Oversight — AdminActivityLogs', () => {
     const admin = await createUser(payload, 'admin', ['admin'])
     const creative = await createUser(payload, 'creative', ['creative'])
     const viewer = await createUser(payload, 'viewer', ['viewer'])
-    adminId = admin.id
-    creativeId = creative.id
-    viewerId = viewer.id
+    adminId = admin.id as number
+    creativeId = creative.id as number
+    viewerId = viewer.id as number
   })
 
   it('creates a log entry via overrideAccess', async () => {
@@ -206,8 +206,8 @@ describe('Admin Oversight — AdminDiagnosticSessions', () => {
   })
 
   it('two concurrent sessions for the same creative are both valid', async () => {
-    const t1 = createHash('sha256').update(randomBytes(32)).digest('hex')
-    const t2 = createHash('sha256').update(randomBytes(32)).digest('hex')
+    const t1 = createHash('sha256').update(randomBytes(32).toString('hex')).digest('hex')
+    const t2 = createHash('sha256').update(randomBytes(32).toString('hex')).digest('hex')
     const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
     const s1 = await payload.create({
@@ -236,7 +236,7 @@ describe('Admin Oversight — Portfolio Audit Hook', () => {
         owner: creativeId,
         visibility: 'shared',
         password: 'original123',
-        layoutBlocks: [],
+        layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [], spacing: 'medium' }],
       },
       overrideAccess: true,
     })
@@ -277,7 +277,7 @@ describe('Admin Oversight — computeCreativeMetrics (via API pattern)', () => {
 
     await payload.create({
       collection: 'portfolios',
-      data: { name: 'P1', owner: cId, layoutBlocks: [] },
+      data: { name: 'P1', owner: cId, layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [], spacing: 'medium' }] },
       overrideAccess: true,
     })
 

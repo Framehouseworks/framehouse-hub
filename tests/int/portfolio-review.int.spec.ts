@@ -40,10 +40,10 @@ describe('Portfolio Review Portal', () => {
 
     const minimalTitle = {
       root: {
-        type: 'root',
-        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'Test Portfolio', version: 1 }], direction: 'ltr', format: '', indent: 0, version: 1 }],
-        direction: 'ltr',
-        format: '',
+        type: 'root' as const,
+        children: [{ type: 'paragraph' as const, children: [{ type: 'text', text: 'Test Portfolio', version: 1 }], direction: 'ltr' as const, format: '' as const, indent: 0, version: 1 }],
+        direction: 'ltr' as const,
+        format: '' as const,
         indent: 0,
         version: 1,
       },
@@ -60,6 +60,7 @@ describe('Portfolio Review Portal', () => {
         layoutBlocks: [
           {
             blockType: 'grid',
+            layoutStyle: 'masonry' as const,
             items: [{ media: mediaId, size: 'medium' }],
             spacing: 'medium',
           },
