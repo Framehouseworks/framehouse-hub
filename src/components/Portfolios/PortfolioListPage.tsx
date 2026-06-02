@@ -40,6 +40,13 @@ import {
 import type { Portfolio } from '@/payload-types'
 import { getMediaPreviewUrl } from './types'
 
+interface PortfolioListPageProps {
+  /** Pre-fetched portfolios from the server component. Synced into local state so
+   *  revalidatePath() after publish always overwrites the client-side router-cache
+   *  snapshot and reveals the correct published _status immediately. */
+  initialPortfolios?: Portfolio[]
+}
+
 type SortKey = 'updatedAt' | 'createdAt' | 'name' | 'assets'
 
 function formatRelativeTime(dateStr: string): string {
@@ -253,13 +260,25 @@ function extractSubheadingText(subheading: unknown): string {
   return root.children.flatMap((c) => c.children?.map((t) => t.text ?? '') ?? []).join('').trim()
 }
 
-export function PortfolioListPage() {
+export function PortfolioListPage({ initialPortfolios = [] }: PortfolioListPageProps) {
   const router = useRouter()
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([])
-  const [loading, setLoading] = useState(true)
+  // Seed state from server-fetched data. When the server component re-renders
+  // (e.g. after revalidatePath triggered by publishPortfolioAction) React delivers
+  // new props; the sync effect below applies them so the list immediately reflects
+  // the correct _status without relying on a client-side mount/refetch.
+  const [portfolios, setPortfolios] = useState<Portfolio[]>(initialPortfolios)
+  // Show skeleton while client-side fallback runs; suppress if server already provided data.
+  const [loading, setLoading] = useState(initialPortfolios.length === 0)
   const [sort, setSort] = useState<SortKey>('updatedAt')
   const [deleteTarget, setDeleteTarget] = useState<Portfolio | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Sync whenever the server provides a fresh snapshot (post-revalidation navigation).
+  // This is the primary path that fixes the draft-after-publish regression.
+  useEffect(() => {
+    setPortfolios(initialPortfolios)
+    setLoading(false)
+  }, [initialPortfolios])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -268,9 +287,14 @@ export function PortfolioListPage() {
     setLoading(false)
   }, [])
 
+  // Client-side fallback: only fetch if the server component provided no data
+  // (e.g. unauthenticated SSR edge case or server-side error).
   useEffect(() => {
-    load()
-  }, [load])
+    if (initialPortfolios.length === 0) {
+      load()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const sorted = [...portfolios].sort((a, b) => {
     if (sort === 'name') return a.name.localeCompare(b.name)

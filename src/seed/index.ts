@@ -836,6 +836,75 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         })
         payload.logger.info(`  Created portfolio "${def.name}" for ${def.ownerEmail}`)
       }
+
+      // Seed one multi-section portfolio to exercise all three layout styles
+      try {
+        const multiOwnerId = allCreativeIds[creativeEmail]
+        if (multiOwnerId) {
+          const multiName = 'Section Layout Demo'
+          const multiExisting = await payload.find({
+            collection: 'portfolios',
+            where: { and: [{ owner: { equals: multiOwnerId } }, { name: { equals: multiName } }] },
+            limit: 1,
+          })
+          if (multiExisting.docs.length === 0) {
+            // Grab any available images for the 3 sections
+            const allSeededMedia = [...mediaByFilename.values()].filter((m) => m.owner === multiOwnerId)
+            const section1Items = allSeededMedia.slice(0, 2).map((m) => ({ media: m.id, size: 'medium' as const }))
+            const section2Items = allSeededMedia.slice(2, 5).map((m) => ({ media: m.id, size: 'medium' as const }))
+            const section3Items = allSeededMedia.slice(0, 3).map((m) => ({ media: m.id, size: 'medium' as const }))
+
+            const multiBlocks = [
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Filmstrip Demo',
+                sectionAnchor: 'filmstrip-demo',
+                showSectionHeader: true,
+                layoutStyle: 'filmstrip',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section1Items,
+              },
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Masonry Demo',
+                sectionAnchor: 'masonry-demo',
+                showSectionHeader: true,
+                layoutStyle: 'masonry',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section2Items,
+              },
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Uniform Grid Demo',
+                sectionAnchor: 'uniform-grid-demo',
+                showSectionHeader: true,
+                layoutStyle: 'uniform_grid',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section3Items,
+              },
+            ]
+            await payload.create({
+              collection: 'portfolios',
+              data: {
+                name: multiName,
+                owner: Number(multiOwnerId),
+                visibility: 'private',
+                layoutBlocks: multiBlocks as Portfolio['layoutBlocks'],
+              },
+              context: { disableRevalidate: true },
+            })
+            payload.logger.info(`  Created multi-section portfolio "${multiName}"`)
+          }
+        }
+      } catch (seedMultiErr) {
+        payload.logger.warn(`Could not seed multi-section portfolio: ${seedMultiErr}`)
+      }
     } catch (err) {
       payload.logger.error(
         `Error seeding Portfolios: ${err instanceof Error ? err.message : String(err)}`,

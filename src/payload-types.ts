@@ -1219,6 +1219,33 @@ export interface Portfolio {
   layoutBlocks: (
     | {
         /**
+         * Displayed as a header above this section on the public page.
+         */
+        sectionName?: string | null;
+        /**
+         * URL anchor for deep linking — auto-generated from section name.
+         */
+        sectionAnchor?: string | null;
+        /**
+         * If set, overrides the auto-generated anchor. Clear to revert to auto.
+         */
+        sectionAnchorOverride?: string | null;
+        /**
+         * Display the section name as a heading on the public portfolio page.
+         */
+        showSectionHeader?: boolean | null;
+        layoutStyle: 'masonry' | 'filmstrip' | 'uniform_grid';
+        /**
+         * Show images at their natural proportions — no cropping to row height. Only applies to Auto layout.
+         */
+        preserveAspectRatio?: boolean | null;
+        /**
+         * Constrain the maximum width of this section. Useful for preventing very large images on wide monitors.
+         */
+        sectionWidth?: ('full' | 'wide' | 'contained' | 'narrow') | null;
+        filmstripTrackHeight?: ('compact' | 'comfortable' | 'editorial') | null;
+        uniformGridColumns?: ('2' | '3' | '4') | null;
+        /**
          * Add and reorder images for the grid.
          */
         items: {
@@ -2108,6 +2135,15 @@ export interface PortfoliosSelect<T extends boolean = true> {
         grid?:
           | T
           | {
+              sectionName?: T;
+              sectionAnchor?: T;
+              sectionAnchorOverride?: T;
+              showSectionHeader?: T;
+              layoutStyle?: T;
+              preserveAspectRatio?: T;
+              sectionWidth?: T;
+              filmstripTrackHeight?: T;
+              uniformGridColumns?: T;
               items?:
                 | T
                 | {

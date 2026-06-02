@@ -142,25 +142,32 @@ export default async function PortfolioPage({ params, searchParams }: Props) {
         <PortfolioThemeProvider theme={theme}>
             <LivePreviewListener />
 
-            {/* Preview mode banner */}
+            {/* Preview banner: z-[100] puts it above the site header (z-50).
+                The style tag below offsets the header so banner + header stack cleanly. */}
             {hasValidPreviewToken && (
+                <>
+                <style>{`
+                  /* Push site header below the 44px preview banner */
+                  [data-site-header] { top: 2.75rem !important; }
+                `}</style>
                 <div
                     role="status"
                     aria-label="Preview mode active"
-                    className="fixed top-0 left-0 right-0 z-50 bg-[#ff7f67] text-white text-center py-2.5 px-4 flex items-center justify-center gap-3"
+                    className="fixed top-0 left-0 right-0 z-[100] bg-[#ff7f67] text-white text-center py-2.5 px-4 flex items-center justify-center gap-3"
                 >
                     <span className="text-xs font-medium tracking-wide">
                         PREVIEW MODE — This is how your client will see this portfolio.
                     </span>
                     <span className="text-[10px] opacity-70">Close this tab to return to editing.</span>
                 </div>
+                </>
             )}
 
             <article
-                className="min-h-screen pb-24 not-italic rounded-none"
+                className="-mt-24 sm:-mt-32 min-h-screen pb-24 not-italic rounded-none"
                 style={{ paddingTop: hasValidPreviewToken ? '2.75rem' : undefined }}
             >
-                <header className="py-32 px-6 md:px-12 lg:px-24">
+                <header className="py-24 sm:py-32 px-6 md:px-12 lg:px-24">
                     <MotionContainer type="staggerContainer">
                         <div className="space-y-12">
                             <div className="flex items-center gap-4">

@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { getPayload } from 'payload'
+import configPromise from '@payload-config'
+import { headers as getHeaders } from 'next/headers'
 import { PortfolioListPage } from '@/components/Portfolios/PortfolioListPage'
+import type { Portfolio } from '@/payload-types'
 
 export const metadata: Metadata = {
   title: 'Portfolios | Framehouse Hub',
@@ -9,7 +13,33 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-export default function PortfoliosPage() {
+export default async function PortfoliosPage() {
+  // Fetch server-side so revalidatePath() after publish always delivers fresh
+  // _status data, bypassing the client-side router cache that otherwise restores
+  // stale React component state and keeps published portfolios showing as draft.
+  let initialPortfolios: Portfolio[] = []
+
+  try {
+    const headersList = await getHeaders()
+    const payload = await getPayload({ config: configPromise })
+    const { user } = await payload.auth({ headers: headersList })
+
+    if (user) {
+      const result = await payload.find({
+        collection: 'portfolios',
+        where: { owner: { equals: user.id } },
+        sort: '-updatedAt',
+        limit: 100,
+        depth: 1,
+        draft: true,
+        user,
+      })
+      initialPortfolios = result.docs as Portfolio[]
+    }
+  } catch {
+    // Fall back to client-side fetch inside PortfolioListPage
+  }
+
   return (
     <Suspense
       fallback={
@@ -23,7 +53,7 @@ export default function PortfoliosPage() {
         </div>
       }
     >
-      <PortfolioListPage />
+      <PortfolioListPage initialPortfolios={initialPortfolios} />
     </Suspense>
   )
 }
