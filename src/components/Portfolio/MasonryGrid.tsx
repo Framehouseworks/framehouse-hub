@@ -1,7 +1,6 @@
 'use client'
 
 import { Media as MediaType, Portfolio } from '@/payload-types'
-import { cn } from '@/utilities/cn'
 import React, { useMemo, useState, useEffect } from 'react'
 import { Lightbox } from './Lightbox'
 import { MotionContainer } from './MotionContainer'
@@ -24,6 +23,11 @@ interface MasonryGridProps {
     spacing?: 'small' | 'medium' | 'large' | 'none'
     /** When true, images show at natural proportions (CSS columns masonry) instead of justified rows */
     preserveAspectRatio?: boolean
+    /**
+     * When provided, clicking a media item calls this instead of the internal
+     * lightbox. The argument is the flat index within `items`.
+     */
+    onOpenLightbox?: (index: number) => void
 }
 
 type Strip = {
@@ -42,7 +46,7 @@ const MOBILE_ITEM_GAP: Record<string, number> = { none: 0, small: 8, medium: 12,
 
 const WEIGHT_THRESHOLD = 3.0
 
-export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medium', preserveAspectRatio = false }) => {
+export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medium', preserveAspectRatio = false, onOpenLightbox }) => {
     const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
     const [isMobile, setIsMobile] = useState(false)
 
@@ -126,7 +130,11 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medi
                             key={item.instanceId || item.id || `media-${media.id}-${i}`}
                             className="group cursor-pointer"
                             style={{ breakInside: 'avoid', marginBottom: `${colGap}px`, display: 'block' }}
-                            onClick={() => !item.link && !isVideo && setSelectedImage(media)}
+                            onClick={() => {
+                                if (item.link || isVideo) return
+                                if (onOpenLightbox) onOpenLightbox(i)
+                                else setSelectedImage(media)
+                            }}
                         >
                             {isVideo ? (
                                 <video
@@ -276,7 +284,12 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medi
                                             maxWidth: isSparseLastRow ? `${Math.min(45, flexGrow * 30)}%` : undefined,
                                         }}
                                         className="group cursor-pointer bg-zinc-900"
-                                        onClick={() => !item.link && !isVideo && setSelectedImage(media)}
+                                        onClick={() => {
+                                            if (item.link || isVideo) return
+                                            const idx = items.indexOf(item)
+                                            if (onOpenLightbox) onOpenLightbox(idx >= 0 ? idx : stripIndex)
+                                            else setSelectedImage(media)
+                                        }}
                                     >
                                         {isVideo ? (
                                             <video

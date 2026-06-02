@@ -21,6 +21,11 @@ interface UniformGridProps {
   /** Payload select value — parseInt() applied internally. (C-4) */
   columns?: string | null
   spacing?: string | null
+  /**
+   * When provided, clicking a media item calls this instead of opening the
+   * internal lightbox. The argument is the flat index within `items`.
+   */
+  onOpenLightbox?: (index: number) => void
 }
 
 const GAP: Record<string, string> = {
@@ -41,7 +46,7 @@ const COL_CLASSES: Record<number, string> = {
  * Renders a CSS grid with uniform 1:1 cells and focalPoint-aware object-position.
  * (C-4) uniformGridColumns is a Payload string select — parseInt() applied here.
  */
-export function UniformGrid({ items, columns, spacing }: UniformGridProps) {
+export function UniformGrid({ items, columns, spacing, onOpenLightbox }: UniformGridProps) {
   const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
 
   // Reset lightbox if the visible items list changes (Issue-15: stale lightbox on remount)
@@ -64,7 +69,11 @@ export function UniformGrid({ items, columns, spacing }: UniformGridProps) {
         role="list"
         aria-label="Media grid"
       >
-        {visibleItems.map((item, index) => {
+        {visibleItems.map((item, visibleIndex) => {
+          // globalIndex maps back to the flat `items` prop so the parent lightbox
+          // can traverse the section in original order.
+          const globalIndex = items.indexOf(item)
+          const index = globalIndex >= 0 ? globalIndex : visibleIndex
           const media = item.media as MediaType
           const isVideo = media.mediaType === 'video'
 
@@ -92,7 +101,11 @@ export function UniformGrid({ items, columns, spacing }: UniformGridProps) {
               <button
                 type="button"
                 className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7f5700] focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-2xl"
-                onClick={() => !isVideo && setSelectedImage(media)}
+                onClick={() => {
+                  if (isVideo) return
+                  if (onOpenLightbox) onOpenLightbox(index)
+                  else setSelectedImage(media)
+                }}
                 aria-label={`View ${item.instanceTitle ?? media.alt ?? media.title ?? 'image'} fullscreen`}
               >
                 {src && (
