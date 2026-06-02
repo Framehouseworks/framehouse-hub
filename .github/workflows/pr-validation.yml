@@ -111,7 +111,8 @@ jobs:
           include-hidden-files: true
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
+  # INTEGRATION TESTS — vitest, postgres provided as a service container.
+  # vitest.globalSetup.ts skips Docker management when DATABASE_URI is pre-set.
   # Runs in parallel with quality_gate — no dependency between them.
   # ─────────────────────────────────────────────────────────────────────────────
   integration_tests:
@@ -122,6 +123,21 @@ jobs:
       contents: read
       checks: write
       actions: write
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: framehouse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,6 +148,9 @@ jobs:
         with:
           node-version: ${{ vars.NODE_VERSION }}
           pnpm-version: ${{ vars.PNPM_VERSION }}
+
+      - name: Set DATABASE_URI
+        run: echo "DATABASE_URI=postgres://postgres:test@localhost:5432/framehouse_test" >> $GITHUB_ENV
 
       - name: Run integration tests
         run: |
@@ -173,7 +192,7 @@ jobs:
 
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:15-alpine
+        image: postgres:15-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
