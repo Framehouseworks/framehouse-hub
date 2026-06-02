@@ -40,7 +40,7 @@ export default function PortfolioNotFound() {
 
         {/* Headline */}
         <h1 className="text-2xl md:text-3xl font-medium tracking-tight text-white/80 mb-4 leading-snug">
-          This portfolio isn't available
+          This portfolio isn&apos;t available
         </h1>
 
         {/* Sub-copy — ambiguous by design (don't reveal whether it exists) */}

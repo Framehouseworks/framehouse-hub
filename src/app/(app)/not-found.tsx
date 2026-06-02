@@ -19,7 +19,7 @@ export default function NotFound() {
 
       {/* Sub-copy */}
       <p className="text-sm text-on-surface/40 max-w-sm leading-relaxed mb-10">
-        The page you're looking for doesn't exist, may have moved, or you may not have access.
+        The page you&apos;re looking for doesn&apos;t exist, may have moved, or you may not have access.
       </p>
 
       {/* Actions */}

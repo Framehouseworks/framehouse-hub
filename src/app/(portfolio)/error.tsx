@@ -30,7 +30,7 @@ export default function PortfolioError({ error, reset }: { error: Error; reset: 
         </span>
 
         <h1 className="text-2xl md:text-3xl font-medium tracking-tight text-white/80 mb-4 leading-snug">
-          We couldn't load this gallery
+          We couldn&apos;t load this gallery
         </h1>
 
         <p className="text-sm text-white/35 leading-relaxed mb-10">
