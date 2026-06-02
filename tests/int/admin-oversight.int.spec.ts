@@ -62,12 +62,13 @@ describe('Admin Oversight — AdminActivityLogs', () => {
       overrideAccess: true,
     })
 
-    // Without overrideAccess — should fail because update access is () => false
+    // overrideAccess: false enforces the () => false access guard
     await expect(
       payload.update({
         collection: 'admin-activity-logs',
         id: log.id,
         data: { actionDescription: 'TAMPERED' },
+        overrideAccess: false,
       }),
     ).rejects.toThrow()
   })
@@ -87,6 +88,7 @@ describe('Admin Oversight — AdminActivityLogs', () => {
       payload.delete({
         collection: 'admin-activity-logs',
         id: log.id,
+        overrideAccess: false,
       }),
     ).rejects.toThrow()
   })
@@ -236,7 +238,7 @@ describe('Admin Oversight — Portfolio Audit Hook', () => {
         owner: creativeId,
         visibility: 'shared',
         password: 'original123',
-        layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [], spacing: 'medium' }],
+        layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [{}], spacing: 'medium' }],
       },
       overrideAccess: true,
     })
@@ -277,7 +279,7 @@ describe('Admin Oversight — computeCreativeMetrics (via API pattern)', () => {
 
     await payload.create({
       collection: 'portfolios',
-      data: { name: 'P1', owner: cId, layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [], spacing: 'medium' }] },
+      data: { name: 'P1', owner: cId, layoutBlocks: [{ blockType: 'grid', layoutStyle: 'masonry', items: [{}], spacing: 'medium' }] },
       overrideAccess: true,
     })
 
