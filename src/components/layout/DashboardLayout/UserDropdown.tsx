@@ -4,7 +4,6 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import {
-  User as UserIcon,
   Settings,
   LogOut,
   ShieldCheck,
@@ -23,6 +22,40 @@ import {
 import { cn } from '@/utilities/cn'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+
+// Derive up to two initials from a display name or email fallback.
+function getInitials(name?: string | null, email?: string): string {
+  if (name?.trim()) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0]! + parts[parts.length - 1][0]!).toUpperCase()
+    }
+    return name.trim()[0]!.toUpperCase()
+  }
+  return (email?.[0] ?? '?').toUpperCase()
+}
+
+function UserAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const { user } = useAuth()
+  const initials = getInitials(user?.name, user?.email)
+  const dim = size === 'lg' ? 'w-11 h-11' : size === 'sm' ? 'w-8 h-8' : 'w-10 h-10'
+  const text = size === 'lg' ? 'text-sm' : size === 'sm' ? 'text-[10px]' : 'text-xs'
+  return (
+    <div
+      className={cn(
+        dim,
+        'rounded-[14px] flex items-center justify-center shrink-0 overflow-hidden select-none',
+        'bg-gradient-to-br from-[#7f5700] to-[#d79922]',
+        'group-hover:shadow-[0_0_0_2px_rgba(215,153,34,0.35)] transition-all',
+      )}
+      aria-hidden="true"
+    >
+      <span className={cn('font-semibold text-white tracking-wide leading-none', text)}>
+        {initials}
+      </span>
+    </div>
+  )
+}
 
 // ─── Shared avatar trigger ────────────────────────────────────────────────────
 const AvatarTrigger = React.forwardRef<
@@ -47,9 +80,7 @@ const AvatarTrigger = React.forwardRef<
           {user?.roles?.[0] || 'VIEWER'}
         </p>
       </div>
-      <div className="w-10 h-10 rounded-[14px] bg-gallery-surface flex items-center justify-center text-primary/30 border border-black/[0.03] dark:border-white/[0.03] overflow-hidden group-hover:border-gallery-gold/30 transition-all">
-        <UserIcon size={20} className="group-hover:text-gallery-gold transition-colors" />
-      </div>
+      <UserAvatar size="md" />
     </button>
   )
 })
@@ -77,9 +108,7 @@ function UserMenuContent({
       {/* User identity */}
       <div className="px-5 pt-2 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-[14px] bg-gallery-surface flex items-center justify-center text-primary/30 border border-black/[0.03] dark:border-white/[0.03] shrink-0">
-            <UserIcon size={22} />
-          </div>
+          <UserAvatar size="lg" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary leading-none mb-1 truncate">
               {user?.name || 'Creative User'}
