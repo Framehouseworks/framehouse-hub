@@ -1,3 +1,22 @@
+> **IMPLEMENTATION STATUS: PARTIALLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **What is implemented:**
+> - Core media archive stream: `MediaGrid.tsx`, `MasonryGrid.tsx`, `TimelineStream.tsx` with grouping and infinite scroll in `src/components/Gallery/`.
+> - `MediaCard.tsx` with status badges, hover metadata, card identity bar.
+> - `GroupHeader.tsx` for timeline grouping.
+> - `BulkEditTagsModal.tsx` for bulk tag operations.
+> - `SaveViewModal.tsx` for saving filter states.
+> - `EmptyState.tsx` for empty library states.
+>
+> **What is deferred / not yet implemented:**
+> - AI-powered tag suggestions from Vision API (`aiTags` field exists in schema but not populated).
+> - Video poster-frame UI (worker code path exists; UI surface missing).
+> - Smart ordering/ranking algorithm — current sort is by date.
+>
+> **Key files:** `src/components/Gallery/MediaGrid.tsx`, `src/components/Gallery/MasonryGrid.tsx`, `src/components/Gallery/TimelineStream.tsx`, `src/components/Gallery/MediaCard.tsx`
+
+---
+
 # SPEC: MEDIA ARCHIVE STREAM OVERHAUL
 
 ## 1. USER JOURNEY (UX FLOW)

@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Key deviations from spec:**
+> - Route is `/dashboard/library/collections/[id]` as specced — confirmed in `src/app/(dashboard)/dashboard/library/collections/[id]/page.tsx`.
+> - `CollectionExpandedView.tsx`, `FilterBar.tsx`, and `CompactGrid.tsx` exist in `src/components/Collections/`.
+> - Timeline view uses existing `TimelineStream` from `src/components/Gallery/TimelineStream.tsx`.
+> - `CollectionDetailHeader.tsx` lives in `src/components/SmartCollections/`.
+> - View Transitions API is **not implemented** — Framer Motion fallback only (as per the fallback defined in this spec).
+> - `BulkAddToCollectionModal.tsx` exists in `src/components/SmartCollections/`.
+> - `MediaPickerModal.tsx` exists for manual asset picker in `src/components/SmartCollections/`.
+>
+> **Key files:** `src/components/Collections/`, `src/components/SmartCollections/CollectionDetailHeader.tsx`, `src/app/(dashboard)/dashboard/library/collections/[id]/page.tsx`
+
+---
+
 # FRH-49 — Expanded Collection View
 ## Product Design Specification
 

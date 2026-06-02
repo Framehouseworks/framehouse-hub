@@ -1,3 +1,16 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Key deviations from spec:**
+> - Three collection types (`rule-based`, `manual`, `hybrid`) all live in the **single `SmartCollections` Payload collection** with a `type` discriminator field — no separate collections per type.
+> - Auto-generation from Sessions (`POST /api/smart-collections/generate`) is implemented but not described in this spec — see [`ingest-sessions.md`](ingest-sessions.md).
+> - `ManualOverridesPanel`, `CollectionPickerPopover`, `BulkAddToCollectionModal` were added during implementation (not in this spec).
+> - `CollectionGroupSection` groups auto-generated vs user-created collections in the UI.
+> - Tag suggestions endpoint: `GET /api/smart-collections/tag-suggestions`.
+>
+> **Key files:** `src/collections/SmartCollections/`, `src/components/SmartCollections/`, `src/app/api/smart-collections/`
+
+---
+
 # FRH-47 — Smart Collections: UX/UI Spec
 
 > **North Star:** Smart Collections are _dynamic editorial lenses_, not folders. They surface semantic groupings of assets without duplicating storage. Every screen — from a 320px phone to a 1440px desktop — must communicate this distinction naturally through hierarchy, spacing, and motion, never through explanatory text.

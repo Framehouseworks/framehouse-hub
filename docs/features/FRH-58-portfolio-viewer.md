@@ -1,3 +1,17 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Key deviations / implementation notes:**
+> - Route isolation is confirmed: viewer lives in `src/app/(portfolio)/p/[slug]/` — separate route group with no site chrome.
+> - `PasswordGateClient.tsx` handles password unlock flow at `/p/[slug]`.
+> - Portfolio components in `src/components/Portfolio/`: `PortfolioRenderer.tsx`, `PortfolioThemeProvider.tsx`, `PortfolioLightbox.tsx`, `MasonryGrid.tsx`, `FilmstripRow.tsx`, `UniformGrid.tsx`, `SectionNavigator.tsx`, `MotionContainer.tsx`, `Lightbox.tsx`, `LightboxTrigger.tsx`.
+> - Review mode overlay is implemented via `src/components/Portfolio/review/` — see [`FRH-62-client-review-portal.md`](FRH-62-client-review-portal.md).
+> - `AdminSupportOverlay.tsx` exists for admin diagnostic overlay mode.
+> - The `(portfolio)` route group has its own `layout.tsx` with no Header/Footer — as specced.
+>
+> **Key files:** `src/app/(portfolio)/`, `src/components/Portfolio/`, `src/app/(portfolio)/p/[slug]/page.tsx`
+
+---
+
 # FRH-58: Portfolio Public Viewer — Bespoke Frontend Spec
 
 **Version:** 2.0 (post-review revision)  

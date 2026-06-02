@@ -1,6 +1,24 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02. Original spec status ("Planning") is outdated.
+>
+> **Implementation summary:**
+> - `Sessions` collection in `src/collections/Sessions/` — stores session name, userId, date, shootName.
+> - `UploadBatches` collection in `src/collections/UploadBatches/` — one batch per "Start Archival Ingest" click; links to Media docs via `uploadBatchId` field.
+> - `IngestionWorkbench.tsx` in `src/components/Gallery/` — the upload staging UI.
+> - `ArchivalProgressOverlay.tsx` — progress overlay shown during ingest.
+> - `UploadModal.tsx` and `UploadQueueWidget.tsx` also in `src/components/Gallery/`.
+> - `UploadProvider.tsx` in `src/providers/` manages the full upload state machine (staged → uploading → processing → ready/failed).
+> - Sessions UI: `src/components/Sessions/` — `SessionsView`, `SessionCard`, `SessionEditPanel`, `SessionDetailActions`, `SessionsClient`.
+> - Dashboard pages: `/dashboard/library/sessions` (list), `/dashboard/library/sessions/[id]` (detail).
+> - Auto-generation of SmartCollections from Sessions: `POST /api/smart-collections/generate`.
+> - Integration tests: `tests/int/sessions.int.spec.ts`.
+>
+> **Key files:** `src/collections/Sessions/`, `src/collections/UploadBatches/`, `src/components/Gallery/IngestionWorkbench.tsx`, `src/providers/UploadProvider.tsx`, `src/components/Sessions/`
+
+---
+
 # Ingest Modal & Sessions — Definitive Spec
 
-> Status: **Planning** — final version. Do not begin implementation without sign-off.
+> **[SUPERSEDED NOTE]** Original status "Planning" is outdated — this spec is **fully implemented**. See banner above.
 >
 > Covers: information architecture rationale, `Sessions` Payload collection, navigation change,
 > FRH-47 Collections impact, `IngestionWorkbench` overhaul, `MetadataPanel` changes,
