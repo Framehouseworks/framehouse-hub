@@ -75,10 +75,16 @@ export interface Config {
     tutorials: Tutorial;
     media: Media;
     portfolios: Portfolio;
+    'portfolio-client-sessions': PortfolioClientSession;
+    'portfolio-client-reviews': PortfolioClientReview;
+    'portfolio-asset-comments': PortfolioAssetComment;
+    'portfolio-download-logs': PortfolioDownloadLog;
     'smart-collections': SmartCollection;
     sessions: Session;
     'upload-batches': UploadBatch;
     waitlist: Waitlist;
+    'admin-activity-logs': AdminActivityLog;
+    'admin-diagnostic-sessions': AdminDiagnosticSession;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -101,10 +107,16 @@ export interface Config {
     tutorials: TutorialsSelect<false> | TutorialsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     portfolios: PortfoliosSelect<false> | PortfoliosSelect<true>;
+    'portfolio-client-sessions': PortfolioClientSessionsSelect<false> | PortfolioClientSessionsSelect<true>;
+    'portfolio-client-reviews': PortfolioClientReviewsSelect<false> | PortfolioClientReviewsSelect<true>;
+    'portfolio-asset-comments': PortfolioAssetCommentsSelect<false> | PortfolioAssetCommentsSelect<true>;
+    'portfolio-download-logs': PortfolioDownloadLogsSelect<false> | PortfolioDownloadLogsSelect<true>;
     'smart-collections': SmartCollectionsSelect<false> | SmartCollectionsSelect<true>;
     sessions: SessionsSelect<false> | SessionsSelect<true>;
     'upload-batches': UploadBatchesSelect<false> | UploadBatchesSelect<true>;
     waitlist: WaitlistSelect<false> | WaitlistSelect<true>;
+    'admin-activity-logs': AdminActivityLogsSelect<false> | AdminActivityLogsSelect<true>;
+    'admin-diagnostic-sessions': AdminDiagnosticSessionsSelect<false> | AdminDiagnosticSessionsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -1201,6 +1213,39 @@ export interface Portfolio {
   owner: number | User;
   visibility?: ('private' | 'public' | 'shared') | null;
   password?: string | null;
+  /**
+   * Control what actions clients can take when viewing this portfolio.
+   */
+  clientReviewSettings?: {
+    /**
+     * Clients can select assets and submit a shortlist.
+     */
+    allowSelection?: boolean | null;
+    /**
+     * Clients can leave notes on individual assets in the lightbox.
+     */
+    allowComments?: boolean | null;
+    /**
+     * Clients can download their selected assets as a zip archive.
+     */
+    allowDownload?: boolean | null;
+    /**
+     * Prompt clients for their name before they can submit a selection or comment.
+     */
+    requireClientIdentification?: boolean | null;
+    /**
+     * Max assets a client can select. 0 = unlimited.
+     */
+    selectionLimit?: number | null;
+    /**
+     * Quality tier in the zip archive. Full Resolution blocked on public portfolios.
+     */
+    downloadQuality?: ('proxy' | 'original') | null;
+    /**
+     * Optional message shown to clients above the gallery, e.g. "Please select your 5 favourite images."
+     */
+    reviewMessage?: string | null;
+  };
   theme?: {
     fontPairing?: ('modern-sans' | 'classic-serif' | 'tech-mono') | null;
     /**
@@ -1219,6 +1264,36 @@ export interface Portfolio {
   layoutBlocks: (
     | {
         /**
+         * Displayed as a header above this section on the public page.
+         */
+        sectionName?: string | null;
+        /**
+         * URL anchor for deep linking — auto-generated from section name.
+         */
+        sectionAnchor?: string | null;
+        /**
+         * If set, overrides the auto-generated anchor. Clear to revert to auto.
+         */
+        sectionAnchorOverride?: string | null;
+        /**
+         * Display the section name as a heading on the public portfolio page.
+         */
+        showSectionHeader?: boolean | null;
+        /**
+         * Visual presentation style for this section. Filmstrip = horizontal scroll reel; Grid = fixed columns; Auto = justified rows.
+         */
+        layoutStyle: 'masonry' | 'filmstrip' | 'uniform_grid';
+        /**
+         * Show images at their natural proportions — no cropping to row height. Only applies to Auto layout.
+         */
+        preserveAspectRatio?: boolean | null;
+        /**
+         * Constrain the maximum width of this section. Useful for preventing very large images on wide monitors.
+         */
+        sectionWidth?: ('full' | 'wide' | 'contained' | 'narrow') | null;
+        filmstripTrackHeight?: ('compact' | 'comfortable' | 'editorial') | null;
+        uniformGridColumns?: ('2' | '3' | '4') | null;
+        /**
          * Add and reorder images for the grid.
          */
         items: {
@@ -1234,6 +1309,37 @@ export interface Portfolio {
           caption?: string | null;
           link?: string | null;
           instanceId?: string | null;
+          /**
+           * Client-facing name for this asset in this portfolio only. Blank = uses original media title.
+           */
+          instanceTitle?: string | null;
+          /**
+           * X/Y percentage from top-left. 50/50 = center. Set visually in the dashboard editor; values here are for admin reference only.
+           */
+          focalPoint?: {
+            /**
+             * 0 = left edge, 100 = right edge
+             */
+            x?: number | null;
+            /**
+             * 0 = top edge, 100 = bottom edge
+             */
+            y?: number | null;
+          };
+          /**
+           * Custom cover image for this video in this portfolio only. Does not affect the master media archive.
+           */
+          videoThumbnail?: {
+            mode?: ('auto' | 'timecode' | 'custom') | null;
+            /**
+             * Seconds from start to use as poster frame
+             */
+            timecodeSeconds?: number | null;
+            /**
+             * Upload ID for the custom video cover image for this asset in this portfolio.
+             */
+            customMedia?: (number | null) | Media;
+          };
           id?: string | null;
         }[];
         spacing?: ('small' | 'medium' | 'large' | 'none') | null;
@@ -1295,6 +1401,7 @@ export interface Portfolio {
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1319,6 +1426,143 @@ export interface FolderInterface {
     totalDocs?: number;
   };
   folderType?: 'portfolios'[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Anonymous client sessions for portfolio review portals.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-client-sessions".
+ */
+export interface PortfolioClientSession {
+  id: number;
+  portfolio: number | Portfolio;
+  /**
+   * HMAC-signed session identifier stored in httpOnly cookie.
+   */
+  sessionToken: string;
+  /**
+   * Name provided by the client via the identification modal.
+   */
+  clientName?: string | null;
+  /**
+   * Optional email provided by the client.
+   */
+  clientEmail?: string | null;
+  /**
+   * Masked IP (last 2 octets replaced). e.g. 192.168.x.x
+   */
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  /**
+   * True when the client has completed the identification modal.
+   */
+  isIdentified?: boolean | null;
+  /**
+   * 7-day rolling TTL from last interaction.
+   */
+  expiresAt: string;
+  /**
+   * Current in-progress asset selection for this session.
+   */
+  savedSelectionIds?:
+    | {
+        mediaId: number;
+        /**
+         * Portfolio grid item instanceId for disambiguation when same media appears multiple times.
+         */
+        instanceId?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Formal asset selections submitted by clients for creative review.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-client-reviews".
+ */
+export interface PortfolioClientReview {
+  id: number;
+  portfolio: number | Portfolio;
+  /**
+   * The session that originated this review.
+   */
+  clientSession?: (number | null) | PortfolioClientSession;
+  clientName: string;
+  clientEmail?: string | null;
+  status?: ('submitted' | 'acknowledged' | 'approved' | 'archived') | null;
+  selectedItems: {
+    media: number | Media;
+    /**
+     * Portfolio grid instanceId — disambiguates same media in multiple sections.
+     */
+    instanceId?: string | null;
+    /**
+     * Denormalised title snapshot at time of submission.
+     */
+    instanceTitle?: string | null;
+    id?: string | null;
+  }[];
+  /**
+   * Denormalised count of selectedItems for list views.
+   */
+  itemCount?: number | null;
+  /**
+   * Optional overall note from the client with their submission.
+   */
+  clientNote?: string | null;
+  submittedAt: string;
+  acknowledgedAt?: string | null;
+  acknowledgedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Per-asset comments left by clients during portfolio review.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-asset-comments".
+ */
+export interface PortfolioAssetComment {
+  id: number;
+  portfolio: number | Portfolio;
+  media: number | Media;
+  clientSession?: (number | null) | PortfolioClientSession;
+  clientName: string;
+  clientEmail?: string | null;
+  body: string;
+  status?: ('visible' | 'resolved' | 'archived') | null;
+  resolvedAt?: string | null;
+  resolvedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Immutable audit log of every zip download event.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-download-logs".
+ */
+export interface PortfolioDownloadLog {
+  id: number;
+  portfolio: number | Portfolio;
+  clientSession?: (number | null) | PortfolioClientSession;
+  clientName?: string | null;
+  downloadedItems?:
+    | {
+        media?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  itemCount?: number | null;
+  quality?: ('proxy' | 'original') | null;
+  zipFilename?: string | null;
+  downloadedAt: string;
+  ipAddress?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1385,6 +1629,113 @@ export interface Waitlist {
    * Optional subscriber name.
    */
   name?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Immutable audit trail of all administrative actions on creative accounts.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-activity-logs".
+ */
+export interface AdminActivityLog {
+  id: number;
+  /**
+   * The admin who performed the action.
+   */
+  adminUser: number | User;
+  /**
+   * The creative account that was acted upon.
+   */
+  targetUser?: (number | null) | User;
+  /**
+   * If the action targeted a specific portfolio.
+   */
+  targetPortfolio?: (number | null) | Portfolio;
+  actionType:
+    | 'inspect_account'
+    | 'launch_diagnostic'
+    | 'terminate_diagnostic'
+    | 'diagnostic_expired'
+    | 'portfolio_password_reset'
+    | 'portfolio_visibility_change'
+    | 'field_override'
+    | 'account_role_change';
+  /**
+   * Human-readable summary of the action.
+   */
+  actionDescription: string;
+  /**
+   * Structured context for the action (field changes, session IDs, etc.).
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Link to the diagnostic session this action belongs to, if any.
+   */
+  diagnosticSession?: (number | null) | AdminDiagnosticSession;
+  /**
+   * Client IP address at time of action.
+   */
+  ipAddress?: string | null;
+  /**
+   * Browser user agent at time of action.
+   */
+  userAgent?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Short-lived diagnostic sessions allowing admins to view creative workspaces read-only.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-diagnostic-sessions".
+ */
+export interface AdminDiagnosticSession {
+  id: number;
+  /**
+   * The admin who launched this session.
+   */
+  admin: number | User;
+  /**
+   * The creative account being inspected.
+   */
+  targetCreative: number | User;
+  /**
+   * SHA-256 hash of the raw session token. Token is never stored in plaintext.
+   */
+  tokenHash: string;
+  /**
+   * Session TTL — 15 minutes from creation.
+   */
+  expiresAt: string;
+  /**
+   * Set to false when session is terminated or expires.
+   */
+  isActive?: boolean | null;
+  /**
+   * When the session was manually terminated.
+   */
+  terminatedAt?: string | null;
+  /**
+   * Admin who explicitly terminated the session.
+   */
+  terminatedBy?: (number | null) | User;
+  /**
+   * IP address when session was created.
+   */
+  ipAddress?: string | null;
+  /**
+   * Browser user agent when session was created.
+   */
+  userAgent?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1462,6 +1813,22 @@ export interface PayloadLockedDocument {
         value: number | Portfolio;
       } | null)
     | ({
+        relationTo: 'portfolio-client-sessions';
+        value: number | PortfolioClientSession;
+      } | null)
+    | ({
+        relationTo: 'portfolio-client-reviews';
+        value: number | PortfolioClientReview;
+      } | null)
+    | ({
+        relationTo: 'portfolio-asset-comments';
+        value: number | PortfolioAssetComment;
+      } | null)
+    | ({
+        relationTo: 'portfolio-download-logs';
+        value: number | PortfolioDownloadLog;
+      } | null)
+    | ({
         relationTo: 'smart-collections';
         value: number | SmartCollection;
       } | null)
@@ -1476,6 +1843,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'waitlist';
         value: number | Waitlist;
+      } | null)
+    | ({
+        relationTo: 'admin-activity-logs';
+        value: number | AdminActivityLog;
+      } | null)
+    | ({
+        relationTo: 'admin-diagnostic-sessions';
+        value: number | AdminDiagnosticSession;
       } | null)
     | ({
         relationTo: 'forms';
@@ -2062,6 +2437,17 @@ export interface PortfoliosSelect<T extends boolean = true> {
   owner?: T;
   visibility?: T;
   password?: T;
+  clientReviewSettings?:
+    | T
+    | {
+        allowSelection?: T;
+        allowComments?: T;
+        allowDownload?: T;
+        requireClientIdentification?: T;
+        selectionLimit?: T;
+        downloadQuality?: T;
+        reviewMessage?: T;
+      };
   theme?:
     | T
     | {
@@ -2076,6 +2462,15 @@ export interface PortfoliosSelect<T extends boolean = true> {
         grid?:
           | T
           | {
+              sectionName?: T;
+              sectionAnchor?: T;
+              sectionAnchorOverride?: T;
+              showSectionHeader?: T;
+              layoutStyle?: T;
+              preserveAspectRatio?: T;
+              sectionWidth?: T;
+              filmstripTrackHeight?: T;
+              uniformGridColumns?: T;
               items?:
                 | T
                 | {
@@ -2085,6 +2480,20 @@ export interface PortfoliosSelect<T extends boolean = true> {
                     caption?: T;
                     link?: T;
                     instanceId?: T;
+                    instanceTitle?: T;
+                    focalPoint?:
+                      | T
+                      | {
+                          x?: T;
+                          y?: T;
+                        };
+                    videoThumbnail?:
+                      | T
+                      | {
+                          mode?: T;
+                          timecodeSeconds?: T;
+                          customMedia?: T;
+                        };
                     id?: T;
                   };
               spacing?: T;
@@ -2118,6 +2527,95 @@ export interface PortfoliosSelect<T extends boolean = true> {
             };
       };
   folder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-client-sessions_select".
+ */
+export interface PortfolioClientSessionsSelect<T extends boolean = true> {
+  portfolio?: T;
+  sessionToken?: T;
+  clientName?: T;
+  clientEmail?: T;
+  ipAddress?: T;
+  userAgent?: T;
+  isIdentified?: T;
+  expiresAt?: T;
+  savedSelectionIds?:
+    | T
+    | {
+        mediaId?: T;
+        instanceId?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-client-reviews_select".
+ */
+export interface PortfolioClientReviewsSelect<T extends boolean = true> {
+  portfolio?: T;
+  clientSession?: T;
+  clientName?: T;
+  clientEmail?: T;
+  status?: T;
+  selectedItems?:
+    | T
+    | {
+        media?: T;
+        instanceId?: T;
+        instanceTitle?: T;
+        id?: T;
+      };
+  itemCount?: T;
+  clientNote?: T;
+  submittedAt?: T;
+  acknowledgedAt?: T;
+  acknowledgedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-asset-comments_select".
+ */
+export interface PortfolioAssetCommentsSelect<T extends boolean = true> {
+  portfolio?: T;
+  media?: T;
+  clientSession?: T;
+  clientName?: T;
+  clientEmail?: T;
+  body?: T;
+  status?: T;
+  resolvedAt?: T;
+  resolvedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-download-logs_select".
+ */
+export interface PortfolioDownloadLogsSelect<T extends boolean = true> {
+  portfolio?: T;
+  clientSession?: T;
+  clientName?: T;
+  downloadedItems?:
+    | T
+    | {
+        media?: T;
+        id?: T;
+      };
+  itemCount?: T;
+  quality?: T;
+  zipFilename?: T;
+  downloadedAt?: T;
+  ipAddress?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2185,6 +2683,40 @@ export interface UploadBatchesSelect<T extends boolean = true> {
 export interface WaitlistSelect<T extends boolean = true> {
   email?: T;
   name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-activity-logs_select".
+ */
+export interface AdminActivityLogsSelect<T extends boolean = true> {
+  adminUser?: T;
+  targetUser?: T;
+  targetPortfolio?: T;
+  actionType?: T;
+  actionDescription?: T;
+  metadata?: T;
+  diagnosticSession?: T;
+  ipAddress?: T;
+  userAgent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-diagnostic-sessions_select".
+ */
+export interface AdminDiagnosticSessionsSelect<T extends boolean = true> {
+  admin?: T;
+  targetCreative?: T;
+  tokenHash?: T;
+  expiresAt?: T;
+  isActive?: T;
+  terminatedAt?: T;
+  terminatedBy?: T;
+  ipAddress?: T;
+  userAgent?: T;
   updatedAt?: T;
   createdAt?: T;
 }

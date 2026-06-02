@@ -22,6 +22,21 @@ export const Users: CollectionConfig = {
     group: 'Users',
     defaultColumns: ['name', 'email', 'roles'],
     useAsTitle: 'name',
+    components: {
+      views: {
+        edit: {
+          oversight: {
+            Component:
+              '@/collections/Users/components/CreativeOversightView#CreativeOversightView',
+            path: '/oversight',
+            tab: {
+              label: 'Oversight',
+              href: '/oversight',
+            },
+          },
+        },
+      },
+    },
   },
   auth: true,
   fields: [

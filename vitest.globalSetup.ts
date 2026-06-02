@@ -45,37 +45,46 @@ async function waitForReady(maxSeconds = 30) {
   throw new Error('Postgres container did not become ready in time')
 }
 
+// Whether this setup created the Docker container (vs reusing a pre-set DB).
+let ownedContainer = false
+
 export async function setup() {
-  // Sanity: docker must be available.
-  const probe = dockerExec(['version'])
-  if (probe.status !== 0) {
-    throw new Error('docker is required for tests:int — install Docker Desktop and retry')
+  // CI provides DATABASE_URI via a service container — skip Docker management.
+  // Local dev without a pre-set DATABASE_URI falls through to Docker.
+  if (!process.env.DATABASE_URI) {
+    // Sanity: docker must be available.
+    const probe = dockerExec(['version'])
+    if (probe.status !== 0) {
+      throw new Error('docker is required for tests:int — install Docker Desktop and retry')
+    }
+
+    cleanupContainer() // remove any stale leftover from a crashed prior run
+
+    const port = await getFreePort()
+    const start = dockerExec([
+      'run',
+      '--name',
+      CONTAINER,
+      '-e',
+      `POSTGRES_PASSWORD=${POSTGRES_PASSWORD}`,
+      '-e',
+      `POSTGRES_DB=${POSTGRES_DB}`,
+      '-p',
+      `${port}:5432`,
+      '-d',
+      '--pull=missing',
+      'postgres:15-alpine',
+    ])
+    if (start.status !== 0) {
+      throw new Error(`Failed to start postgres container: ${start.stderr}`)
+    }
+
+    await waitForReady()
+
+    process.env.DATABASE_URI = `postgres://postgres:${POSTGRES_PASSWORD}@localhost:${port}/${POSTGRES_DB}`
+    ownedContainer = true
   }
 
-  cleanupContainer() // remove any stale leftover from a crashed prior run
-
-  const port = await getFreePort()
-  const start = dockerExec([
-    'run',
-    '--name',
-    CONTAINER,
-    '-e',
-    `POSTGRES_PASSWORD=${POSTGRES_PASSWORD}`,
-    '-e',
-    `POSTGRES_DB=${POSTGRES_DB}`,
-    '-p',
-    `${port}:5432`,
-    '-d',
-    'postgres:15-alpine',
-  ])
-  if (start.status !== 0) {
-    throw new Error(`Failed to start postgres container: ${start.stderr}`)
-  }
-
-  await waitForReady()
-
-  const uri = `postgres://postgres:${POSTGRES_PASSWORD}@localhost:${port}/${POSTGRES_DB}`
-  process.env.DATABASE_URI = uri
   // Skip the worker dispatch from hooks; tests assert on doc state, not on
   // an actual Go worker run.
   process.env.LOCAL_ASYNC_PROCESSING = 'false'
@@ -84,11 +93,11 @@ export async function setup() {
   // `pnpm payload migrate` the project uses everywhere else so test schema
   // == prod schema, no drift.
   execSync('pnpm payload migrate', {
-    env: { ...process.env, DATABASE_URI: uri },
+    env: { ...process.env },
     stdio: 'inherit',
   })
 }
 
 export async function teardown() {
-  cleanupContainer()
+  if (ownedContainer) cleanupContainer()
 }
