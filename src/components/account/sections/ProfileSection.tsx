@@ -83,13 +83,7 @@ export const ProfileSection: React.FC<Props> = ({
     if (file) handleFileSelect(file)
   }
 
-  const currentLogoUrl =
-    logoPreview ||
-    (existingLogo
-      ? ((existingLogo as MediaType).thumbnailUrl ??
-        (existingLogo as MediaType).url ??
-        null)
-      : null)
+  const currentLogoUrl = logoPreview ?? existingLogo?.thumbnailUrl ?? existingLogo?.url ?? null
 
   return (
     <section id="profile" className="space-y-6 scroll-mt-[148px] lg:scroll-mt-8">

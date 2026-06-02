@@ -11,7 +11,7 @@ import { ReauthModal } from '@/components/account/ReauthModal'
 import { useAuth } from '@/providers/Auth'
 import { formatDistanceToNow } from 'date-fns'
 import type { User } from '@/payload-types'
-import type { SessionsResponse } from '@/app/api/users/me/sessions/route'
+import type { SessionsResponse } from '@/types/sessions'
 
 // ─── Password strength indicator ──────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ function SessionCard({
             </p>
           )}
           <p className="font-rubik text-[9px] text-on-surface/25 tracking-wide uppercase mt-1">
-            ID {session.id.slice(0, 8).toUpperCase()}
+            ID {(session.id ?? '').slice(0, 8).toUpperCase() || '—'}
           </p>
         </div>
       </div>

@@ -23,9 +23,9 @@ import { useAuth } from '@/providers/Auth'
 type StorageSummary = { usagePercent: number; totalBytes: number; tierLimitBytes: number }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (bytes <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
   const val = bytes / 1024 ** i
   return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
 }
@@ -119,24 +119,28 @@ const navItems = [
 export const Sidebar: React.FC = () => {
   const pathname = usePathname()
   const { openPicker } = useUpload()
+  const { user } = useAuth()
+  const isCreative = user?.roles?.some((r) => r === 'creative' || r === 'admin') ?? false
 
   return (
     <aside className="fixed left-0 top-0 hidden h-screen w-[280px] flex-col bg-gallery-surface border-r border-black/[0.03] dark:border-white/[0.03] lg:flex z-40 transition-all duration-300">
       {/* Branding */}
       <div className="p-8 flex items-center gap-4">
-        <div className="w-10 h-10 overflow-hidden rounded-xl">
-          <LogoIcon />
+        <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+          <LogoIcon size={40} />
         </div>
         <span className="font-varela text-xl tracking-tight text-primary">Hub Archive</span>
       </div>
 
-      {/* Primary Action */}
-      <div className="px-6 mb-8">
-        <Button variant="gallery" className="w-full h-12 gap-2" onClick={openPicker}>
-          <PlusCircle size={18} />
-          <span className="font-medium">Upload Media</span>
-        </Button>
-      </div>
+      {/* Primary Action — creatives and admins only */}
+      {isCreative && (
+        <div className="px-6 mb-8">
+          <Button variant="gallery" className="w-full h-12 gap-2" onClick={openPicker}>
+            <PlusCircle size={18} />
+            <span className="font-medium">Upload Media</span>
+          </Button>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 overflow-y-auto scrollbar-hide">
@@ -152,6 +156,9 @@ export const Sidebar: React.FC = () => {
                     ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(item.href + '/')
                 const isUploadAction = item.name === 'Archive Work'
+
+                // Hide upload-triggering nav items for viewers
+                if (isUploadAction && !isCreative) return null
 
                 return (
                   <li key={item.name}>

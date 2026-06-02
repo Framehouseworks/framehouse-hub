@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { headers as getHeaders } from 'next/headers'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import type { Media } from '@/payload-types'
 
 const TIER_LIMIT_BYTES = Number(process.env.STORAGE_TIER_LIMIT_BYTES) || 2 * 1024 ** 4 // 2 TB
 
@@ -32,8 +33,9 @@ export async function GET(): Promise<NextResponse> {
   const byType: ByType = { image: 0, video: 0, audio: 0, other: 0 }
 
   for (const doc of docs) {
-    const size: number = (doc as { filesize?: number }).filesize ?? 0
-    const mime: string = (doc as { mimeType?: string }).mimeType ?? ''
+    const media = doc as Media
+    const size: number = media.filesize ?? 0
+    const mime: string = media.mimeType ?? ''
     if (mime.startsWith('image/')) byType.image += size
     else if (mime.startsWith('video/')) byType.video += size
     else if (mime.startsWith('audio/')) byType.audio += size

@@ -3,11 +3,7 @@ import { headers as getHeaders } from 'next/headers'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import type { User } from '@/payload-types'
-
-export type SessionsResponse = {
-  sessions: NonNullable<User['sessions']>
-  currentSessionId: string | null
-}
+import type { SessionsResponse } from '@/types/sessions'
 
 // GET — return all active sessions for the authenticated user, with the
 // current session identified via the JWT's `sid` claim (user._sid).
@@ -30,13 +26,17 @@ export async function GET(): Promise<NextResponse> {
     return new Date(expiresAt) > now
   })
 
+  const safeTime = (s?: string | null) => {
+    if (!s) return 0
+    const t = new Date(s).getTime()
+    return isNaN(t) ? 0 : t
+  }
+
   // Sort: current session first, then by createdAt descending (most recent first).
   const sorted = [...activeSessions].sort((a, b) => {
     if (a.id === currentSessionId) return -1
     if (b.id === currentSessionId) return 1
-    const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0
-    const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0
-    return bDate - aDate
+    return safeTime(b.createdAt) - safeTime(a.createdAt)
   })
 
   return NextResponse.json({

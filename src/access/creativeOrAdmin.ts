@@ -1,10 +1,9 @@
 import type { Access } from 'payload'
+import { checkRole } from '@/access/utilities'
 
+// Permits only users with the 'creative' or 'admin' role.
+// Viewers may read assets but cannot create, update, or delete them.
 export const creativeOrAdmin: Access = ({ req: { user } }) => {
   if (!user) return false
-
-  // For creation, we allow any logged-in user to upload their own media
-  // In a production DAM, we might restrict this further, but for our platform
-  // every registered user is a potential creative creator.
-  return true
+  return checkRole(['creative', 'admin'], user)
 }
