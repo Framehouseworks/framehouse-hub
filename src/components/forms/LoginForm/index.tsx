@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 type FormData = {
@@ -24,6 +24,8 @@ export const LoginForm: React.FC = () => {
   const { login } = useAuth()
   const router = useRouter()
   const [error, setError] = React.useState<null | string>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const {
     formState: { errors, isLoading },
@@ -82,7 +84,7 @@ export const LoginForm: React.FC = () => {
             Create an account
           </Link>
         </Button>
-        <Button className="grow" disabled={isLoading} size="lg" type="submit" variant="default">
+        <Button className="grow" disabled={!mounted || isLoading} size="lg" type="submit" variant="default">
           {isLoading ? 'Processing' : 'Continue'}
         </Button>
       </div>
