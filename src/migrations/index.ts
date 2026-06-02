@@ -35,6 +35,7 @@ import * as migration_20260602_000003_add_section_width_aspect_ratio from './202
 import * as migration_20260602_100000_frh62_client_review_portal from './20260602_100000_frh62_client_review_portal';
 import * as migration_20260602_200000_add_admin_oversight from './20260602_200000_add_admin_oversight';
 import * as migration_20260602_210000_fix_admin_oversight_rels from './20260602_210000_fix_admin_oversight_rels';
+import * as migration_20260602_220000_fix_portfolios_title_nullable from './20260602_220000_fix_portfolios_title_nullable';
 
 export const migrations = [
   {
@@ -221,5 +222,10 @@ export const migrations = [
     up: migration_20260602_210000_fix_admin_oversight_rels.up,
     down: migration_20260602_210000_fix_admin_oversight_rels.down,
     name: '20260602_210000_fix_admin_oversight_rels',
+  },
+  {
+    up: migration_20260602_220000_fix_portfolios_title_nullable.up,
+    down: migration_20260602_220000_fix_portfolios_title_nullable.down,
+    name: '20260602_220000_fix_portfolios_title_nullable',
   },
 ];
