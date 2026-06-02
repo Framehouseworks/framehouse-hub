@@ -5,10 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Archive,
-  Search,
   FolderRoot,
-  LayoutGrid,
-  Settings,
+  Share2,
+  UserCircle,
   PlusCircle,
   CloudUpload,
   Camera,
@@ -103,15 +102,14 @@ const navItems = [
     label: 'PUBLISH',
     items: [
       { name: 'Portfolios', icon: BookImage, href: '/dashboard/portfolios' },
-      { name: 'Shared', icon: LayoutGrid, href: '/dashboard/shared' },
+      { name: 'Shared', icon: Share2, href: '/dashboard/shared' },
     ],
   },
   {
-    label: 'TOOLS',
+    label: 'WORKSPACE',
     items: [
       { name: 'Archive Work', icon: CloudUpload, href: '/dashboard/upload' },
-      { name: 'Search Index', icon: Search, href: '/dashboard/search' },
-      { name: 'Settings', icon: Settings, href: '/dashboard/settings' },
+      { name: 'Account', icon: UserCircle, href: '/account' },
     ],
   },
 ]
