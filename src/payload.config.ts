@@ -23,6 +23,10 @@ import { Downloads } from '@/collections/Downloads'
 import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
+import { PortfolioClientSessions } from '@/collections/PortfolioClientSessions'
+import { PortfolioClientReviews } from '@/collections/PortfolioClientReviews'
+import { PortfolioAssetComments } from '@/collections/PortfolioAssetComments'
+import { PortfolioDownloadLogs } from '@/collections/PortfolioDownloadLogs'
 import { Tutorials } from '@/collections/Tutorials'
 import { Users } from '@/collections/Users'
 import { SmartCollections } from '@/collections/SmartCollections'
@@ -91,6 +95,10 @@ export default buildConfig({
     Tutorials,
     Media,
     Portfolios,
+    PortfolioClientSessions,
+    PortfolioClientReviews,
+    PortfolioAssetComments,
+    PortfolioDownloadLogs,
     SmartCollections,
     Sessions,
     UploadBatches,

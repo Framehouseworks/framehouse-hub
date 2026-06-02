@@ -177,6 +177,81 @@ export const Portfolios: CollectionConfig = {
       },
     },
     {
+      name: 'clientReviewSettings',
+      type: 'group',
+      label: 'Client Review',
+      admin: {
+        position: 'sidebar',
+        description: 'Control what actions clients can take when viewing this portfolio.',
+      },
+      fields: [
+        {
+          name: 'allowSelection',
+          type: 'checkbox',
+          label: 'Allow Asset Selection',
+          defaultValue: false,
+          admin: { description: 'Clients can select assets and submit a shortlist.' },
+        },
+        {
+          name: 'allowComments',
+          type: 'checkbox',
+          label: 'Allow Comments',
+          defaultValue: false,
+          admin: { description: 'Clients can leave notes on individual assets in the lightbox.' },
+        },
+        {
+          name: 'allowDownload',
+          type: 'checkbox',
+          label: 'Allow Download',
+          defaultValue: false,
+          admin: { description: 'Clients can download their selected assets as a zip archive.' },
+        },
+        {
+          name: 'requireClientIdentification',
+          type: 'checkbox',
+          label: 'Require Client Identification',
+          defaultValue: false,
+          admin: { description: 'Prompt clients for their name before they can submit a selection or comment.' },
+        },
+        {
+          name: 'selectionLimit',
+          type: 'number',
+          label: 'Selection Limit',
+          defaultValue: 0,
+          min: 0,
+          max: 200,
+          admin: {
+            description: 'Max assets a client can select. 0 = unlimited.',
+            condition: (_, siblingData) => Boolean(siblingData?.allowSelection),
+          },
+        },
+        {
+          name: 'downloadQuality',
+          type: 'select',
+          label: 'Download Quality',
+          defaultValue: 'proxy',
+          dbName: 'p_crs_dl_quality',
+          options: [
+            { label: 'Preview Quality (Web-optimised WebP)', value: 'proxy' },
+            { label: 'Full Resolution (Original file)', value: 'original' },
+          ],
+          admin: {
+            description: 'Quality tier in the zip archive. Full Resolution blocked on public portfolios.',
+            condition: (_, siblingData) => Boolean(siblingData?.allowDownload),
+          },
+        },
+        {
+          name: 'reviewMessage',
+          type: 'text',
+          label: 'Review Prompt',
+          maxLength: 300,
+          admin: {
+            description: 'Optional message shown to clients above the gallery, e.g. "Please select your 5 favourite images."',
+          },
+        },
+      ],
+    },
+    {
       name: 'theme',
       type: 'group',
       admin: {

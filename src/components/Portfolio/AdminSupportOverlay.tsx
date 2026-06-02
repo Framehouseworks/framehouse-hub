@@ -14,6 +14,12 @@ interface AdminSupportOverlayProps {
   status: string
   visibility: string
   updatedAt: string
+  pendingReviews?: number
+  reviewSettings?: {
+    allowSelection: boolean
+    allowComments: boolean
+    allowDownload: boolean
+  }
 }
 
 /**
@@ -29,6 +35,8 @@ export function AdminSupportOverlay({
   status,
   visibility,
   updatedAt,
+  pendingReviews = 0,
+  reviewSettings,
 }: AdminSupportOverlayProps) {
   const [open, setOpen] = useState(false)
   const [unpublishing, setUnpublishing] = useState(false)
@@ -110,6 +118,17 @@ export function AdminSupportOverlay({
             <MetaRow label="ID" value={`#${portfolioId}`} />
             <MetaRow label="Updated" value={formattedDate} />
           </div>
+
+          {/* Client Reviews */}
+          {reviewSettings && (reviewSettings.allowSelection || reviewSettings.allowComments || reviewSettings.allowDownload) && (
+            <div className="px-4 py-2 border-b border-white/5 flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-[0.3em] text-[#d79922] mb-1" style={{ fontFamily: "'Rubik Mono One', monospace" }}>Client Reviews</span>
+              <MetaRow label="Pending" value={String(pendingReviews)} highlight={pendingReviews > 0} />
+              <MetaRow label="Selection" value={reviewSettings.allowSelection ? 'On' : 'Off'} />
+              <MetaRow label="Comments" value={reviewSettings.allowComments ? 'On' : 'Off'} />
+              <MetaRow label="Download" value={reviewSettings.allowDownload ? 'On' : 'Off'} />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="px-3 py-3 flex flex-col gap-1">

@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { Media as MediaType, Portfolio } from '@/payload-types'
 import { Lightbox } from './Lightbox'
+import { useReviewMode } from './review/ReviewModeProvider'
+import { SelectionCheckbox } from './review/SelectionCheckbox'
 
 type GridItem = NonNullable<
   NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>
@@ -48,6 +50,7 @@ export function FilmstripRow({ items, trackHeight, sectionName, onOpenLightbox }
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
+  const review = useReviewMode()
 
   const trackPx = TRACK_HEIGHT[trackHeight ?? 'comfortable'] ?? TRACK_HEIGHT.comfortable
   // Mobile-responsive height: compact→160, comfortable→220, editorial→280
@@ -149,14 +152,17 @@ export function FilmstripRow({ items, trackHeight, sectionName, onOpenLightbox }
                 data-filmstrip-card
                 role="article"
                 aria-label={altText || 'Media item'}
-                className="relative flex-shrink-0 overflow-hidden group/card"
+                className="relative flex-shrink-0 overflow-hidden group/selectable group/card"
                 style={{
                   width: `min(${cardWidth}px, ${MAX_CARD_VW}vw)`,
                   minWidth: MIN_CARD_WIDTH,
                   height: trackPx,
                   scrollSnapAlign: 'start',
+                  outline: review?.selections.has(media.id) ? '2px solid #d79922' : review?.submittedIds.has(media.id) ? '2px solid #445aa5' : undefined,
+                  outlineOffset: '-2px',
                 }}
               >
+                <SelectionCheckbox mediaId={media.id} instanceId={(item.instanceId as string) || ''} itemTitle={(item.instanceTitle as string) || media.title || ''} />
                 {/* Pillar-box blurred backdrop for portrait assets (§8.2, EC-01) */}
                 {isPortrait && src && (
                   <div
@@ -176,6 +182,10 @@ export function FilmstripRow({ items, trackHeight, sectionName, onOpenLightbox }
                   type="button"
                   className="relative block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7f5700] focus-visible:ring-inset"
                   onClick={() => {
+                    if (review?.isSelectionMode) {
+                      review.toggleSelection(media.id, (item.instanceId as string) || '')
+                      return
+                    }
                     if (isVideo) return
                     const globalIndex = items.indexOf(item)
                     if (onOpenLightbox) onOpenLightbox(globalIndex >= 0 ? globalIndex : index)

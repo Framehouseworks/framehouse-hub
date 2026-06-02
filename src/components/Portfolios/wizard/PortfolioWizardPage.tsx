@@ -132,6 +132,15 @@ export function PortfolioWizardPage({ preloadedAssetIds = [], resumePortfolioId 
         },
         visibility: portfolio.visibility || 'private',
         password: portfolio.password || undefined,
+        clientReviewSettings: {
+          allowSelection: portfolio.clientReviewSettings?.allowSelection ?? false,
+          allowComments: portfolio.clientReviewSettings?.allowComments ?? false,
+          allowDownload: portfolio.clientReviewSettings?.allowDownload ?? false,
+          requireClientIdentification: portfolio.clientReviewSettings?.requireClientIdentification ?? false,
+          selectionLimit: portfolio.clientReviewSettings?.selectionLimit ?? 0,
+          downloadQuality: (portfolio.clientReviewSettings?.downloadQuality as 'proxy' | 'original') ?? 'proxy',
+          reviewMessage: portfolio.clientReviewSettings?.reviewMessage ?? '',
+        },
       })
       if (portfolio.slug) setSlug(portfolio.slug)
       setStep(stepToRestore)
@@ -188,6 +197,15 @@ export function PortfolioWizardPage({ preloadedAssetIds = [], resumePortfolioId 
       password: s.visibility === 'shared' ? s.password : undefined,
       theme: s.theme,
       layoutBlocks,
+      clientReviewSettings: {
+        allowSelection: s.clientReviewSettings.allowSelection,
+        allowComments: s.clientReviewSettings.allowComments,
+        allowDownload: s.clientReviewSettings.allowDownload,
+        requireClientIdentification: s.clientReviewSettings.requireClientIdentification,
+        selectionLimit: s.clientReviewSettings.selectionLimit,
+        downloadQuality: s.clientReviewSettings.downloadQuality,
+        reviewMessage: s.clientReviewSettings.reviewMessage || null,
+      },
     } as Partial<Portfolio>
   }
 
