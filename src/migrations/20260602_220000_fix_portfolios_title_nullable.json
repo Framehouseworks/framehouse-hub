@@ -1,0 +1,10 @@
+{
+  "description": "Drop NOT NULL constraint on portfolios.title to match optional richText field definition",
+  "changes": {
+    "portfolios": {
+      "altered_columns": [
+        "title"
+      ]
+    }
+  }
+}
