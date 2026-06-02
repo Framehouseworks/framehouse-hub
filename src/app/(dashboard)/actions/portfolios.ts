@@ -337,9 +337,45 @@ export async function fetchMediaForPickerAction(opts: {
   }
 }
 
-/** Generate a short-lived preview token for a draft portfolio */
+/**
+ * Force-unpublish a portfolio (admin only). Sets _status back to 'draft' on
+ * the live document so public viewers receive a 404 until the creative
+ * re-publishes. Used by AdminSupportOverlay for copyright / escalation support.
+ */
+export async function forceUnpublishPortfolioAction(
+  id: number,
+): Promise<PortfolioActionResult> {
+  try {
+    const { payload, user } = await getAuth()
+    if (!user) return { success: false, message: 'Unauthorized' }
+    if (!user.roles?.includes('admin')) return { success: false, message: 'Forbidden — admin only' }
+
+    const doc = await payload.update({
+      collection: 'portfolios',
+      id,
+      data: { _status: 'draft' },
+      user,
+    })
+
+    const slug = (doc as Portfolio).slug ?? ''
+    revalidatePath(`/p/${slug}`, 'page')
+    revalidatePath('/dashboard/portfolios', 'page')
+    return { success: true, message: 'Unpublished' }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to unpublish' }
+  }
+}
+
+/**
+ * Generate a time-limited preview token.
+ *
+ * @param portfolioId  The portfolio to preview.
+ * @param durationMs   Token lifetime in ms. Defaults to 5 minutes.
+ *                     Pass 48 * 60 * 60 * 1000 for a 48-hour review link.
+ */
 export async function generatePreviewTokenAction(
   portfolioId: number,
+  durationMs: number = 5 * 60 * 1000,
 ): Promise<PortfolioActionResult<{ token: string }>> {
   try {
     const { payload, user } = await getAuth()
@@ -366,7 +402,7 @@ export async function generatePreviewTokenAction(
       return { success: false, message: 'Server configuration error' }
     }
     const signingSecret = secret || 'fallback-secret'
-    const expiresAt = Date.now() + 5 * 60 * 1000
+    const expiresAt = Date.now() + durationMs
     const tokenPayload = `${portfolioId}:${expiresAt}`
     const hmac = createHmac('sha256', signingSecret).update(tokenPayload).digest('hex')
     const token = Buffer.from(`${tokenPayload}:${hmac}`).toString('base64url')

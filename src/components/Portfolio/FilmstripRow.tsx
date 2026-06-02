@@ -16,10 +16,11 @@ type GridItem = NonNullable<
   } | null
 }
 
+// Desktop heights — CSS clamps these for mobile (compact→160, comfortable→220, editorial→280)
 const TRACK_HEIGHT: Record<string, number> = {
-  compact: 280,
-  comfortable: 400,
-  editorial: 560,
+  compact: 240,
+  comfortable: 360,
+  editorial: 480,
 }
 
 const MIN_CARD_WIDTH = 160
@@ -30,6 +31,11 @@ interface FilmstripRowProps {
   items: GridItem[]
   trackHeight?: string | null
   sectionName?: string | null
+  /**
+   * When provided, clicking a media item calls this instead of the internal
+   * lightbox. The argument is the flat index within `items`.
+   */
+  onOpenLightbox?: (index: number) => void
 }
 
 /**
@@ -37,13 +43,15 @@ interface FilmstripRowProps {
  * Horizontal scroll strip with aspect-ratio-aware card widths and pillar-boxing for
  * portrait assets. (C-6, §8.2)
  */
-export function FilmstripRow({ items, trackHeight, sectionName }: FilmstripRowProps) {
+export function FilmstripRow({ items, trackHeight, sectionName, onOpenLightbox }: FilmstripRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
 
   const trackPx = TRACK_HEIGHT[trackHeight ?? 'comfortable'] ?? TRACK_HEIGHT.comfortable
+  // Mobile-responsive height: compact→160, comfortable→220, editorial→280
+  const mobileCapPx = trackHeight === 'compact' ? 160 : trackHeight === 'editorial' ? 280 : 220
 
   const visibleItems = items.filter((item) => item.media && typeof item.media === 'object')
 
@@ -88,8 +96,10 @@ export function FilmstripRow({ items, trackHeight, sectionName }: FilmstripRowPr
 
   return (
     <>
-      {/* On mobile (<640px) cap to comfortable height regardless of creator setting */}
-      <div className="relative w-full group/filmstrip" style={{ height: `min(${trackPx}px, 400px)` }}>
+      <div
+        className="relative w-full group/filmstrip"
+        style={{ height: `clamp(${mobileCapPx}px, ${trackPx}px, ${trackPx}px)` }}
+      >
         {/* Scroll container */}
         <div
           ref={scrollRef}
@@ -165,7 +175,12 @@ export function FilmstripRow({ items, trackHeight, sectionName }: FilmstripRowPr
                 <button
                   type="button"
                   className="relative block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7f5700] focus-visible:ring-inset"
-                  onClick={() => !isVideo && setSelectedImage(media)}
+                  onClick={() => {
+                    if (isVideo) return
+                    const globalIndex = items.indexOf(item)
+                    if (onOpenLightbox) onOpenLightbox(globalIndex >= 0 ? globalIndex : index)
+                    else setSelectedImage(media)
+                  }}
                   aria-label={altText ? `View ${altText} fullscreen` : 'View fullscreen'}
                 >
                   {src && (
