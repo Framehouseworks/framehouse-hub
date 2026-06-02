@@ -11,7 +11,7 @@ interface CropPreviewProps {
   label: string
 }
 
-function CropPreview({ imageUrl, focalPoint, aspect, label }: CropPreviewProps) {
+export function CropPreview({ imageUrl, focalPoint, aspect, label }: CropPreviewProps) {
   const [w, h] = aspect
   const paddingBottom = `${(h / w) * 100}%`
 
@@ -46,8 +46,8 @@ interface FocalPointCanvasProps {
   focalPoint: FocalPoint
   onChange: (fp: FocalPoint) => void
   className?: string
-  /** When true, crop previews render as a vertical column to the right of the canvas */
-  sideLayout?: boolean
+  /** Suppress the crop previews section — use when the parent renders them externally */
+  hideCropPreviews?: boolean
 }
 
 export function FocalPointCanvas({
@@ -55,7 +55,7 @@ export function FocalPointCanvas({
   focalPoint,
   onChange,
   className,
-  sideLayout = false,
+  hideCropPreviews = false,
 }: FocalPointCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -210,52 +210,22 @@ export function FocalPointCanvas({
     </div>
   )
 
-  const cropPreviews = (
-    <div aria-label="Crop simulations based on focal point">
-      <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/30 uppercase mb-2">
-        Crop previews
-      </p>
-      {sideLayout ? (
-        /* Side layout: previews stacked vertically */
-        <div className="flex flex-col gap-2">
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
-        </div>
-      ) : (
-        /* Default layout: previews in a horizontal row */
-        <div className="flex gap-2 min-w-0 overflow-hidden">
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
-          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
-        </div>
-      )}
-    </div>
-  )
-
-  if (sideLayout) {
-    return (
-      <div className={cn('flex flex-col gap-3', className)}>
-        <div className="flex gap-4 items-stretch min-w-0">
-          {/* Canvas + X/Y inputs — left column, grows to fill */}
-          <div className="flex flex-col gap-3 flex-1 min-w-0">
-            {canvas}
-            {numericInputs}
-          </div>
-          {/* Crop previews — right column, fixed width so previews are legible */}
-          <div className="flex-shrink-0 w-[88px] sm:w-[100px]">
-            {cropPreviews}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className={cn('flex flex-col gap-3', className)}>
       {canvas}
       {numericInputs}
-      {cropPreviews}
+      {!hideCropPreviews && (
+        <div aria-label="Crop simulations based on focal point">
+          <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/30 uppercase mb-2">
+            Crop previews
+          </p>
+          <div className="flex gap-2 min-w-0 overflow-hidden">
+            <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
+            <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
+            <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
