@@ -101,6 +101,7 @@ interface SectionLaneProps {
   index: number
   total: number
   isMobile: boolean
+  isSaving: boolean
   totalAssets: number
   maxAssets: number
   overItemId?: string | null
@@ -116,6 +117,7 @@ export function SectionLane({
   index,
   total,
   isMobile,
+  isSaving,
   totalAssets,
   maxAssets,
   overItemId,
@@ -187,6 +189,7 @@ export function SectionLane({
         total={total}
         hasPortraitWarning={hasPortraitWarning}
         isMobile={isMobile}
+        isSaving={isSaving}
         onRename={handleRename}
         onLayoutChange={handleLayoutChange}
         onTrackHeightChange={(h) => onUpdate({ filmstripTrackHeight: h })}

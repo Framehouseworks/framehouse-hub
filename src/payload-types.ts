@@ -1234,6 +1234,9 @@ export interface Portfolio {
          * Display the section name as a heading on the public portfolio page.
          */
         showSectionHeader?: boolean | null;
+        /**
+         * Visual presentation style for this section. Filmstrip = horizontal scroll reel; Grid = fixed columns; Auto = justified rows.
+         */
         layoutStyle: 'masonry' | 'filmstrip' | 'uniform_grid';
         /**
          * Show images at their natural proportions — no cropping to row height. Only applies to Auto layout.

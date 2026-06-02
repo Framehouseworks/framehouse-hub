@@ -46,6 +46,8 @@ interface FocalPointCanvasProps {
   focalPoint: FocalPoint
   onChange: (fp: FocalPoint) => void
   className?: string
+  /** When true, crop previews render as a vertical column to the right of the canvas */
+  sideLayout?: boolean
 }
 
 export function FocalPointCanvas({
@@ -53,6 +55,7 @@ export function FocalPointCanvas({
   focalPoint,
   onChange,
   className,
+  sideLayout = false,
 }: FocalPointCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -103,124 +106,156 @@ export function FocalPointCanvas({
     onChange({ x, y })
   }
 
-  return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      {/* Canvas */}
+  const canvas = (
+    <div
+      ref={containerRef}
+      className={cn(
+        'relative w-full bg-zinc-950 rounded-2xl overflow-hidden select-none cursor-crosshair',
+      )}
+      style={{ aspectRatio: '4/3' }}
+      role="application"
+      aria-label="Click to set focal point. Use arrow keys to fine-tune."
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <img
+        ref={imgRef}
+        src={imageUrl}
+        alt="Asset preview for focal point selection"
+        className="w-full h-full object-contain"
+        draggable={false}
+        loading="eager"
+      />
+
+      {/* Focal point dot */}
       <div
-        ref={containerRef}
-        className={cn(
-          'relative w-full bg-zinc-950 rounded-2xl overflow-hidden select-none',
-          dragging ? 'cursor-crosshair' : 'cursor-crosshair',
-        )}
-        style={{ aspectRatio: '4/3' }}
-        role="application"
-        aria-label="Click to set focal point. Use arrow keys to fine-tune."
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        className="absolute pointer-events-none"
+        style={{
+          left: `${focalPoint.x}%`,
+          top: `${focalPoint.y}%`,
+          transform: 'translate(-50%, -50%)',
+        }}
+        aria-hidden="true"
       >
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt="Asset preview for focal point selection"
-          className="w-full h-full object-contain"
-          draggable={false}
-          loading="eager"
+        <div className="w-8 h-8 rounded-full border-2 border-gallery-gold/60 shadow-[0_0_0_1px_rgba(0,0,0,0.4)] flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-full bg-gallery-gold shadow-[0px_2px_8px_rgba(127,87,0,0.6)]" />
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="w-12 h-px bg-gallery-gold/30" />
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="w-px h-12 bg-gallery-gold/30" />
+        </div>
+      </div>
+
+      {/* Instruction overlay — fades while dragging */}
+      <div
+        className={cn(
+          'absolute inset-0 flex items-end justify-center pb-3 pointer-events-none transition-opacity duration-500',
+          dragging ? 'opacity-0' : 'opacity-100',
+        )}
+        aria-hidden="true"
+      >
+        <span className="text-[9px] text-white/40 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full uppercase tracking-wider font-rubik">
+          Click or drag to set focal point
+        </span>
+      </div>
+    </div>
+  )
+
+  const numericInputs = (
+    <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 flex-1">
+        <label className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase w-4">
+          X
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={focalPoint.x}
+          onChange={(e) => onChange({ ...focalPoint, x: Math.max(0, Math.min(100, Number(e.target.value))) })}
+          className="flex-1 bg-gallery-surface/60 rounded-xl px-3 py-1.5 text-xs text-primary border border-transparent focus:border-gallery-gold/40 focus:outline-none text-center"
+          aria-label="Focal point X percentage"
         />
-
-        {/* Focal point dot */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            left: `${focalPoint.x}%`,
-            top: `${focalPoint.y}%`,
-            transform: 'translate(-50%, -50%)',
-          }}
-          aria-hidden="true"
-        >
-          {/* Outer ring */}
-          <div className="w-8 h-8 rounded-full border-2 border-gallery-gold/60 shadow-[0_0_0_1px_rgba(0,0,0,0.4)] flex items-center justify-center">
-            {/* Inner dot */}
-            <div className="w-2.5 h-2.5 rounded-full bg-gallery-gold shadow-[0px_2px_8px_rgba(127,87,0,0.6)]" />
-          </div>
-          {/* Crosshair lines */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="w-12 h-px bg-gallery-gold/30" />
-          </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="w-px h-12 bg-gallery-gold/30" />
-          </div>
-        </div>
-
-        {/* Instruction overlay (fades on interaction) */}
-        <div
-          className={cn(
-            'absolute inset-0 flex items-end justify-center pb-3 pointer-events-none transition-opacity duration-500',
-            dragging ? 'opacity-0' : 'opacity-100',
-          )}
-          aria-hidden="true"
-        >
-          <span className="text-[9px] text-white/40 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full uppercase tracking-wider font-rubik">
-            Click or drag to set focal point
-          </span>
-        </div>
+        <span className="text-[10px] text-on-surface/30">%</span>
       </div>
-
-      {/* Numeric readout */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 flex-1">
-          <label className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase w-4">
-            X
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={focalPoint.x}
-            onChange={(e) => onChange({ ...focalPoint, x: Math.max(0, Math.min(100, Number(e.target.value))) })}
-            className="flex-1 bg-gallery-surface/60 rounded-xl px-3 py-1.5 text-xs text-primary border border-transparent focus:border-gallery-gold/40 focus:outline-none text-center"
-            aria-label="Focal point X percentage"
-          />
-          <span className="text-[10px] text-on-surface/30">%</span>
-        </div>
-        <div className="flex items-center gap-2 flex-1">
-          <label className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase w-4">
-            Y
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={focalPoint.y}
-            onChange={(e) => onChange({ ...focalPoint, y: Math.max(0, Math.min(100, Number(e.target.value))) })}
-            className="flex-1 bg-gallery-surface/60 rounded-xl px-3 py-1.5 text-xs text-primary border border-transparent focus:border-gallery-gold/40 focus:outline-none text-center"
-            aria-label="Focal point Y percentage"
-          />
-          <span className="text-[10px] text-on-surface/30">%</span>
-        </div>
-        <button
-          onClick={() => onChange({ x: 50, y: 50 })}
-          className="text-[10px] text-on-surface/30 hover:text-on-surface/60 underline underline-offset-2"
-          aria-label="Reset focal point to center"
-        >
-          Reset
-        </button>
+      <div className="flex items-center gap-2 flex-1">
+        <label className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase w-4">
+          Y
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={focalPoint.y}
+          onChange={(e) => onChange({ ...focalPoint, y: Math.max(0, Math.min(100, Number(e.target.value))) })}
+          className="flex-1 bg-gallery-surface/60 rounded-xl px-3 py-1.5 text-xs text-primary border border-transparent focus:border-gallery-gold/40 focus:outline-none text-center"
+          aria-label="Focal point Y percentage"
+        />
+        <span className="text-[10px] text-on-surface/30">%</span>
       </div>
+      <button
+        type="button"
+        onClick={() => onChange({ x: 50, y: 50 })}
+        className="text-[10px] text-on-surface/30 hover:text-on-surface/60 underline underline-offset-2"
+        aria-label="Reset focal point to center"
+      >
+        Reset
+      </button>
+    </div>
+  )
 
-      {/* Crop previews */}
-      <div>
-        <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/30 uppercase mb-2">
-          Crop previews
-        </p>
-        <div className="flex gap-2 min-w-0 overflow-hidden" aria-label="Crop simulations based on focal point">
+  const cropPreviews = (
+    <div aria-label="Crop simulations based on focal point">
+      <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/30 uppercase mb-2">
+        Crop previews
+      </p>
+      {sideLayout ? (
+        /* Side layout: previews stacked vertically */
+        <div className="flex flex-col gap-2">
           <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
           <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
           <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
         </div>
+      ) : (
+        /* Default layout: previews in a horizontal row */
+        <div className="flex gap-2 min-w-0 overflow-hidden">
+          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
+          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
+          <CropPreview imageUrl={imageUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
+        </div>
+      )}
+    </div>
+  )
+
+  if (sideLayout) {
+    return (
+      <div className={cn('flex flex-col gap-3', className)}>
+        <div className="flex gap-4 items-stretch min-w-0">
+          {/* Canvas + X/Y inputs — left column, grows to fill */}
+          <div className="flex flex-col gap-3 flex-1 min-w-0">
+            {canvas}
+            {numericInputs}
+          </div>
+          {/* Crop previews — right column, fixed width so previews are legible */}
+          <div className="flex-shrink-0 w-[88px] sm:w-[100px]">
+            {cropPreviews}
+          </div>
+        </div>
       </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex flex-col gap-3', className)}>
+      {canvas}
+      {numericInputs}
+      {cropPreviews}
     </div>
   )
 }
