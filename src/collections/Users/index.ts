@@ -12,7 +12,7 @@ import { ensureFirstUserIsAdmin } from './hooks/ensureFirstUserIsAdmin'
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    admin: ({ req: { user } }) => checkRole(['admin', 'creative'], user),
+    admin: ({ req: { user } }) => checkRole(['admin'], user),
     create: publicAccess,
     delete: adminOnly,
     read: adminOrSelf,
@@ -43,6 +43,61 @@ export const Users: CollectionConfig = {
     {
       name: 'name',
       type: 'text',
+    },
+    {
+      name: 'studioName',
+      type: 'text',
+      admin: {
+        description: 'Studio or agency display name',
+      },
+    },
+    {
+      name: 'bio',
+      type: 'textarea',
+      admin: {
+        description: 'Short professional bio (max 300 characters)',
+      },
+    },
+    {
+      name: 'studioLogo',
+      type: 'upload',
+      relationTo: 'media',
+      admin: {
+        description: 'Studio logo shown in profile and portfolio header',
+      },
+    },
+    {
+      name: 'portfolioDefaults',
+      type: 'group',
+      admin: {
+        description: 'Default settings applied to newly created portfolios only',
+      },
+      fields: [
+        {
+          name: 'defaultTheme',
+          type: 'select',
+          defaultValue: 'light',
+          options: [
+            { label: 'Light', value: 'light' },
+            { label: 'Dark', value: 'dark' },
+          ],
+        },
+        {
+          name: 'defaultVisibility',
+          type: 'select',
+          defaultValue: 'private',
+          options: [
+            { label: 'Private', value: 'private' },
+            { label: 'Password Protected', value: 'password' },
+            { label: 'Public', value: 'public' },
+          ],
+        },
+        {
+          name: 'showWatermark',
+          type: 'checkbox',
+          defaultValue: false,
+        },
+      ],
     },
     {
       name: 'roles',

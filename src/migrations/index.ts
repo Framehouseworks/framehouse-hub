@@ -36,6 +36,7 @@ import * as migration_20260602_100000_frh62_client_review_portal from './2026060
 import * as migration_20260602_200000_add_admin_oversight from './20260602_200000_add_admin_oversight';
 import * as migration_20260602_210000_fix_admin_oversight_rels from './20260602_210000_fix_admin_oversight_rels';
 import * as migration_20260602_220000_fix_portfolios_title_nullable from './20260602_220000_fix_portfolios_title_nullable';
+import * as migration_20260602_230001_frh64_user_profile from './20260602_230001_frh64_user_profile';
 
 export const migrations = [
   {
@@ -226,6 +227,11 @@ export const migrations = [
   {
     up: migration_20260602_220000_fix_portfolios_title_nullable.up,
     down: migration_20260602_220000_fix_portfolios_title_nullable.down,
-    name: '20260602_220000_fix_portfolios_title_nullable'
+    name: '20260602_220000_fix_portfolios_title_nullable',
+  },
+  {
+    up: migration_20260602_230001_frh64_user_profile.up,
+    down: migration_20260602_230001_frh64_user_profile.down,
+    name: '20260602_230001_frh64_user_profile',
   },
 ];
