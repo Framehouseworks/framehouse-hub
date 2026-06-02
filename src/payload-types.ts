@@ -83,6 +83,8 @@ export interface Config {
     sessions: Session;
     'upload-batches': UploadBatch;
     waitlist: Waitlist;
+    'admin-activity-logs': AdminActivityLog;
+    'admin-diagnostic-sessions': AdminDiagnosticSession;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -113,6 +115,8 @@ export interface Config {
     sessions: SessionsSelect<false> | SessionsSelect<true>;
     'upload-batches': UploadBatchesSelect<false> | UploadBatchesSelect<true>;
     waitlist: WaitlistSelect<false> | WaitlistSelect<true>;
+    'admin-activity-logs': AdminActivityLogsSelect<false> | AdminActivityLogsSelect<true>;
+    'admin-diagnostic-sessions': AdminDiagnosticSessionsSelect<false> | AdminDiagnosticSessionsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -1629,6 +1633,113 @@ export interface Waitlist {
   createdAt: string;
 }
 /**
+ * Immutable audit trail of all administrative actions on creative accounts.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-activity-logs".
+ */
+export interface AdminActivityLog {
+  id: number;
+  /**
+   * The admin who performed the action.
+   */
+  adminUser: number | User;
+  /**
+   * The creative account that was acted upon.
+   */
+  targetUser?: (number | null) | User;
+  /**
+   * If the action targeted a specific portfolio.
+   */
+  targetPortfolio?: (number | null) | Portfolio;
+  actionType:
+    | 'inspect_account'
+    | 'launch_diagnostic'
+    | 'terminate_diagnostic'
+    | 'diagnostic_expired'
+    | 'portfolio_password_reset'
+    | 'portfolio_visibility_change'
+    | 'field_override'
+    | 'account_role_change';
+  /**
+   * Human-readable summary of the action.
+   */
+  actionDescription: string;
+  /**
+   * Structured context for the action (field changes, session IDs, etc.).
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Link to the diagnostic session this action belongs to, if any.
+   */
+  diagnosticSession?: (number | null) | AdminDiagnosticSession;
+  /**
+   * Client IP address at time of action.
+   */
+  ipAddress?: string | null;
+  /**
+   * Browser user agent at time of action.
+   */
+  userAgent?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Short-lived diagnostic sessions allowing admins to view creative workspaces read-only.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-diagnostic-sessions".
+ */
+export interface AdminDiagnosticSession {
+  id: number;
+  /**
+   * The admin who launched this session.
+   */
+  admin: number | User;
+  /**
+   * The creative account being inspected.
+   */
+  targetCreative: number | User;
+  /**
+   * SHA-256 hash of the raw session token. Token is never stored in plaintext.
+   */
+  tokenHash: string;
+  /**
+   * Session TTL — 15 minutes from creation.
+   */
+  expiresAt: string;
+  /**
+   * Set to false when session is terminated or expires.
+   */
+  isActive?: boolean | null;
+  /**
+   * When the session was manually terminated.
+   */
+  terminatedAt?: string | null;
+  /**
+   * Admin who explicitly terminated the session.
+   */
+  terminatedBy?: (number | null) | User;
+  /**
+   * IP address when session was created.
+   */
+  ipAddress?: string | null;
+  /**
+   * Browser user agent when session was created.
+   */
+  userAgent?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
@@ -1732,6 +1843,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'waitlist';
         value: number | Waitlist;
+      } | null)
+    | ({
+        relationTo: 'admin-activity-logs';
+        value: number | AdminActivityLog;
+      } | null)
+    | ({
+        relationTo: 'admin-diagnostic-sessions';
+        value: number | AdminDiagnosticSession;
       } | null)
     | ({
         relationTo: 'forms';
@@ -2564,6 +2683,40 @@ export interface UploadBatchesSelect<T extends boolean = true> {
 export interface WaitlistSelect<T extends boolean = true> {
   email?: T;
   name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-activity-logs_select".
+ */
+export interface AdminActivityLogsSelect<T extends boolean = true> {
+  adminUser?: T;
+  targetUser?: T;
+  targetPortfolio?: T;
+  actionType?: T;
+  actionDescription?: T;
+  metadata?: T;
+  diagnosticSession?: T;
+  ipAddress?: T;
+  userAgent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "admin-diagnostic-sessions_select".
+ */
+export interface AdminDiagnosticSessionsSelect<T extends boolean = true> {
+  admin?: T;
+  targetCreative?: T;
+  tokenHash?: T;
+  expiresAt?: T;
+  isActive?: T;
+  terminatedAt?: T;
+  terminatedBy?: T;
+  ipAddress?: T;
+  userAgent?: T;
   updatedAt?: T;
   createdAt?: T;
 }

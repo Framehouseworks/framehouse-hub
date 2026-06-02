@@ -17,6 +17,8 @@ import sharp from 'sharp'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { AdminActivityLogs } from '@/collections/AdminActivityLogs'
+import { AdminDiagnosticSessions } from '@/collections/AdminDiagnosticSessions'
 import { Articles } from '@/collections/Articles'
 import { Categories } from '@/collections/Categories'
 import { Downloads } from '@/collections/Downloads'
@@ -103,6 +105,8 @@ export default buildConfig({
     Sessions,
     UploadBatches,
     Waitlist,
+    AdminActivityLogs,
+    AdminDiagnosticSessions,
   ],
   db: postgresAdapter({
     push: false,
