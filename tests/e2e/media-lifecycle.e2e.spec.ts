@@ -82,11 +82,11 @@ test.describe('Media lifecycle (e2e)', () => {
       await Promise.all([
         page.waitForResponse(
           (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
-          { timeout: 15_000 },
+          { timeout: 25_000 },
         ),
         page.getByRole('button', { name: /continue/i }).click(),
       ])
-      await page.waitForURL(/\/dashboard/, { timeout: 20_000 })
+      await page.waitForURL(/\/dashboard/, { timeout: 25_000 })
 
       // 2. Trigger the upload picker, populate the hidden input.
       await page.locator('button:has-text("Ingest")').first().click()

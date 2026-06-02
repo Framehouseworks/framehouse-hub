@@ -924,6 +924,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 collection: 'portfolios',
                 data: {
                   name: reviewDemoName,
+                  _status: 'published',
                   owner: Number(reviewDemoOwnerId),
                   visibility: 'public',
                   layoutBlocks: [{ blockType: 'grid' as const, items: demoItems, spacing: 'medium' as const }] as Portfolio['layoutBlocks'],
