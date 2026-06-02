@@ -111,7 +111,8 @@ jobs:
           include-hidden-files: true
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # INTEGRATION TESTS — vitest, Docker postgres managed by vitest globalSetup
+  # INTEGRATION TESTS — vitest, postgres provided as a service container.
+  # vitest.globalSetup.ts skips Docker management when DATABASE_URI is pre-set.
   # Runs in parallel with quality_gate — no dependency between them.
   # ─────────────────────────────────────────────────────────────────────────────
   integration_tests:
@@ -122,6 +123,21 @@ jobs:
       contents: read
       checks: write
       actions: write
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: framehouse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,6 +148,9 @@ jobs:
         with:
           node-version: ${{ vars.NODE_VERSION }}
           pnpm-version: ${{ vars.PNPM_VERSION }}
+
+      - name: Set DATABASE_URI
+        run: echo "DATABASE_URI=postgres://postgres:test@localhost:5432/framehouse_test" >> $GITHUB_ENV
 
       - name: Run integration tests
         run: |
@@ -208,9 +227,24 @@ jobs:
         env:
           PAYLOAD_SECRET: ci_secret
 
+      # Run only on shard 1 — drift is a code-quality check, not per-shard work.
       - name: Verify schema drift
+        if: matrix.shard == 1
         run: |
-          pnpm run payload migrate:create --name check_drift
+          # printf 'n\n' answers the "create blank migration?" prompt that
+          # Payload/drizzle-kit shows when no schema changes are detected.
+          # Without it, </dev/null causes an EOF that makes the command exit 1.
+          # We ignore the exit code entirely and rely solely on git status to
+          # detect real drift (new migration files = uncommitted schema change).
+          # timeout 90 is a hard circuit-breaker against future drizzle-kit regressions.
+          printf 'n\n' | timeout 90 pnpm run payload migrate:create --name check_drift 2>&1 | cat
+          EC=${PIPESTATUS[1]}
+          if [ "$EC" = "124" ]; then
+            echo "### 🛑 Schema drift check timed out (90 s)" >> $GITHUB_STEP_SUMMARY
+            echo "drizzle-kit may have rendered an interactive TUI despite the pipe redirect." >> $GITHUB_STEP_SUMMARY
+            echo "Bump drizzle-kit or investigate with: pnpm payload migrate:create --name check_drift" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
           DRIFT=$(git status --porcelain src/migrations/)
           if [ -n "$DRIFT" ]; then
             echo "### 🛑 Schema Drift Detected" >> $GITHUB_STEP_SUMMARY

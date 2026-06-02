@@ -2,401 +2,545 @@
 
 # Framehouse Hub
 
-**Framehouse Hub** is a premium digital asset management and high-resolution gallery platform. Built with a focus on professional creatives and their clients, it provides a seamless workflow for managing, proofing, and delivering high-quality visual content.
+**Framehouse Hub** is an enterprise digital asset management and high-resolution gallery platform built for professional creatives. It supports multi-tenant media ingestion, automated derivative generation, portfolio review workflows, and a full content management system — all as a single unified Next.js application.
 
-This platform features a powerful administrative backend for creatives and a sleek, performant gallery frontend for clients to access their assets.
+**Stack:** Next.js 15 (App Router) · Payload CMS v3 · PostgreSQL (Neon) · GCS · Go worker · Cloud Run · Eventarc
 
-Core features:
+---
 
-- [Integrated Management](#how-it-works)
-- [Secure Authentication](#users-authentication)
-- [Granular Access Control](#access-control)
-- [Dynamic Layout Builder](#layout-builder)
-- [Draft & Live Preview](#draft-preview)
-- [On-demand Revalidation](#on-demand-revalidation)
-- [Built-in SEO](#seo)
-- [Advanced Search & Filters](#search)
-- [Asset Library & Folders](#media)
-- [Client Galleries](#website)
-- [Automated Tests](#tests)
+## Table of Contents
 
-## Getting Started
+1. [Architecture](#architecture)
+2. [Prerequisites](#prerequisites)
+3. [Quick Start](#quick-start)
+4. [Environment Variables](#environment-variables)
+5. [Development](#development)
+6. [Database & Migrations](#database--migrations)
+7. [Media Pipeline](#media-pipeline)
+8. [Collections & Data Model](#collections--data-model)
+9. [API Reference](#api-reference)
+10. [Access Control](#access-control)
+11. [Testing](#testing)
+12. [Git Workflow](#git-workflow)
+13. [CI/CD](#cicd)
+14. [GCP Infrastructure](#gcp-infrastructure)
+15. [Deployment](#deployment)
+16. [Design System](#design-system)
+17. [Docs Index](#docs-index)
 
-Follow these steps to set up the project locally.
+---
 
-### 1. Database Setup (Docker)
+## Architecture
 
-To run the PostgreSQL database locally using Docker, execute the following command:
+Payload CMS v3 runs **inside** the Next.js process — no separate CMS server. Three route groups share the same deployment:
 
-```bash
-docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=<Your Password> postgres
+```
+src/app/
+├── (app)/          → Public site: gallery, pricing, login, account
+├── (dashboard)/    → Authenticated creative dashboard
+└── (payload)/      → Payload admin UI at /admin + REST/GraphQL APIs
 ```
 
-**Useful details:**
-
-- **Connection String**: `postgresql://postgres:<Your Password>@localhost:5432/postgres`
-
-### 2. Application Setup
-
-1.  **Clone the repository**:
-    ```bash
-    git clone <repository-url>
-    cd framehouse-hub
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Environment Variables**:
-    Copy the example environment file:
-    ```bash
-    cp .env.example .env
-    ```
-    Open `.env` and configure the following:
-    - `DATABASE_URI`: `postgresql://postgres:<Your Password>@localhost:5432/postgres`
-    - `PAYLOAD_SECRET`: A random string for security (e.g., `your-local-secret-key`).
-    - `NEXT_PUBLIC_SERVER_URL`: `http://localhost:3000`
-    - `PAYLOAD_PUBLIC_SERVER_URL`: `http://localhost:3000`
-
-> [!NOTE]
-> The database password and `PAYLOAD_SECRET` are user-specific and should be kept secure. Do not commit your `.env` file to version control.
-
-4.  **Run Development Server**:
-    ```bash
-    npm run dev
-    ```
-    Open [http://localhost:3000](http://localhost:3000) in your browser.
-    Access the admin panel at [http://localhost:3000/admin](http://localhost:3000/admin) to create your first admin user.
-
-## How it works
-
-Framehouse Hub is built on a robust architecture that prioritizes performance and security. The configuration is tailored to the specific needs of creative professionals:
-
-### Collections
-
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
-
-- #### Users (Authentication)
-
-  Users are auth-enabled collections that have access to the admin panel and unpublished content. See [Access Control](#access-control) for more details.
-
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/main/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
-
-- #### Pages
-
-  All pages are layout builder enabled so you can generate unique layouts for each page using layout-building blocks, see [Layout Builder](#layout-builder) for more details. Pages are also draft-enabled so you can preview them before publishing them to your website, see [Draft Preview](#draft-preview) for more details.
-
-- #### Media
-
-  This is the uploads enabled collection used by pages, posts, and projects to contain media like images, videos, downloads, and other assets. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
-
-  **Note**: In the current local development setup, assets are stored in the local file system at `public/media`. For production or MVP, this is designed to be replaced with cloud storage (e.g., S3/GCS) using Payload storage adapters.
-
-- #### Categories
-
-  A taxonomy used to group products together.
-
-- ### Carts
-
-  Used to track user and guest carts within Payload. Added by the [ecommerce plugin](https://payloadcms.com/docs/ecommerce/plugin#carts).
-
-- ### Addresses
-
-  Saves user's addresses for easier checkout. Added by the [ecommerce plugin](https://payloadcms.com/docs/ecommerce/plugin#addresses).
-
-- ### Orders
-
-  Tracks orders once a transaction successfully completes. Added by the [ecommerce plugin](https://payloadcms.com/docs/ecommerce/plugin#orders).
-
-- ### Transactions
-
-  Tracks transactions from initiation to completion, once completed they will have a related Order item. Added by the [ecommerce plugin](https://payloadcms.com/docs/ecommerce/plugin#transactions).
-
-- ### Products and Variants
-
-  Primary collections for product details such as pricing per currency and optionally supports variants per product. Added by the [ecommerce plugin](https://payloadcms.com/docs/ecommerce/plugin#products).
-
-### Globals
-
-See the [Globals](https://payloadcms.com/docs/configuration/globals) docs for details on how to extend this functionality.
-
-- `Header`
-
-  The data required by the header on your front-end like nav links.
-
-- `Footer`
-
-  Same as above but for the footer of your site.
-
-## Holistic Architecture
-
-> **Ingestion pipeline reference**: the storage path contract, processing flow, free-tier knobs, and deferred-to-v1 list live in [`docs/FRH-52-architecture.md`](docs/FRH-52-architecture.md). Edit there; the tracker ticket mirrors.
-
-### System Overview
-
-This platform is built as a unified application where the frontend and backend are tightly integrated using **Next.js 15** and **Payload CMS v3**.
-
-- **Frontend**: A modern React application utilizing the Next.js App Router, Tailwind CSS, and Radix UI components.
-- **Backend/CMS**: Powered by Payload CMS v3, which runs as part of the Next.js app. It provides both the API and the Admin UI.
-- **Database**: PostgreSQL serves as the relational data store, managing content and relationships efficiently.
-- **Media Functions**: Asset management is handled through Payload, with current local storage in `public/media` and scalability for cloud storage integration.
-
-### Data Flow
-
-1.  **Client Interaction**: Users interact with the React frontend in their browser.
-2.  **Server Rendering/API**: Next.js Server Components fetch data using Payload's Local API for fast rendering. Client-side interactions use Payload's REST or GraphQL endpoints.
-3.  **CMS Logic**: Payload processes requests, enforces access control roles (e.g., Admin vs. Creative), and performs data validation.
-4.  **Database Layer**: All structured data is persisted in the PostgreSQL database.
-5.  **Asset Handling**: Uploaded media is processed (e.g., generated thumbnails using `sharp`) and stored/served from the specified directory.
-
-## Access control
-
-Basic access control is setup to limit access to various content based based on publishing status.
-
-- `users`: Users with the `admin` role can access the admin panel and create or edit content, users with the `customer` role can only access the frontend and the relevant collection items to themselves.
-- `pages`: Everyone can access published pages, but only admin users can create, update, or delete them.
-- `products` `variants`: Everyone can access published products, but only admin users can create, update, or delete them.
-- `carts`: Customers can access their own saved cart, guest users can access any unclaimed cart by ID.
-- `addresses`: Customers can access their own addresses for record keeping.
-- `transactions`: Only admins can access these as they're meant for internal tracking.
-- `orders`: Only admins and users who own the orders can access these.
-
-For more details on how to extend this functionality, see the [Payload Access Control](https://payloadcms.com/docs/access-control/overview#access-control) docs.
-
-## User accounts
-
-## Guests
-
-## Layout Builder
-
-Create unique page layouts for any type of content using a powerful layout builder. This template comes pre-configured with the following layout building blocks:
-
-- Hero
-- Content
-- Media
-- Call To Action
-- Archive
-
-Each block is fully designed and built into the front-end website that comes with this template. See [Website](#website) for more details.
-
-## Lexical editor
-
-A deep editorial experience that allows complete freedom to focus just on writing content without breaking out of the flow with support for Payload blocks, media, links and other features provided out of the box. See [Lexical](https://payloadcms.com/docs/rich-text/overview) docs.
-
-## Draft Preview
-
-All products and pages are draft-enabled so you can preview them before publishing them to your website. To do this, these collections use [Versions](https://payloadcms.com/docs/configuration/collections#versions) with `drafts` set to `true`. This means that when you create a new product or page, it will be saved as a draft and will not be visible on your website until you publish it. This also means that you can preview your draft before publishing it to your website. To do this, we automatically format a custom URL which redirects to your front-end to securely fetch the draft version of your content.
-
-Since the front-end of this template is statically generated, this also means that pages, products, and projects will need to be regenerated as changes are made to published documents. To do this, we use an `afterChange` hook to regenerate the front-end when a document has changed and its `_status` is `published`.
-
-For more details on how to extend this functionality, see the official [Draft Preview Example](https://github.com/payloadcms/payload/tree/examples/draft-preview).
-
-## Live preview
-
-In addition to draft previews you can also enable live preview to view your end resulting page as you're editing content with full support for SSR rendering. See [Live preview docs](https://payloadcms.com/docs/live-preview/overview) for more details.
-
-## On-demand Revalidation
-
-We've added hooks to collections and globals so that all of your pages, products, footer, or header changes will automatically be updated in the frontend via on-demand revalidation supported by Nextjs.
-
-> Note: if an image has been changed, for example it's been cropped, you will need to republish the page it's used on in order to be able to revalidate the Nextjs image cache.
-
-## SEO
-
-This template comes pre-configured with the official [Payload SEO Plugin](https://payloadcms.com/docs/plugins/seo) for complete SEO control from the admin panel. All SEO data is fully integrated into the front-end website that comes with this template. See [Website](#website) for more details.
-
-## Search
-
-This template comes with SSR search features can easily be implemented into Next.js with Payload. See [Website](#website) for more details.
-
-## Orders and Transactions
-
-Transactions are intended for keeping a record of any payment made, as such it will contain information regarding an order or billing address used or the payment method used and amount. Only admins can access transactions.
-
-An order is created only once a transaction is successfully completed. This is a record that the user who completed the transaction has access so they can keep track of their history. Guests can also access their own orders by providing an order ID and the email associated with that order.
-
-## Currencies
-
-By default the template ships with support only for USD however you can change the supported currencies via the [plugin configuration](https://payloadcms.com/docs/ecommerce/plugin#currencies). You will need to ensure that the supported currencies in Payload are also configured in your Payment platforms.
-
-## Stripe
-
-By default we ship with the Stripe adapter configured, so you'll need to setup the `secretKey`, `publishableKey` and `webhookSecret` from your Stripe dashboard. Follow [Stripe's guide](https://docs.stripe.com/get-started/api-request?locale=en-GB) on how to set this up.
-
-## Tests
-
-We provide automated tests out of the box for both E2E and Int tests along with this template. They are being run in our CI to ensure the stability of this template over time. You can integrate them into your CI or run them locally as well via:
-
-To run Int tests wtih Vitest:
-
-```bash
-pnpm test:int
+```mermaid
+graph TD
+    Browser -->|Next.js SSR / RSC| AppRouter
+    AppRouter --> PayloadLocal[Payload Local API]
+    AppRouter --> REST[Payload REST/GraphQL]
+    AppRouter --> CustomAPI[Custom API Routes<br>/api/media/*<br>/api/portfolio/*]
+    PayloadLocal --> Postgres[(PostgreSQL<br>Neon / Docker)]
+    CustomAPI --> GCS[(GCS Bucket<br>private)]
+    CustomAPI --> GoWorker[Go Worker<br>Cloud Run / local]
+    GoWorker -->|process-callback| CustomAPI
+    GoWorker --> GCS
 ```
 
-To run E2Es with Playwright:
+**Key architectural decisions:**
+
+| Decision | Rationale |
+|---|---|
+| `push: false` on DB adapter | All schema changes via explicit migrations; no silent drift |
+| `disableLocalStorage: true` + `filesRequiredOnCreate: false` | Payload owns docs, we own bytes; allows fileless creates for cloud flow |
+| Unsigned URLs persisted in DB | `signCloudUrls` afterRead hook rewrites to v4 signed GETs at read time; signed URLs never persisted |
+| GIN full-text index | `media_search_idx` over title/filename/camera/lens/shoot for sub-ms search |
+| Dual-mode pipeline | Same Go worker handles both local disk and GCS; environment-switched at runtime |
+
+---
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| Node.js | 22+ | |
+| pnpm | 9+ | `npm i -g pnpm` |
+| Go | 1.22+ | Only needed for local worker (`scripts/dev-with-worker.sh`) |
+| Docker | any | Ephemeral Postgres for local dev |
+| Git | any | Husky hooks run on commit/push |
+
+---
+
+## Quick Start
 
 ```bash
-pnpm test:e2e
+# 1. Clone
+git clone <repository-url>
+cd framehouse-hub
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env — see Environment Variables below
+
+# 4. Start Next.js only (no Go worker)
+pnpm dev
 ```
 
-or
+Open [http://localhost:3000](http://localhost:3000).  
+Admin panel: [http://localhost:3000/admin](http://localhost:3000/admin)  
+Default seed credentials: `sys.admin@framehouseworks.com` / `password123`
+
+### Full stack with Go worker
 
 ```bash
-pnpm test
+# Spins up Docker Postgres, runs migrations, seeds, then starts Next + worker
+./scripts/dev-with-worker.sh
 ```
 
-To run both.
+### Blank-slate verification (mandatory before PR)
 
-## Jobs and Scheduled Publish
+```bash
+# Ephemeral Postgres on :5433 — migrate, seed, run tests, tear down
+./scripts/verify-local.sh
 
-We have configured [Scheduled Publish](https://payloadcms.com/docs/versions/drafts#scheduled-publish) which uses the [jobs queue](https://payloadcms.com/docs/jobs-queue/jobs) in order to publish or unpublish your content on a scheduled time. The tasks are run on a cron schedule and can also be run as a separate instance if needed.
+# Keep DB open for manual inspection
+./scripts/verify-local.sh --keep-open
 
-> Note: When deployed on Vercel, depending on the plan tier, you may be limited to daily cron only.
+# Clean up a --keep-open run
+./scripts/cleanup-local.sh
+```
 
-## Website
+> This script also runs automatically on `git push` via the Husky pre-push hook.
 
-Framehouse Hub includes a beautifully designed, production-ready frontend built with the [Next.js App Router](https://nextjs.org). This provides a seamless experience for both administrators and clients.
+---
 
-Core features:
+## Environment Variables
 
-- [Next.js App Router](https://nextjs.org)
-- [TypeScript](https://www.typescriptlang.org)
-- [React Hook Form](https://react-hook-form.com)
-- [Payload Admin Bar](https://github.com/payloadcms/payload/tree/main/packages/admin-bar)
-- [TailwindCSS styling](https://tailwindcss.com/)
-- [shadcn/ui components](https://ui.shadcn.com/)
-- User Accounts and Authentication
-- Fully featured blog
-- Publication workflow
-- Dark mode
-- Pre-made layout building blocks
-- SEO
-- Search
-- Live preview
-- Stripe payments
+### Required
 
-### Cache
+```env
+DATABASE_URI=postgresql://postgres:<password>@localhost:5432/postgres
+PAYLOAD_SECRET=<random-string-32-chars+>
+NEXT_PUBLIC_SERVER_URL=http://localhost:3000
+```
 
-Although Next.js includes a robust set of caching strategies out of the box, Payload Cloud proxies and caches all files through Cloudflare using the [Official Cloud Plugin](https://www.npmjs.com/package/@payloadcms/payload-cloud). This means that Next.js caching is not needed and is disabled by default. If you are hosting your app outside of Payload Cloud, you can easily reenable the Next.js caching mechanisms by removing the `no-store` directive from all fetch requests in `./src/app/_api` and then removing all instances of `export const dynamic = 'force-dynamic'` from pages files, such as `./src/app/(pages)/[slug]/page.tsx`. For more details, see the official [Next.js Caching Docs](https://nextjs.org/docs/app/building-your-application/caching).
+### Cloud media (local mode — omit for GCS)
+
+```env
+# Leave unset → local disk mode
+GCS_BUCKET=
+GCS_PROJECT_ID=
+LOCAL_WORKER_URL=http://localhost:8080   # default
+```
+
+### Cloud media (GCS mode)
+
+```env
+GCS_BUCKET=framehouse-hub-dev
+GCS_PROJECT_ID=<gcp-project-id>
+PROCESSOR_CALLBACK_SECRET=<shared-secret>
+```
+
+### Optional
+
+```env
+DISABLE_WORKER=1          # Skip Go worker in CI/E2E
+IS_BUILD_PHASE=true       # Bypass DB connection during build
+RESEND_DEFAULT_FROM_NAME=
+RESEND_DEFAULT_FROM_ADDRESS=
+```
+
+---
 
 ## Development
 
-To spin up this example locally, follow the [Quick Start](#quick-start). Then [Seed](#seed) the database with a few pages, posts, and projects.
-
-### Working with Postgres
-
-Postgres and other SQL-based databases follow a strict schema for managing your data. In comparison to our MongoDB adapter, this means that there's a few extra steps to working with Postgres.
-
-Note that often times when making big schema changes you can run the risk of losing data if you're not manually migrating it.
-
-#### Local development
-
-Ideally we recommend running a local copy of your database so that schema updates are as fast as possible. By default the Postgres adapter has `push: true` for development environments. This will let you add, modify and remove fields and collections without needing to run any data migrations.
-
-If your database is pointed to production you will want to set `push: false` otherwise you will risk losing data or having your migrations out of sync.
-
-#### Migrations
-
-[Migrations](https://payloadcms.com/docs/database/migrations) are essentially SQL code versions that keeps track of your schema. When deploy with Postgres you will need to make sure you create and then run your migrations.
-
-Locally create a migration
-
 ```bash
-pnpm payload migrate:create
+pnpm dev                  # Next.js dev server (port 3000)
+pnpm build                # Production build
+pnpm start                # Serve production build
+pnpm lint                 # ESLint (next lint)
+pnpm lint:fix             # ESLint + Prettier fix
+pnpm generate:types       # Regenerate src/payload-types.ts
+pnpm generate:importmap   # Regenerate Payload admin importmap
+pnpm seed                 # Seed database (destructive)
 ```
 
-This creates the migration files you will need to push alongside with your new configuration.
+**Path aliases:** `@/*` → `src/*` · `@payload-config` → `src/payload.config.ts`
 
-On the server after building and before running `pnpm start` you will want to run your migrations
+---
+
+## Database & Migrations
+
+The Postgres adapter runs with **`push: false`** — schema is entirely migration-controlled.
 
 ```bash
+# Generate a migration from current Payload config
+pnpm payload migrate:create
+
+# Apply pending migrations
 pnpm payload migrate
 ```
 
-This command will check for any migrations that have not yet been run and try to run them and it will keep a record of migrations that have been run in the database.
+**Rules:**
+- Commit both `.ts` and `.json` files generated in `src/migrations/`
+- CI runs `migrate:create --name check_drift` after migrating and fails on dirty working tree
+- For Media-referencing FKs, use `ON DELETE SET NULL` with nullable columns (matches Payload's auto-generated schema)
+- New searchable fields must be added to **both** `media_search_idx` migration AND `/api/media/search`
 
-### Docker (Quick Start)
-
-The provided Docker run command in the [Getting Started](#getting-started) section is the recommended way to spin up the required PostgreSQL database for local development.
-
-```bash
-docker run -d --name framehouse-hub-admin -p 5432:5432 -e POSTGRES_PASSWORD=jason7866 postgres
-```
-
-### Seed
-
-To seed the database with a few pages, products, and orders you can click the 'seed database' link from the admin panel.
-
-The seed script will also create a demo user for demonstration purposes only:
-
-- Demo Customer
-  - Email: `customer@example.com`
-  - Password: `password`
-
-> NOTICE: seeding the database is destructive because it drops your current database to populate a fresh one from the seed template. Only run this command if you are starting a new project or can afford to lose your current data.
-
-## Production
-
-To run Payload in production, you need to build and start the Admin panel. To do so, follow these steps:
-
-1. Invoke the `next build` script by running `pnpm build` or `npm run build` in your project root. This creates a `.next` directory with a production-ready admin bundle.
-1. Finally run `pnpm start` or `npm run start` to run Node in production and serve Payload from the `.build` directory.
-1. When you're ready to go live, see Deployment below for more details.
-
-### Deploying to Vercel
-
-This template can also be deployed to Vercel for free. You can get started by choosing the Vercel DB adapter during the setup of the template or by manually installing and configuring it:
+**Local DB (Docker):**
 
 ```bash
-pnpm add @payloadcms/db-vercel-postgres
+docker run -d --name framehouse-postgres -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
 ```
 
-```ts
-// payload.config.ts
-import { vercelPostgresAdapter } from '@payloadcms/db-vercel-postgres'
+Full guide: [`docs/devops/local-development.md`](docs/devops/local-development.md) · [`docs/backend/database.md`](docs/backend/database.md)
 
-export default buildConfig({
-  // ...
-  db: vercelPostgresAdapter({
-    pool: {
-      connectionString: process.env.POSTGRES_URL || '',
-    },
-  }),
-  // ...
+---
+
+## Media Pipeline
+
+The platform operates in two modes, switching on whether `GCS_BUCKET` is set.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Next as Next.js API
+    participant Payload
+    participant GoWorker as Go Worker
+    participant GCS
+
+    Note over Client,GCS: Cloud Mode
+    Client->>Next: GET /api/media/signed-url
+    Next-->>Client: GCS signed PUT URL
+    Client->>GCS: PUT raw bytes
+    GCS->>GoWorker: Eventarc object-finalize
+    GoWorker->>GoWorker: generate small + medium WebP
+    GoWorker->>GCS: write derivatives
+    GoWorker->>Next: POST /api/media/process-callback (bearer)
+    Next->>Payload: update Media doc (thumbnailUrl, proxyUrl, status=complete)
+
+    Note over Client,GCS: Local Mode
+    Client->>Next: POST /api/media/register-local (raw body)
+    Next->>Payload: create Media doc
+    Payload->>GoWorker: triggerLocalWorker afterChange hook
+    GoWorker->>GoWorker: generate WebP derivatives
+    GoWorker->>Next: POST /api/media/process-callback (bearer)
 ```
 
-We also support Vercel's blob storage:
+**Storage path contract:**
+
+```
+tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/original/{filename}
+```
+
+Built via `buildStoragePath` in `src/lib/storage-paths.ts`. Never hand-construct.
+
+**Upload size limits** (enforced server-side via `enforceUploadSizeLimit`):
+
+| Type | Limit |
+|---|---|
+| Image | 50 MB |
+| Video | 2 GB |
+| Audio | 500 MB |
+| Document | 100 MB |
+
+**Hook chain on Media (execution order):**
+
+1. `beforeOperation`: `preventDuplicates`
+2. `beforeChange`: `writeOriginalToEnclave` → `generateAccessionId` → `extractMetadata`
+3. `afterRead`: `aliasUrl` → `signCloudUrls`
+4. `afterChange`: `triggerLocalWorker`
+5. `afterDelete`: `cleanupEnclave`
+
+Full reference: [`docs/architecture/media-pipeline.md`](docs/architecture/media-pipeline.md)
+
+---
+
+## Collections & Data Model
+
+```mermaid
+erDiagram
+    Users ||--o{ Media : uploads
+    Users ||--o{ Portfolios : owns
+    Users ||--o{ UploadBatches : creates
+    Media }o--o{ Portfolios : included_in
+    Media }o--o{ SmartCollections : matched_by
+    Portfolios ||--o{ PortfolioClientSessions : has
+    PortfolioClientSessions ||--o{ PortfolioClientReviews : generates
+    PortfolioClientSessions ||--o{ PortfolioAssetComments : generates
+    PortfolioClientSessions ||--o{ PortfolioDownloadLogs : generates
+    Media }o--|| UploadBatches : belongs_to
+```
+
+**Collections:** `Users` · `Media` · `Portfolios` · `SmartCollections` · `UploadBatches` · `Sessions` · `Pages` · `Categories` · `Articles` · `Downloads` · `Tutorials` · `PortfolioClientSessions` · `PortfolioClientReviews` · `PortfolioAssetComments` · `PortfolioDownloadLogs` · `AdminActivityLogs` · `AdminDiagnosticSessions` · `Waitlist`
+
+**Globals:** `Header` · `Footer` · `Pricing`
+
+Full reference: [`docs/architecture/data-model.md`](docs/architecture/data-model.md) · [`docs/backend/collections.md`](docs/backend/collections.md)
+
+---
+
+## API Reference
+
+All custom routes live under `src/app/api/`. Payload REST/GraphQL available at `/api/[collection]` and `/api/graphql`.
+
+### Media Ingestion
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/media/signed-url` | Get GCS signed PUT URL (cloud mode) |
+| `POST` | `/api/media/register-local` | Upload raw bytes (local mode) |
+| `POST` | `/api/media/register-gcs` | Register GCS doc after direct upload |
+| `POST` | `/api/media/process-callback` | Worker callback — sets derivatives + status |
+| `GET` | `/api/media/status-stream` | SSE stream of processing status |
+| `GET` | `/api/media/search` | Full-text search via GIN index |
+| `POST` | `/api/media/reprocess` | Re-trigger worker on existing asset |
+
+### Portfolio & Client Review
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/portfolio-client-sessions/unlock` | Validate passcode, issue JWT |
+| `GET` | `/api/portfolio-client-sessions/[token]/reviews` | Fetch review state |
+| `POST` | `/api/portfolio-client-sessions/[token]/reviews` | Submit selections/comments |
+
+### Admin
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/admin/diagnostics` | System health + infra status |
+| `GET` | `/api/admin/creative-metrics` | Per-creative usage metrics |
+| `GET` | `/api/health` | Service health check |
+
+Full reference: [`docs/backend/api-reference.md`](docs/backend/api-reference.md)
+
+---
+
+## Access Control
+
+Three roles: `admin` · `creative` · `viewer`
+
+Access modules in `src/access/*`:
+
+| Module | Who |
+|---|---|
+| `adminOnly` | Admins only |
+| `creativeOrAdmin` | Creatives + admins |
+| `ownerOrAdmin` | Document owner + admins |
+| `adminOrSelf` | Self-modification + admins |
+| `publicAccess` | Everyone |
+| `adminOrPublishedStatus` | Admins, or published docs publicly |
+
+Access is evaluated at three levels: **collection** → **field** → **document** (via `where` queries). Never inline access logic — always import from `src/access/*`.
+
+Full reference: [`docs/backend/access-control.md`](docs/backend/access-control.md)
+
+---
+
+## Testing
 
 ```bash
-pnpm add @payloadcms/storage-vercel-blob
+pnpm test              # integration + E2E
+pnpm test:int          # Vitest integration tests (real Postgres, no mocks)
+pnpm test:e2e          # Playwright E2E
+
+# Run a single E2E test
+pnpm exec playwright test tests/e2e/admin.e2e.spec.ts -g "test name"
 ```
 
-```ts
-// payload.config.ts
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
+**Philosophy:** integration tests hit a real ephemeral Postgres — no DB mocks. E2E runs with `DISABLE_WORKER=1` (worker is synthesised via direct `process-callback` call).
 
-export default buildConfig({
-  // ...
-  plugins: [
-    vercelBlobStorage({
-      collections: {
-        [Media.slug]: true,
-      },
-      token: process.env.BLOB_READ_WRITE_TOKEN || '',
-    }),
-  ],
-  // ...
+Test locations:
+- `tests/int/**/*.int.spec.ts` — integration tests
+- `tests/e2e/*.spec.ts` — Playwright E2E
+
+Full guide: [`docs/workflows/testing.md`](docs/workflows/testing.md)
+
+---
+
+## Git Workflow
+
+**Branch strategy:** `feature/* → dev → main`  
+CI enforces: PRs to `main` must come from `dev` only (guardrail job).
+
+```bash
+# Start a feature
+git checkout dev && git pull
+git checkout -b FRH-{ticket}-short-description
+
+# Commit format
+git commit -m "feat(media): add reprocess endpoint"
+# Types: feat | fix | chore | docs | refactor | test | perf
+
+# Open PR → dev
 ```
 
-### Self-hosting
+**Hooks (Husky):**
+- `pre-commit`: lint-staged (ESLint + Prettier on staged files)
+- `pre-push`: `lint` + `IS_BUILD_PHASE=true pnpm build` + `verify-local.sh`
 
-Before deploying your app, you need to:
+Full guide: [`docs/workflows/git-workflow.md`](docs/workflows/git-workflow.md)
 
-1. Ensure your app builds and serves in production. See [Production](#production) for more details.
-2. You can then deploy Payload as you would any other Node.js or Next.js application either directly on a VPS, DigitalOcean's Apps Platform, via Coolify or more. More guides coming soon.
+---
 
-You can also deploy your app manually, check out the [deployment documentation](https://payloadcms.com/docs/production/deployment) for full details.
+## CI/CD
 
-## Questions
+Pipeline: `.github/workflows/pr-validation.yml`
 
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+```mermaid
+graph LR
+    guardrail --> quality_gate
+    quality_gate --> integration_tests
+    quality_gate --> e2e_shard
+    integration_tests --> merge_e2e_reports
+    e2e_shard --> merge_e2e_reports
+    merge_e2e_reports --> remote_migrations
+```
+
+| Job | What it does |
+|---|---|
+| `guardrail` | Blocks PRs to `main` not from `dev` |
+| `quality_gate` | Type-check, lint, build, schema drift check |
+| `integration_tests` | Vitest against ephemeral Neon branch |
+| `e2e_shard` | Playwright sharded across 3 runners |
+| `remote_migrations` | `payload migrate` on ephemeral Neon branch |
+
+**Deploy to dev** triggers on merge to `dev` via `_deploy-app.yml` + `_deploy-worker.yml`.  
+**Prod deploy** is gated (`if: false`) — separate epic.
+
+Full reference: [`docs/devops/ci-cd.md`](docs/devops/ci-cd.md)
+
+---
+
+## GCP Infrastructure
+
+**Region:** `us-central1` everywhere (Cloud Run, GCS, Eventarc, Artifact Registry).
+
+```mermaid
+graph TD
+    Client -->|HTTPS| CloudRun[Cloud Run<br>framehouse-hub-dev<br>min=0 max=4]
+    CloudRun -->|private bucket| GCS[GCS Bucket<br>framehouse-hub-dev<br>public-access-prevention=enforced]
+    GCS -->|object-finalize Eventarc| Worker[Cloud Run Worker<br>framehouse-hub-worker-dev<br>no-allow-unauthenticated]
+    Worker -->|process-callback + bearer| CloudRun
+    CloudRun --> Neon[(Neon PostgreSQL)]
+    CloudRun --> SecretManager[Secret Manager]
+    Worker --> SecretManager
+```
+
+**Cloud Run specs:**
+
+| Setting | Value |
+|---|---|
+| `--min-instances` | 0 (zero idle cost) |
+| `--max-instances` | 4 |
+| `--memory` | 512Mi |
+| `--cpu` | 1 |
+| `--concurrency` | 4 |
+| `--timeout` | 300s |
+
+**Three distinct service agents** (do not conflate):
+
+| Agent | IAM Role | Purpose |
+|---|---|---|
+| GCS service agent (`service-{PN}@gs-project-accounts.iam.gserviceaccount.com`) | `roles/pubsub.publisher` | Publish object-finalize events |
+| Eventarc service agent (`service-{PN}@gcp-sa-eventarc.iam.gserviceaccount.com`) | `roles/storage.legacyBucketReader` on bucket | Validate Eventarc trigger |
+| Cloud Run runtime SA (`{PN}-compute@developer.gserviceaccount.com`) | `roles/eventarc.eventReceiver` (project) + `roles/run.invoker` (worker) + `roles/iam.serviceAccountTokenCreator` (self-grant) | Invoke worker + sign URLs |
+
+**Infrastructure scripts:**
+
+```bash
+scripts/infra/setup-gcs.sh          # Create bucket + CORS + IAM
+scripts/infra/setup-eventarc.sh     # Create Eventarc trigger
+scripts/infra/set-cleanup-policy.sh # Artifact Registry: keep 10, delete 30d
+```
+
+Full reference: [`docs/devops/gcp-infrastructure.md`](docs/devops/gcp-infrastructure.md)
+
+---
+
+## Deployment
+
+### Dev (automatic)
+
+Merging to `dev` triggers `deploy-dev.yml` → builds and deploys to Cloud Run dev.
+
+### Manual deploy
+
+```bash
+# Trigger via GitHub Actions workflow_dispatch
+gh workflow run deploy-dev.yml
+```
+
+### Migration order (always)
+
+```bash
+# 1. Run migrations first
+pnpm payload migrate
+
+# 2. Then deploy app
+pnpm build && pnpm start
+```
+
+### Rollback
+
+```bash
+# Via gcloud (immediate)
+gcloud run services update-traffic framehouse-hub-dev \
+  --to-revisions=PREV_REVISION=100 --region=us-central1
+```
+
+Full runbook: [`docs/devops/deployment.md`](docs/devops/deployment.md)
+
+---
+
+## Design System
+
+**"The Curated Gallery"** — premium, editorial visual language.
+
+**Rules (non-negotiable):**
+- No 1px borders — tonal layering only (`bg-card`, `bg-muted`, etc.)
+- Minimum border-radius: 16px (`ROUND_SIXTEEN`)
+- Font: Geist (sans) + Geist Mono (code)
+- Animations: Framer Motion — never CSS transitions on layout shifts
+- Dark/light: `dark:` Tailwind prefix, never hardcoded hex
+
+Full reference: [`DESIGN.md`](DESIGN.md) · [`docs/frontend/design-system.md`](docs/frontend/design-system.md)
+
+---
+
+## Docs Index
+
+| Area | Document |
+|---|---|
+| Architecture overview | [`docs/architecture/README.md`](docs/architecture/README.md) |
+| Data model (ER diagram) | [`docs/architecture/data-model.md`](docs/architecture/data-model.md) |
+| Media pipeline deep-dive | [`docs/architecture/media-pipeline.md`](docs/architecture/media-pipeline.md) |
+| Collections reference | [`docs/backend/collections.md`](docs/backend/collections.md) |
+| API reference | [`docs/backend/api-reference.md`](docs/backend/api-reference.md) |
+| Access control | [`docs/backend/access-control.md`](docs/backend/access-control.md) |
+| Database & migrations | [`docs/backend/database.md`](docs/backend/database.md) |
+| Local development | [`docs/devops/local-development.md`](docs/devops/local-development.md) |
+| GCP infrastructure | [`docs/devops/gcp-infrastructure.md`](docs/devops/gcp-infrastructure.md) |
+| CI/CD pipelines | [`docs/devops/ci-cd.md`](docs/devops/ci-cd.md) |
+| Deployment runbook | [`docs/devops/deployment.md`](docs/devops/deployment.md) |
+| Frontend routing | [`docs/frontend/routing.md`](docs/frontend/routing.md) |
+| State providers | [`docs/frontend/state-providers.md`](docs/frontend/state-providers.md) |
+| Component library | [`docs/frontend/components.md`](docs/frontend/components.md) |
+| Git workflow | [`docs/workflows/git-workflow.md`](docs/workflows/git-workflow.md) |
+| Testing guide | [`docs/workflows/testing.md`](docs/workflows/testing.md) |
+| Day 1 onboarding | [`docs/onboarding/getting-started.md`](docs/onboarding/getting-started.md) |
+| Glossary | [`docs/onboarding/glossary.md`](docs/onboarding/glossary.md) |
+
+---
+
+> Questions or issues? Open a GitHub discussion or check the relevant `docs/` section above.

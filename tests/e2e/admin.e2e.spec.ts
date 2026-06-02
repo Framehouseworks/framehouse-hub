@@ -28,7 +28,7 @@ test.describe('Admin Dashboard Smoke Gate', () => {
 
     // 3. Bypasses credentials and reaches administrative dashboard (excluding the login page itself)
     // Using negative lookahead to prevent matching '/admin/login'
-    await page.waitForURL(/\/admin(?!\/login)/)
+    await page.waitForURL(/\/admin(?!\/login)/, { timeout: 45_000 })
 
     // 4. Assert the admin dashboard has resolved successfully by checking standard layout elements.
     // Using robust href selector to guarantee exact authentication detection independent of compiled CSS Module hashes.

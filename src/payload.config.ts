@@ -17,12 +17,18 @@ import sharp from 'sharp'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { AdminActivityLogs } from '@/collections/AdminActivityLogs'
+import { AdminDiagnosticSessions } from '@/collections/AdminDiagnosticSessions'
 import { Articles } from '@/collections/Articles'
 import { Categories } from '@/collections/Categories'
 import { Downloads } from '@/collections/Downloads'
 import { Media } from '@/collections/Media/index'
 import { Pages } from '@/collections/Pages'
 import { Portfolios } from '@/collections/Portfolios'
+import { PortfolioClientSessions } from '@/collections/PortfolioClientSessions'
+import { PortfolioClientReviews } from '@/collections/PortfolioClientReviews'
+import { PortfolioAssetComments } from '@/collections/PortfolioAssetComments'
+import { PortfolioDownloadLogs } from '@/collections/PortfolioDownloadLogs'
 import { Tutorials } from '@/collections/Tutorials'
 import { Users } from '@/collections/Users'
 import { SmartCollections } from '@/collections/SmartCollections'
@@ -91,10 +97,16 @@ export default buildConfig({
     Tutorials,
     Media,
     Portfolios,
+    PortfolioClientSessions,
+    PortfolioClientReviews,
+    PortfolioAssetComments,
+    PortfolioDownloadLogs,
     SmartCollections,
     Sessions,
     UploadBatches,
     Waitlist,
+    AdminActivityLogs,
+    AdminDiagnosticSessions,
   ],
   db: postgresAdapter({
     push: false,
