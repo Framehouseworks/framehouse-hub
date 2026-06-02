@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Eye, Link2, Lock, Globe, EyeOff, ExternalLink, Loader2 } from 'lucide-react'
+import { Eye, Link2, Lock, Globe, EyeOff, ExternalLink, Loader2, MessageSquare, Download, CheckSquare, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/utilities/cn'
 import { Button } from '@/components/ui/button'
 import { generatePreviewTokenAction } from '@/app/(dashboard)/actions/portfolios'
-import type { WizardState } from '../types'
+import type { WizardState, ClientReviewSettings } from '../types'
 
 interface Props {
   state: WizardState
@@ -194,6 +194,111 @@ export function WizardStepShare({
             <Globe size={11} />
             Public portfolios may appear in search engines and be indexed.
           </p>
+        )}
+      </div>
+
+      {/* Client Review Settings */}
+      <div>
+        <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase mb-3">
+          Client Review Portal
+        </p>
+        <div className="rounded-2xl border border-on-surface/8 overflow-hidden divide-y divide-on-surface/8">
+          {(
+            [
+              { key: 'allowSelection', icon: CheckSquare, label: 'Asset Selection', description: 'Clients can select assets and submit a shortlist.' },
+              { key: 'allowComments', icon: MessageSquare, label: 'Comments', description: 'Clients can leave notes on individual assets.' },
+              { key: 'allowDownload', icon: Download, label: 'Downloads', description: 'Clients can download selected assets as a zip.' },
+              { key: 'requireClientIdentification', icon: Users, label: 'Require Identification', description: 'Ask clients for their name before submitting.' },
+            ] as const
+          ).map(({ key, icon: Icon, label, description }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onChange({
+                clientReviewSettings: {
+                  ...state.clientReviewSettings,
+                  [key]: !state.clientReviewSettings[key as keyof ClientReviewSettings],
+                },
+              })}
+              aria-pressed={Boolean(state.clientReviewSettings[key as keyof ClientReviewSettings])}
+              className="flex items-center gap-4 w-full px-4 py-3 text-left transition-colors hover:bg-gallery-gold/4"
+            >
+              <Icon size={15} className={cn(state.clientReviewSettings[key as keyof ClientReviewSettings] ? 'text-gallery-gold' : 'text-on-surface/25')} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-primary">{label}</p>
+                <p className="text-xs text-on-surface/40">{description}</p>
+              </div>
+              <div className={cn('w-9 h-5 rounded-full flex-shrink-0 relative transition-colors', state.clientReviewSettings[key as keyof ClientReviewSettings] ? 'bg-gallery-gold' : 'bg-on-surface/12')}>
+                <div className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform', state.clientReviewSettings[key as keyof ClientReviewSettings] ? 'right-0.5 translate-x-0' : 'left-0.5')} />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Selection limit */}
+        {state.clientReviewSettings.allowSelection && (
+          <div className="mt-3 space-y-1.5">
+            <label htmlFor="selection-limit" className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase block">
+              Selection limit <span className="normal-case tracking-normal text-on-surface/25">(0 = unlimited)</span>
+            </label>
+            <input
+              id="selection-limit"
+              type="number"
+              min={0}
+              max={200}
+              value={state.clientReviewSettings.selectionLimit}
+              onChange={(e) => onChange({ clientReviewSettings: { ...state.clientReviewSettings, selectionLimit: Math.max(0, Math.min(200, parseInt(e.target.value) || 0)) } })}
+              className="w-full bg-gallery-surface/60 rounded-2xl px-4 py-3 text-sm text-primary border border-transparent focus:border-gallery-gold/40 focus:outline-none"
+            />
+          </div>
+        )}
+
+        {/* Download quality */}
+        {state.clientReviewSettings.allowDownload && (
+          <div className="mt-3 space-y-1.5">
+            <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase">Download quality</p>
+            <div className="flex gap-2">
+              {(['proxy', 'original'] as const).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  disabled={q === 'original' && state.visibility === 'public'}
+                  onClick={() => onChange({ clientReviewSettings: { ...state.clientReviewSettings, downloadQuality: q } })}
+                  aria-pressed={state.clientReviewSettings.downloadQuality === q}
+                  className={cn(
+                    'flex-1 px-3 py-2.5 rounded-2xl text-xs border transition-all',
+                    state.clientReviewSettings.downloadQuality === q
+                      ? 'border-gallery-gold/40 bg-gallery-gold/8 text-primary'
+                      : 'border-on-surface/8 text-on-surface/40 hover:border-on-surface/20',
+                    q === 'original' && state.visibility === 'public' && 'opacity-40 cursor-not-allowed',
+                  )}
+                >
+                  {q === 'proxy' ? 'Preview Quality' : 'Full Resolution'}
+                </button>
+              ))}
+            </div>
+            {state.clientReviewSettings.downloadQuality === 'original' && state.visibility === 'public' && (
+              <p className="text-[11px] text-[#bb1800]/70">Full resolution downloads require a non-public portfolio.</p>
+            )}
+          </div>
+        )}
+
+        {/* Review prompt message */}
+        {(state.clientReviewSettings.allowSelection || state.clientReviewSettings.allowComments) && (
+          <div className="mt-3 space-y-1.5">
+            <label htmlFor="review-message" className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase block">
+              Review prompt <span className="normal-case tracking-normal text-on-surface/25">(optional)</span>
+            </label>
+            <input
+              id="review-message"
+              type="text"
+              maxLength={300}
+              value={state.clientReviewSettings.reviewMessage}
+              onChange={(e) => onChange({ clientReviewSettings: { ...state.clientReviewSettings, reviewMessage: e.target.value } })}
+              placeholder="e.g. Please select your 5 favourite images for the campaign."
+              className="w-full bg-gallery-surface/60 rounded-2xl px-4 py-3 text-sm text-primary placeholder:text-on-surface/30 border border-transparent focus:border-gallery-gold/40 focus:outline-none"
+            />
+          </div>
         )}
       </div>
 

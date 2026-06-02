@@ -51,6 +51,16 @@ export interface WizardSection {
   items: WizardGridItem[]
 }
 
+export interface ClientReviewSettings {
+  allowSelection: boolean
+  allowComments: boolean
+  allowDownload: boolean
+  requireClientIdentification: boolean
+  selectionLimit: number
+  downloadQuality: 'proxy' | 'original'
+  reviewMessage: string
+}
+
 export interface WizardState {
   portfolioId: number | null
   name: string
@@ -69,7 +79,18 @@ export interface WizardState {
   }
   visibility: 'private' | 'public' | 'shared'
   password?: string
+  clientReviewSettings: ClientReviewSettings
   loadedAt?: string
+}
+
+export const DEFAULT_REVIEW_SETTINGS: ClientReviewSettings = {
+  allowSelection: false,
+  allowComments: false,
+  allowDownload: false,
+  requireClientIdentification: false,
+  selectionLimit: 0,
+  downloadQuality: 'proxy',
+  reviewMessage: '',
 }
 
 export const DEFAULT_WIZARD_STATE: WizardState = {
@@ -89,6 +110,7 @@ export const DEFAULT_WIZARD_STATE: WizardState = {
     accentColor: '#ffffff',
   },
   visibility: 'private',
+  clientReviewSettings: { ...DEFAULT_REVIEW_SETTINGS },
 }
 
 // ── Rich text helpers ───────────────────────────────────────────────────────

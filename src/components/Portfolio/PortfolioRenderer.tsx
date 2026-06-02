@@ -12,12 +12,15 @@ import { MotionContainer } from './MotionContainer'
 import { PortfolioLightbox, type LightboxItem } from './PortfolioLightbox'
 import { SectionNavigator, type SectionNavItem } from './SectionNavigator'
 import { UniformGrid } from './UniformGrid'
+import { ReviewModeProvider, type ReviewConfig } from './review/ReviewModeProvider'
+import { SelectionModePill } from './review/SelectionModePill'
 
 type LayoutBlock = NonNullable<Portfolio['layoutBlocks']>[number]
 type GridBlock = Extract<LayoutBlock, { blockType: 'grid' }>
 
 interface PortfolioRendererProps {
   layoutBlocks: LayoutBlock[]
+  reviewConfig?: ReviewConfig | null
 }
 
 type LightboxState = {
@@ -62,7 +65,7 @@ function blockToLightboxItems(block: GridBlock): LightboxItem[] {
     }))
 }
 
-export const PortfolioRenderer: React.FC<PortfolioRendererProps> = ({ layoutBlocks }) => {
+export const PortfolioRenderer: React.FC<PortfolioRendererProps> = ({ layoutBlocks, reviewConfig }) => {
   const [lightbox, setLightbox] = useState<LightboxState>(null)
 
   // Section nav items — only named grid sections
@@ -122,13 +125,29 @@ export const PortfolioRenderer: React.FC<PortfolioRendererProps> = ({ layoutBloc
     }
   }, [])
 
-  return (
+  const content = (
     <>
       {/* Section navigation (desktop pill + tablet indicator) */}
       <SectionNavigator sections={navSections} />
 
+      {/* Mobile selection mode toggle */}
+      {reviewConfig?.allowSelection && <SelectionModePill />}
+
+      {/* Review message banner */}
+      {reviewConfig?.reviewMessage && (
+        <div className="px-6 md:px-12 lg:px-24 mb-6">
+          <p className="text-sm text-[color:var(--portfolio-text)] opacity-50 max-w-2xl leading-relaxed">
+            {reviewConfig.reviewMessage}
+          </p>
+        </div>
+      )}
+
       {/* Portfolio content — right-click protection via event delegation */}
-      <div className="flex flex-col w-full" onContextMenu={handleContextMenu}>
+      <div
+        className="flex flex-col w-full"
+        onContextMenu={handleContextMenu}
+        style={{ paddingBottom: 'var(--review-bar-height, 0px)' }}
+      >
         {layoutBlocks.map((block, blockIndex) => {
           switch (block.blockType) {
             case 'grid':
@@ -217,9 +236,16 @@ export const PortfolioRenderer: React.FC<PortfolioRendererProps> = ({ layoutBloc
         isOpen={lightbox !== null}
         onClose={closeLightbox}
         onNavigate={navigateLightbox}
+        allowComments={reviewConfig?.allowComments ?? false}
       />
     </>
   )
+
+  if (reviewConfig) {
+    return <ReviewModeProvider config={reviewConfig}>{content}</ReviewModeProvider>
+  }
+
+  return content
 }
 
 function renderGridBlock(

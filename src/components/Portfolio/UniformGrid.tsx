@@ -3,6 +3,8 @@
 import React, { useState } from 'react'
 import type { Media as MediaType, Portfolio } from '@/payload-types'
 import { Lightbox } from './Lightbox'
+import { useReviewMode } from './review/ReviewModeProvider'
+import { SelectionCheckbox } from './review/SelectionCheckbox'
 
 type GridItem = NonNullable<
   NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>
@@ -48,6 +50,7 @@ const COL_CLASSES: Record<number, string> = {
  */
 export function UniformGrid({ items, columns, spacing, onOpenLightbox }: UniformGridProps) {
   const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
+  const review = useReviewMode()
 
   // Reset lightbox if the visible items list changes (Issue-15: stale lightbox on remount)
   const visibleCount = items.filter((item) => item.media && typeof item.media === 'object').length
@@ -96,12 +99,21 @@ export function UniformGrid({ items, columns, spacing, onOpenLightbox }: Uniform
             <div
               key={item.instanceId ?? item.id ?? index}
               role="listitem"
-              className="relative aspect-square overflow-hidden rounded-2xl bg-[#0a0a0a] group"
+              className="relative aspect-square overflow-hidden rounded-2xl bg-[#0a0a0a] group/selectable group"
+              style={{
+                outline: review?.selections.has(media.id) ? '2px solid #d79922' : review?.submittedIds.has(media.id) ? '2px solid #445aa5' : undefined,
+                outlineOffset: '-2px',
+              }}
             >
+              <SelectionCheckbox mediaId={media.id} instanceId={(item.instanceId as string) || ''} itemTitle={(item.instanceTitle as string) || media.title || ''} />
               <button
                 type="button"
                 className="block w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7f5700] focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-2xl"
                 onClick={() => {
+                  if (review?.isSelectionMode) {
+                    review.toggleSelection(media.id, (item.instanceId as string) || '')
+                    return
+                  }
                   if (isVideo) return
                   if (onOpenLightbox) onOpenLightbox(index)
                   else setSelectedImage(media)

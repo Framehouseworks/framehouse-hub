@@ -76,6 +76,15 @@ function portfolioToWizardState(portfolio: Portfolio): WizardState {
     },
     visibility: (portfolio.visibility ?? 'private') as WizardState['visibility'],
     password: portfolio.password ?? undefined,
+    clientReviewSettings: {
+      allowSelection: portfolio.clientReviewSettings?.allowSelection ?? false,
+      allowComments: portfolio.clientReviewSettings?.allowComments ?? false,
+      allowDownload: portfolio.clientReviewSettings?.allowDownload ?? false,
+      requireClientIdentification: portfolio.clientReviewSettings?.requireClientIdentification ?? false,
+      selectionLimit: portfolio.clientReviewSettings?.selectionLimit ?? 0,
+      downloadQuality: (portfolio.clientReviewSettings?.downloadQuality as 'proxy' | 'original') ?? 'proxy',
+      reviewMessage: portfolio.clientReviewSettings?.reviewMessage ?? '',
+    },
     loadedAt: portfolio.updatedAt,
   }
 }

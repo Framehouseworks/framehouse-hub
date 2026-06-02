@@ -905,6 +905,47 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       } catch (seedMultiErr) {
         payload.logger.warn(`Could not seed multi-section portfolio: ${seedMultiErr}`)
       }
+
+      // Seed a public review-portal demo portfolio for E2E tests (FRH-62)
+      try {
+        const reviewDemoOwnerId = allCreativeIds[creativeEmail]
+        if (reviewDemoOwnerId) {
+          const reviewDemoName = 'Client Review Demo'
+          const reviewDemoExisting = await payload.find({
+            collection: 'portfolios',
+            where: { and: [{ owner: { equals: reviewDemoOwnerId } }, { name: { equals: reviewDemoName } }] },
+            limit: 1,
+          })
+          if (reviewDemoExisting.docs.length === 0) {
+            const demoMedia = [...mediaByFilename.values()].filter((m) => m.owner === reviewDemoOwnerId).slice(0, 4)
+            const demoItems = demoMedia.map((m) => ({ media: m.id, size: 'medium' as const }))
+            if (demoItems.length > 0) {
+              await payload.create({
+                collection: 'portfolios',
+                data: {
+                  name: reviewDemoName,
+                  owner: Number(reviewDemoOwnerId),
+                  visibility: 'public',
+                  layoutBlocks: [{ blockType: 'grid' as const, items: demoItems, spacing: 'medium' as const }] as Portfolio['layoutBlocks'],
+                  clientReviewSettings: {
+                    allowSelection: true,
+                    allowComments: true,
+                    allowDownload: false,
+                    requireClientIdentification: false,
+                    selectionLimit: 3,
+                    downloadQuality: 'proxy',
+                    reviewMessage: 'Please select your favourite images from this session.',
+                  },
+                },
+                context: { disableRevalidate: true },
+              })
+              payload.logger.info(`  Created review demo portfolio "${reviewDemoName}"`)
+            }
+          }
+        }
+      } catch (seedReviewErr) {
+        payload.logger.warn(`Could not seed review demo portfolio: ${seedReviewErr}`)
+      }
     } catch (err) {
       payload.logger.error(
         `Error seeding Portfolios: ${err instanceof Error ? err.message : String(err)}`,

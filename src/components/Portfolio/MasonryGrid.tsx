@@ -4,6 +4,8 @@ import { Media as MediaType, Portfolio } from '@/payload-types'
 import React, { useMemo, useState, useEffect } from 'react'
 import { Lightbox } from './Lightbox'
 import { MotionContainer } from './MotionContainer'
+import { useReviewMode } from './review/ReviewModeProvider'
+import { SelectionCheckbox } from './review/SelectionCheckbox'
 
 type GridItem = NonNullable<NonNullable<Extract<NonNullable<Portfolio['layoutBlocks']>[number], { blockType: 'grid' }>['items']>>[number] & {
     alt?: string | null
@@ -49,6 +51,7 @@ const WEIGHT_THRESHOLD = 3.0
 export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medium', preserveAspectRatio = false, onOpenLightbox }) => {
     const [selectedImage, setSelectedImage] = useState<MediaType | null>(null)
     const [isMobile, setIsMobile] = useState(false)
+    const review = useReviewMode()
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 640)
@@ -280,17 +283,23 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({ items, spacing = 'medi
                                             minWidth: 0,
                                             overflow: 'hidden',
                                             position: 'relative',
-                                            // Prevent sparse last-row items from blowing up to full width
                                             maxWidth: isSparseLastRow ? `${Math.min(45, flexGrow * 30)}%` : undefined,
+                                            outline: review?.selections.has(media.id) ? '2px solid #d79922' : review?.submittedIds.has(media.id) ? '2px solid #445aa5' : undefined,
+                                            outlineOffset: '-2px',
                                         }}
-                                        className="group cursor-pointer bg-zinc-900"
+                                        className="group/selectable group cursor-pointer bg-zinc-900"
                                         onClick={() => {
+                                            if (review?.isSelectionMode) {
+                                                review.toggleSelection(media.id, (item.instanceId as string) || '')
+                                                return
+                                            }
                                             if (item.link || isVideo) return
                                             const idx = items.indexOf(item)
                                             if (onOpenLightbox) onOpenLightbox(idx >= 0 ? idx : stripIndex)
                                             else setSelectedImage(media)
                                         }}
                                     >
+                                        <SelectionCheckbox mediaId={media.id} instanceId={(item.instanceId as string) || ''} itemTitle={(item.instanceTitle as string) || (media as MediaType).title || ''} />
                                         {isVideo ? (
                                             <video
                                                 src={media.proxyUrl ?? media.originalUrl ?? undefined}

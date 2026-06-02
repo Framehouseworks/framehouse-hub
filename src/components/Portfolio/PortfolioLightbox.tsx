@@ -3,9 +3,12 @@
 import { cn } from '@/utilities/cn'
 import type { Media as MediaType } from '@/payload-types'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, MessageSquare } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { CommentPanel } from './review/CommentPanel'
+import { useReviewMode } from './review/ReviewModeProvider'
+import { SelectionCheckbox } from './review/SelectionCheckbox'
 
 export interface LightboxItem {
   media: MediaType
@@ -21,6 +24,7 @@ interface PortfolioLightboxProps {
   isOpen: boolean
   onClose: () => void
   onNavigate: (index: number) => void
+  allowComments?: boolean
 }
 
 /**
@@ -34,11 +38,22 @@ export function PortfolioLightbox({
   isOpen,
   onClose,
   onNavigate,
+  allowComments = false,
 }: PortfolioLightboxProps) {
   const [isMounted, setIsMounted] = useState(false)
+  const [commentOpen, setCommentOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const review = useReviewMode()
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => { setIsMounted(true) }, [])
 
@@ -106,6 +121,7 @@ export function PortfolioLightbox({
   const accessionId = (media as MediaType & { accessionId?: string | null }).accessionId
   const atStart = currentIndex === 0
   const atEnd = currentIndex === items.length - 1
+  const showCommentPanel = allowComments && review?.config.allowComments
 
   return createPortal(
     <AnimatePresence>
@@ -160,8 +176,30 @@ export function PortfolioLightbox({
               </span>
             </div>
 
-            {/* Prev / Next */}
+            {/* Right controls: Prev/Next + Comments toggle + Selection */}
             <div className="flex items-center gap-1">
+              {showCommentPanel && (
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen((o) => !o)}
+                  className={cn(
+                    'flex items-center justify-center w-9 h-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:rounded-full',
+                    commentOpen ? 'text-[#d79922] bg-[#d79922]/10' : 'text-white/50 hover:text-white',
+                  )}
+                  aria-label={commentOpen ? 'Close notes panel' : 'Open notes panel'}
+                  aria-pressed={commentOpen}
+                >
+                  <MessageSquare size={15} />
+                </button>
+              )}
+              {review?.config.allowSelection && (
+                <SelectionCheckbox
+                  mediaId={media.id}
+                  instanceId={'lightbox'}
+                  itemTitle={altText}
+                  alwaysVisible
+                />
+              )}
               <button
                 type="button"
                 onClick={goPrev}
@@ -185,6 +223,9 @@ export function PortfolioLightbox({
               </button>
             </div>
           </div>
+
+          {/* ── Main content row (image + optional comment panel) ─────────── */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
 
           {/* ── Image area ──────────────────────────────────────────────────── */}
           <div
@@ -218,6 +259,31 @@ export function PortfolioLightbox({
               </AnimatePresence>
             </div>
           </div>
+
+          {/* ── Comment panel (desktop: right side; mobile: bottom sheet) ─── */}
+          {showCommentPanel && !isMobile && (
+            <div className="w-[280px] flex-shrink-0 overflow-hidden relative" onClick={stopProp}>
+              <CommentPanel
+                mediaId={media.id}
+                isMobile={false}
+                isOpen={true}
+              />
+            </div>
+          )}
+
+          </div>{/* End main content row */}
+
+          {/* ── Mobile comment bottom sheet ─────────────────────────────────── */}
+          {showCommentPanel && isMobile && (
+            <div className="absolute inset-x-0 bottom-0 z-20" onClick={stopProp}>
+              <CommentPanel
+                mediaId={media.id}
+                isMobile={true}
+                isOpen={commentOpen}
+                onClose={() => setCommentOpen(false)}
+              />
+            </div>
+          )}
 
           {/* ── Caption bar ─────────────────────────────────────────────────── */}
           <div

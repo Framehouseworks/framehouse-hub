@@ -11,8 +11,27 @@ import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 import { createHmac } from 'crypto'
-import type { User } from '@/payload-types'
+import type { Portfolio, User } from '@/payload-types'
 import { PasswordGateClient } from './PasswordGateClient'
+import type { ReviewConfig } from '@/components/Portfolio/review/ReviewModeProvider'
+
+function buildReviewConfig(portfolio: Portfolio, slug: string): ReviewConfig | null {
+  const s = portfolio.clientReviewSettings
+  if (!s?.allowSelection && !s?.allowComments && !s?.allowDownload) return null
+  const owner = typeof portfolio.owner === 'object' ? portfolio.owner as User : null
+  return {
+    allowSelection: s?.allowSelection ?? false,
+    allowComments: s?.allowComments ?? false,
+    allowDownload: s?.allowDownload ?? false,
+    requireClientIdentification: s?.requireClientIdentification ?? false,
+    selectionLimit: s?.selectionLimit ?? 0,
+    downloadQuality: (s?.downloadQuality as 'proxy' | 'original') ?? 'proxy',
+    reviewMessage: s?.reviewMessage ?? null,
+    portfolioSlug: slug,
+    portfolioName: portfolio.name,
+    ownerName: owner?.name ?? undefined,
+  }
+}
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -280,7 +299,14 @@ export default async function PortfolioPage({ params, searchParams }: Props) {
         </header>
 
         {/* ── Layout blocks ─────────────────────────────────────────────── */}
-        <PortfolioRenderer layoutBlocks={portfolio.layoutBlocks || []} />
+        <PortfolioRenderer
+          layoutBlocks={portfolio.layoutBlocks || []}
+          reviewConfig={
+            !hasValidPreviewToken && !isAdmin && portfolioWithStatus._status === 'published'
+              ? buildReviewConfig(portfolio, slug)
+              : null
+          }
+        />
 
         {/* ── Portfolio footer ──────────────────────────────────────────── */}
         <footer className="mt-24 px-6 md:px-24 py-10">
@@ -314,6 +340,11 @@ export default async function PortfolioPage({ params, searchParams }: Props) {
           status={portfolioWithStatus._status ?? 'unknown'}
           visibility={portfolio.visibility ?? 'private'}
           updatedAt={portfolio.updatedAt}
+          reviewSettings={{
+            allowSelection: portfolio.clientReviewSettings?.allowSelection ?? false,
+            allowComments: portfolio.clientReviewSettings?.allowComments ?? false,
+            allowDownload: portfolio.clientReviewSettings?.allowDownload ?? false,
+          }}
         />
       )}
     </PortfolioThemeProvider>
