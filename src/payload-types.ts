@@ -172,6 +172,26 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   name?: string | null;
+  /**
+   * Studio or agency display name
+   */
+  studioName?: string | null;
+  /**
+   * Short professional bio (max 300 characters)
+   */
+  bio?: string | null;
+  /**
+   * Studio logo shown in profile and portfolio header
+   */
+  studioLogo?: (number | null) | Media;
+  /**
+   * Default settings applied to newly created portfolios only
+   */
+  portfolioDefaults?: {
+    defaultTheme?: ('light' | 'dark') | null;
+    defaultVisibility?: ('private' | 'password' | 'public') | null;
+    showWatermark?: boolean | null;
+  };
   roles?: ('admin' | 'creative' | 'viewer')[] | null;
   updatedAt: string;
   createdAt: string;
@@ -190,86 +210,6 @@ export interface User {
       }[]
     | null;
   password?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages".
- */
-export interface Page {
-  id: number;
-  title: string;
-  publishedOn?: string | null;
-  hero: {
-    type: 'none' | 'highImpact' | 'mediumImpact' | 'lowImpact';
-    richText?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
-        version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    links?:
-      | {
-          link: {
-            type?: ('reference' | 'custom') | null;
-            newTab?: boolean | null;
-            reference?: {
-              relationTo: 'pages';
-              value: number | Page;
-            } | null;
-            url?: string | null;
-            label: string;
-            /**
-             * Choose how the link should be rendered.
-             */
-            appearance?: ('default' | 'outline') | null;
-          };
-          id?: string | null;
-        }[]
-      | null;
-    media?: (number | null) | Media;
-  };
-  layout: (
-    | CallToActionBlock
-    | ContentBlock
-    | MediaBlock
-    | ArchiveBlock
-    | CarouselBlock
-    | ThreeItemGridBlock
-    | BannerBlock
-    | FormBlock
-    | PricingBlock
-    | SprocketDividerBlock
-    | About3Block
-    | ArticleGridBlock
-    | DownloadGridBlock
-    | TutorialGridBlock
-  )[];
-  meta?: {
-    title?: string | null;
-    /**
-     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
-     */
-    image?: (number | null) | Media;
-    description?: string | null;
-  };
-  slug: string;
-  slugLock?: boolean | null;
-  /**
-   * If checked, this page is a system-critical record and cannot be deleted.
-   */
-  isProtected?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -444,6 +384,86 @@ export interface Session {
   owner: number | User;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: number;
+  title: string;
+  publishedOn?: string | null;
+  hero: {
+    type: 'none' | 'highImpact' | 'mediumImpact' | 'lowImpact';
+    richText?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+    links?:
+      | {
+          link: {
+            type?: ('reference' | 'custom') | null;
+            newTab?: boolean | null;
+            reference?: {
+              relationTo: 'pages';
+              value: number | Page;
+            } | null;
+            url?: string | null;
+            label: string;
+            /**
+             * Choose how the link should be rendered.
+             */
+            appearance?: ('default' | 'outline') | null;
+          };
+          id?: string | null;
+        }[]
+      | null;
+    media?: (number | null) | Media;
+  };
+  layout: (
+    | CallToActionBlock
+    | ContentBlock
+    | MediaBlock
+    | ArchiveBlock
+    | CarouselBlock
+    | ThreeItemGridBlock
+    | BannerBlock
+    | FormBlock
+    | PricingBlock
+    | SprocketDividerBlock
+    | About3Block
+    | ArticleGridBlock
+    | DownloadGridBlock
+    | TutorialGridBlock
+  )[];
+  meta?: {
+    title?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+    description?: string | null;
+  };
+  slug: string;
+  slugLock?: boolean | null;
+  /**
+   * If checked, this page is a system-critical record and cannot be deleted.
+   */
+  isProtected?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1912,6 +1932,16 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  studioName?: T;
+  bio?: T;
+  studioLogo?: T;
+  portfolioDefaults?:
+    | T
+    | {
+        defaultTheme?: T;
+        defaultVisibility?: T;
+        showWatermark?: T;
+      };
   roles?: T;
   updatedAt?: T;
   createdAt?: T;

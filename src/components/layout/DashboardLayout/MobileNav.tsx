@@ -8,8 +8,7 @@ import {
   Plus,
   Camera,
   FolderRoot,
-  Settings,
-  User,
+  UserCircle,
   X,
   MoreHorizontal,
   Share2,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { useUpload } from '@/providers/UploadProvider'
+import { useAuth } from '@/providers/Auth'
 
 // Primary floating nav — 2 left · FAB · 2 right
 // /dashboard redirects to /dashboard/library — treat both as the Library home
@@ -31,8 +31,7 @@ const PRIMARY_NAV = [
 const MORE_NAV = [
   { icon: BookImage, href: '/dashboard/portfolios', label: 'Portfolios' },
   { icon: Share2, href: '/dashboard/shared', label: 'Shared' },
-  { icon: Settings, href: '/dashboard/settings', label: 'Settings' },
-  { icon: User, href: '/account', label: 'Profile' },
+  { icon: UserCircle, href: '/account', label: 'Account' },
 ]
 
 const MORE_ROUTES = MORE_NAV.map((i) => i.href)
@@ -49,6 +48,8 @@ function isPathActive(pathname: string, href: string, exact: boolean): boolean {
 export const MobileNav: React.FC = () => {
   const pathname = usePathname()
   const { openPicker } = useUpload()
+  const { user } = useAuth()
+  const isCreative = user?.roles?.some((r) => r === 'creative' || r === 'admin') ?? false
   const [moreOpen, setMoreOpen] = useState(false)
 
   // Close sheet on route change
@@ -187,17 +188,19 @@ export const MobileNav: React.FC = () => {
             )
           })}
 
-          {/* Centre FAB */}
-          <button
-            onClick={openPicker}
-            aria-label="Upload media"
-            className="mx-1 flex-shrink-0 w-[52px] h-[52px] rounded-full flex items-center justify-center bg-primary transition-all duration-200 active:scale-90"
-            style={{
-              boxShadow: '0px 6px 14px -2px hsla(41,100%,25%,0.45)',
-            }}
-          >
-            <Plus size={24} strokeWidth={2.5} className="text-white dark:text-primary-foreground" />
-          </button>
+          {/* Centre FAB — creatives and admins only */}
+          {isCreative ? (
+            <button
+              onClick={openPicker}
+              aria-label="Upload media"
+              className="mx-1 flex-shrink-0 w-[52px] h-[52px] rounded-full flex items-center justify-center bg-primary transition-all duration-200 active:scale-90"
+              style={{ boxShadow: '0px 6px 14px -2px hsla(41,100%,25%,0.45)' }}
+            >
+              <Plus size={24} strokeWidth={2.5} className="text-white dark:text-primary-foreground" />
+            </button>
+          ) : (
+            <div className="mx-1 flex-shrink-0 w-[52px]" aria-hidden="true" />
+          )}
 
           {/* Right: Collections */}
           {(() => {
