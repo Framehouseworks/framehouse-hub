@@ -836,6 +836,117 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         })
         payload.logger.info(`  Created portfolio "${def.name}" for ${def.ownerEmail}`)
       }
+
+      // Seed one multi-section portfolio to exercise all three layout styles
+      try {
+        const multiOwnerId = allCreativeIds[creativeEmail]
+        if (multiOwnerId) {
+          const multiName = 'Section Layout Demo'
+          const multiExisting = await payload.find({
+            collection: 'portfolios',
+            where: { and: [{ owner: { equals: multiOwnerId } }, { name: { equals: multiName } }] },
+            limit: 1,
+          })
+          if (multiExisting.docs.length === 0) {
+            // Grab any available images for the 3 sections
+            const allSeededMedia = [...mediaByFilename.values()].filter((m) => m.owner === multiOwnerId)
+            const section1Items = allSeededMedia.slice(0, 2).map((m) => ({ media: m.id, size: 'medium' as const }))
+            const section2Items = allSeededMedia.slice(2, 5).map((m) => ({ media: m.id, size: 'medium' as const }))
+            const section3Items = allSeededMedia.slice(0, 3).map((m) => ({ media: m.id, size: 'medium' as const }))
+
+            const multiBlocks = [
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Filmstrip Demo',
+                sectionAnchor: 'filmstrip-demo',
+                showSectionHeader: true,
+                layoutStyle: 'filmstrip',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section1Items,
+              },
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Masonry Demo',
+                sectionAnchor: 'masonry-demo',
+                showSectionHeader: true,
+                layoutStyle: 'masonry',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section2Items,
+              },
+              {
+                blockType: 'grid' as const,
+                sectionName: 'Uniform Grid Demo',
+                sectionAnchor: 'uniform-grid-demo',
+                showSectionHeader: true,
+                layoutStyle: 'uniform_grid',
+                filmstripTrackHeight: 'comfortable',
+                uniformGridColumns: '3',
+                spacing: 'medium' as const,
+                items: section3Items,
+              },
+            ]
+            await payload.create({
+              collection: 'portfolios',
+              data: {
+                name: multiName,
+                owner: Number(multiOwnerId),
+                visibility: 'private',
+                layoutBlocks: multiBlocks as Portfolio['layoutBlocks'],
+              },
+              context: { disableRevalidate: true },
+            })
+            payload.logger.info(`  Created multi-section portfolio "${multiName}"`)
+          }
+        }
+      } catch (seedMultiErr) {
+        payload.logger.warn(`Could not seed multi-section portfolio: ${seedMultiErr}`)
+      }
+
+      // Seed a public review-portal demo portfolio for E2E tests (FRH-62)
+      try {
+        const reviewDemoOwnerId = allCreativeIds[creativeEmail]
+        if (reviewDemoOwnerId) {
+          const reviewDemoName = 'Client Review Demo'
+          const reviewDemoExisting = await payload.find({
+            collection: 'portfolios',
+            where: { and: [{ owner: { equals: reviewDemoOwnerId } }, { name: { equals: reviewDemoName } }] },
+            limit: 1,
+          })
+          if (reviewDemoExisting.docs.length === 0) {
+            const demoMedia = [...mediaByFilename.values()].filter((m) => m.owner === reviewDemoOwnerId).slice(0, 4)
+            const demoItems = demoMedia.map((m) => ({ media: m.id, size: 'medium' as const }))
+            if (demoItems.length > 0) {
+              await payload.create({
+                collection: 'portfolios',
+                data: {
+                  name: reviewDemoName,
+                  _status: 'published',
+                  owner: Number(reviewDemoOwnerId),
+                  visibility: 'public',
+                  layoutBlocks: [{ blockType: 'grid' as const, items: demoItems, spacing: 'medium' as const }] as Portfolio['layoutBlocks'],
+                  clientReviewSettings: {
+                    allowSelection: true,
+                    allowComments: true,
+                    allowDownload: false,
+                    requireClientIdentification: false,
+                    selectionLimit: 3,
+                    downloadQuality: 'proxy',
+                    reviewMessage: 'Please select your favourite images from this session.',
+                  },
+                },
+                context: { disableRevalidate: true },
+              })
+              payload.logger.info(`  Created review demo portfolio "${reviewDemoName}"`)
+            }
+          }
+        }
+      } catch (seedReviewErr) {
+        payload.logger.warn(`Could not seed review demo portfolio: ${seedReviewErr}`)
+      }
     } catch (err) {
       payload.logger.error(
         `Error seeding Portfolios: ${err instanceof Error ? err.message : String(err)}`,
@@ -2041,6 +2152,46 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
     } catch (err) {
       payload.logger.error(
         `Error syncing Footer global: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    // Seed admin oversight example activity log entry
+    try {
+      const adminUser = await payload.find({
+        collection: 'users',
+        where: { email: { equals: 'sys.admin@framehouseworks.com' } },
+        limit: 1,
+      })
+      const creativeUser = await payload.find({
+        collection: 'users',
+        where: { email: { equals: creativeEmail } },
+        limit: 1,
+      })
+      if (adminUser.docs[0] && creativeUser.docs[0]) {
+        const existing = await payload.find({
+          collection: 'admin-activity-logs',
+          where: { actionType: { equals: 'inspect_account' } },
+          limit: 1,
+        })
+        if (existing.docs.length === 0) {
+          await payload.create({
+            collection: 'admin-activity-logs',
+            data: {
+              adminUser: adminUser.docs[0].id,
+              targetUser: creativeUser.docs[0].id,
+              actionType: 'inspect_account',
+              actionDescription: `Admin 'System Admin' viewed diagnostic mirror for creative 'Creative User' (seed example)`,
+              metadata: { seeded: true },
+            },
+            overrideAccess: true,
+            context: { disableRevalidate: true },
+          })
+          payload.logger.info('Seeded example AdminActivityLog entry.')
+        }
+      }
+    } catch (err) {
+      payload.logger.warn(
+        `Could not seed AdminActivityLog example: ${err instanceof Error ? err.message : String(err)}`,
       )
     }
 

@@ -6,14 +6,23 @@ const password = 'password123'
 
 test.describe('Global Search (FRH-44)', () => {
   test.beforeEach(async ({ page }) => {
-    // /login has no persistent connections — networkidle is safe here
-    await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' })
+    // 'load' waits for all scripts (React hydration) but ignores persistent
+    // WebSocket connections (Next.js HMR), so it resolves in both dev and CI.
+    await page.goto(`${baseURL}/login`, { waitUntil: 'load' })
     await page.locator('input[name="email"]').fill(email)
     await page.locator('input[name="password"]').fill(password)
+    // Wait for the login API response before checking navigation so we don't
+    // race against the cookie being set (avoids redirect back to /login?warning=).
     await Promise.all([
-      page.waitForURL('**/dashboard**'),
+      page.waitForResponse(
+        (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
+        { timeout: 25_000 },
+      ),
       page.locator('button[type="submit"]').click(),
     ])
+    // Use a regex anchored to the path so the warning query-param URL
+    // (/login?warning=...dashboard...) can't accidentally satisfy this wait.
+    await page.waitForURL(/\/dashboard(?:[/?#]|$)/, { timeout: 25_000 })
     // Wait for the header search input to be present before each test.
     // /dashboard/library holds an open SSE connection (/api/media/status-stream)
     // so waitUntil: 'networkidle' is never satisfied — use explicit element wait.
@@ -57,7 +66,8 @@ test.describe('Global Search (FRH-44)', () => {
     await input.click()
     await input.pressSequentially('iceland')
     await input.press('Enter')
-    await expect(page).toHaveURL(/\/dashboard\/library\?search=iceland/)
+    // waitForURL is more resilient than toHaveURL for async router.push transitions.
+    await page.waitForURL(/\/dashboard\/library\?search=iceland/, { timeout: 15_000 })
   })
 
   test('clicking quick filter chip sets ?search= and navigates to /dashboard/library', async ({

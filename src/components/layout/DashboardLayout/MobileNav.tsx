@@ -13,6 +13,7 @@ import {
   X,
   MoreHorizontal,
   Share2,
+  BookImage,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { useUpload } from '@/providers/UploadProvider'
@@ -28,6 +29,7 @@ const PRIMARY_NAV = [
 
 // Items surfaced inside the "More" bottom sheet
 const MORE_NAV = [
+  { icon: BookImage, href: '/dashboard/portfolios', label: 'Portfolios' },
   { icon: Share2, href: '/dashboard/shared', label: 'Shared' },
   { icon: Settings, href: '/dashboard/settings', label: 'Settings' },
   { icon: User, href: '/account', label: 'Profile' },

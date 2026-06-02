@@ -1,29 +1,56 @@
-## Overview
+## What & Why
 
-**Ticket:** [ID]
-**Context:** Briefly describe the problem and the high-level solution.
+**Ticket:** [FRH-XX](https://linear.app/framehouse/issue/FRH-XX)
+**Target:** `dev` ← feature branch _(never `main` directly — see [branch rules](../docs/workflows/git-workflow.md))_
 
-## Impact & Risk
+> One paragraph: what changed and why. Link the ticket for full context.
 
-- **Scope:** [e.g., Auth, UI, Database]
-- **Risk Level:** [Low / Medium / High]
+## Type of Change
 
-## Author’s Self-Check
+- [ ] Feature
+- [ ] Bug fix
+- [ ] Schema change (migration required)
+- [ ] DevOps / infrastructure
+- [ ] Refactor / cleanup
+- [ ] Docs only
 
-- [ ] Requirements cross-checked against the ticket.
-- [ ] Verified on [Local/Staging] environment.
-- [ ] No regressions in mobile/responsive views (if applicable).
+## Author Checklist
 
-## Peer Review Workflow
+**CI runs automatically** — pre-push hook already ran `verify-local.sh` + lint + build. These are the things CI cannot check for you:
 
-_Reviewers: Please follow these steps before merging:_
+- [ ] Acceptance criteria in the ticket are met
+- [ ] Tested locally (happy path + at least one edge case)
+- [ ] Responsive behaviour verified if UI changed
+- [ ] No `console.log` / debug code left in
+- [ ] No hardcoded secrets or environment values
 
-1. **Requirement Audit:** Does the implementation meet all acceptance criteria?
-2. **Code Quality:** Check for maintainability, edge cases, and performance.
-3. **Approval:**
-   - [ ] **Feedback Provided:** Changes requested or suggestions made.
-   - [ ] **Final Approval:** All comments resolved and ready for deployment.
+**Schema changes** _(skip if no Payload config changed)_
+- [ ] `pnpm payload migrate:create` run — both `.ts` + `.json` migration files committed
+- [ ] `pnpm generate:types` run — `src/payload-types.ts` updated and committed
+- [ ] `pnpm generate:importmap` run if new admin components added
+- [ ] `src/seed/index.ts` updated if new collections or required fields added
+
+**Media / storage changes** _(skip if not touching the Media collection or ingestion pipeline)_
+- [ ] `buildStoragePath` used — no hand-constructed paths
+- [ ] Unsigned URLs stored in DB — no signed URLs persisted
+- [ ] New searchable fields added to both the GIN index migration **and** `/api/media/search`
+
+**Design** _(skip if no UI changes)_
+- [ ] No 1px borders (tonal layering only — see [design system](../docs/frontend/design-system.md))
+- [ ] `ROUND_SIXTEEN`+ radii on all cards/containers
+- [ ] Dark mode verified
+
+## What to Review
+
+> Point reviewers at the most important or risky parts. Replace this with 2–4 bullets.
+
+- `src/path/to/key-file.ts` — [why this is the crux of the change]
+- `src/migrations/YYYYMMDD_*.ts` — [what schema change this makes and why it's safe]
+
+## Visuals
+
+> Screenshots, Loom link, or logs. Delete section if not applicable.
 
 ---
 
-**Visuals / Demo:** (Screenshots, Loom, or logs)
+**CI checks on this PR:** guardrail · lint · build · generate:types drift · generate:importmap drift · integration tests · E2E tests

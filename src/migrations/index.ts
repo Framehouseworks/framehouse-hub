@@ -28,6 +28,14 @@ import * as migration_20260527_160000_add_camera_make from './20260527_160000_ad
 import * as migration_20260527_210000_add_sessions_collection from './20260527_210000_add_sessions_collection';
 import * as migration_20260527_240000_add_collection_generated_from_camera_date from './20260527_240000_add_collection_generated_from_camera_date';
 import * as migration_20260601_164135 from './20260601_164135';
+import * as migration_20260601_233722 from './20260601_233722';
+import * as migration_20260602_000001_add_section_layout_fields from './20260602_000001_add_section_layout_fields';
+import * as migration_20260602_000002_section_scale_indexes from './20260602_000002_section_scale_indexes';
+import * as migration_20260602_000003_add_section_width_aspect_ratio from './20260602_000003_add_section_width_aspect_ratio';
+import * as migration_20260602_100000_frh62_client_review_portal from './20260602_100000_frh62_client_review_portal';
+import * as migration_20260602_200000_add_admin_oversight from './20260602_200000_add_admin_oversight';
+import * as migration_20260602_210000_fix_admin_oversight_rels from './20260602_210000_fix_admin_oversight_rels';
+import * as migration_20260602_220000_fix_portfolios_title_nullable from './20260602_220000_fix_portfolios_title_nullable';
 
 export const migrations = [
   {
@@ -178,6 +186,46 @@ export const migrations = [
   {
     up: migration_20260601_164135.up,
     down: migration_20260601_164135.down,
-    name: '20260601_164135'
+    name: '20260601_164135',
+  },
+  {
+    up: migration_20260601_233722.up,
+    down: migration_20260601_233722.down,
+    name: '20260601_233722',
+  },
+  {
+    up: migration_20260602_000001_add_section_layout_fields.up,
+    down: migration_20260602_000001_add_section_layout_fields.down,
+    name: '20260602_000001_add_section_layout_fields',
+  },
+  {
+    up: migration_20260602_000002_section_scale_indexes.up,
+    down: migration_20260602_000002_section_scale_indexes.down,
+    name: '20260602_000002_section_scale_indexes',
+  },
+  {
+    up: migration_20260602_000003_add_section_width_aspect_ratio.up,
+    down: migration_20260602_000003_add_section_width_aspect_ratio.down,
+    name: '20260602_000003_add_section_width_aspect_ratio',
+  },
+  {
+    up: migration_20260602_100000_frh62_client_review_portal.up,
+    down: migration_20260602_100000_frh62_client_review_portal.down,
+    name: '20260602_100000_frh62_client_review_portal',
+  },
+  {
+    up: migration_20260602_200000_add_admin_oversight.up,
+    down: migration_20260602_200000_add_admin_oversight.down,
+    name: '20260602_200000_add_admin_oversight',
+  },
+  {
+    up: migration_20260602_210000_fix_admin_oversight_rels.up,
+    down: migration_20260602_210000_fix_admin_oversight_rels.down,
+    name: '20260602_210000_fix_admin_oversight_rels',
+  },
+  {
+    up: migration_20260602_220000_fix_portfolios_title_nullable.up,
+    down: migration_20260602_220000_fix_portfolios_title_nullable.down,
+    name: '20260602_220000_fix_portfolios_title_nullable'
   },
 ];

@@ -40,7 +40,7 @@ export function HeaderClient({ header, user }: Props) {
   const menu = header.navItems && header.navItems.length > 0 ? header.navItems : defaultMenu
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 pt-4 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 pointer-events-none">
+    <div data-site-header className="fixed top-0 left-0 right-0 z-50 pt-4 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 pointer-events-none">
       <motion.header
         initial={{ y: 0 }}
         animate={{
@@ -80,14 +80,15 @@ export function HeaderClient({ header, user }: Props) {
             <NavigationMenu>
               <NavigationMenuList className="gap-2">
                 {menu.map((item: Record<string, unknown>) => {
-                  if (item.group) {
+                  const subItems = item.subItems as Record<string, unknown>[] | undefined
+                  if (item.group && subItems && subItems.length > 0) {
                     return (
                       <NavigationMenuItem key={item.id as string}>
                         <NavigationMenuTrigger
                           className={cn(
                             'text-sm font-medium transition-colors hover:text-primary whitespace-nowrap bg-transparent',
                             {
-                              'text-primary': (item.subItems as Record<string, unknown>[])?.some(
+                              'text-primary': subItems?.some(
                                 (si: Record<string, unknown>) =>
                                   (si.link as Record<string, unknown>).url &&
                                   pathname.includes(
@@ -101,7 +102,7 @@ export function HeaderClient({ header, user }: Props) {
                         </NavigationMenuTrigger>
                         <NavigationMenuContent>
                           <ul className="grid w-[400px] gap-3 p-6 md:w-[500px] md:grid-cols-2 lg:w-[600px] bg-white dark:bg-[#1a1c1c] rounded-xl border border-black/5 dark:border-white/5">
-                            {(item.subItems as Record<string, unknown>[])?.map(
+                            {subItems?.map(
                               (subItem: Record<string, unknown>) => (
                                 <li key={subItem.id as string}>
                                   <NavigationMenuLink asChild>
