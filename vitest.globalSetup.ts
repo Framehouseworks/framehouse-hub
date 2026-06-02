@@ -66,7 +66,7 @@ export async function setup() {
     '-p',
     `${port}:5432`,
     '-d',
-    'postgres:15-alpine',
+    'public.ecr.aws/docker/library/postgres:15-alpine',
   ])
   if (start.status !== 0) {
     throw new Error(`Failed to start postgres container: ${start.stderr}`)
