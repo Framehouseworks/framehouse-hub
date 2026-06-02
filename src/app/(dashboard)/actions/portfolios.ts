@@ -73,10 +73,32 @@ export async function createDraftPortfolioAction(
     const { payload, user } = await getAuth()
     if (!user) return { success: false, message: 'Unauthorized' }
 
+    // title is NOT NULL in the DB schema — supply a minimal Lexical doc from name
+    const titleDoc = {
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'paragraph',
+            children: [{ type: 'text', text: name, version: 1 }],
+            direction: 'ltr' as const,
+            format: '' as const,
+            indent: 0,
+            version: 1,
+          },
+        ],
+        direction: 'ltr' as const,
+        format: '' as const,
+        indent: 0,
+        version: 1,
+      },
+    }
+
     const doc = await payload.create({
       collection: 'portfolios',
       data: {
         name,
+        title: titleDoc,
         owner: user.id,
         visibility: 'private',
         layoutBlocks: [],
@@ -92,6 +114,30 @@ export async function createDraftPortfolioAction(
   }
 }
 
+// Enterprise server-side limits (Issues 4 & 5)
+const MAX_SECTIONS_SERVER = 20    // max grid blocks per portfolio
+const MAX_ITEMS_SERVER = 100      // max total items across all grid blocks
+
+/**
+ * Validates layoutBlocks against enterprise limits.
+ * Returns an error string if limits are exceeded, null if valid.
+ */
+function validateLayoutBlocks(blocks: unknown): string | null {
+  if (!Array.isArray(blocks)) return null
+  const gridBlocks = blocks.filter((b) => (b as Record<string, unknown>).blockType === 'grid')
+  if (gridBlocks.length > MAX_SECTIONS_SERVER) {
+    return `Portfolio may not exceed ${MAX_SECTIONS_SERVER} sections (got ${gridBlocks.length})`
+  }
+  const totalItems = gridBlocks.reduce((sum, b) => {
+    const items = (b as Record<string, unknown>).items
+    return sum + (Array.isArray(items) ? items.length : 0)
+  }, 0)
+  if (totalItems > MAX_ITEMS_SERVER) {
+    return `Portfolio may not exceed ${MAX_ITEMS_SERVER} total assets (got ${totalItems})`
+  }
+  return null
+}
+
 /** Save (autosave) a portfolio draft — with optional optimistic concurrency check */
 export async function savePortfolioDraftAction(
   id: number,
@@ -101,6 +147,10 @@ export async function savePortfolioDraftAction(
   try {
     const { payload, user } = await getAuth()
     if (!user) return { success: false, message: 'Unauthorized' }
+
+    // Enterprise: validate section/item limits server-side (Issues 4 & 5)
+    const limitError = validateLayoutBlocks(data.layoutBlocks)
+    if (limitError) return { success: false, message: limitError }
 
     // Concurrency check: if caller provides a known-good timestamp, verify nothing changed
     if (ifUnmodifiedSince) {
@@ -151,8 +201,10 @@ export async function publishPortfolioAction(
       user,
     })
 
-    revalidatePath('/dashboard/portfolios')
-    revalidatePath(`/p/${(doc as Portfolio).slug}`)
+    // 'page' scope ensures the client-side router cache for the list page is
+    // invalidated so the next navigation delivers the server-fetched fresh snapshot.
+    revalidatePath('/dashboard/portfolios', 'page')
+    revalidatePath(`/p/${(doc as Portfolio).slug}`, 'page')
     return { success: true, message: 'Published', data: doc as Portfolio }
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to publish' }
@@ -246,7 +298,8 @@ export async function fetchMediaForPickerAction(opts: {
 
     const andClauses: import('payload').Where[] = [
       { owner: { equals: user.id } },
-      { ingestionStatus: { not_equals: 'failed' } },
+      // Include null-status items — SQL `!= 'failed'` excludes NULLs; use OR to keep them
+      { or: [{ ingestionStatus: { not_equals: 'failed' } }, { ingestionStatus: { exists: false } }] } as import('payload').Where,
     ]
 
     if (search) andClauses.push({

@@ -1,3 +1,4 @@
+import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
 import { ownerOrAdmin } from '@/access/ownerOrAdmin'
 import {
   AlignFeature,
@@ -10,7 +11,9 @@ import type { CollectionConfig, Where } from 'payload'
 // REMOVED: Direct component imports to prevent CSS loading errors in Node
 // import { FolderCell } from './components/FolderCell'
 // import { LibraryRedirector } from './components/LibraryRedirector'
+import { deduplicateSectionAnchors } from './hooks/deduplicateSectionAnchors'
 import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
+import { generateSectionAnchor } from './hooks/generateSectionAnchor'
 import { generateSlug } from './hooks/generateSlug'
 import { reorderItems } from './hooks/reorderItems'
 import { stripDocumentId } from './hooks/stripDocumentId'
@@ -54,7 +57,13 @@ export const Portfolios: CollectionConfig = {
   },
   endpoints: portfolioEndpoints,
   hooks: {
-    beforeChange: [reorderItems, stripDocumentId, generateSlug, ensureLibraryAssignment],
+    beforeChange: [
+      reorderItems,
+      stripDocumentId,
+      generateSlug,
+      ensureLibraryAssignment,
+      deduplicateSectionAnchors,
+    ],
   },
   access: {
     create: () => true,
@@ -218,10 +227,128 @@ export const Portfolios: CollectionConfig = {
         {
           slug: 'grid',
           labels: {
-            singular: 'Masonry Grid',
-            plural: 'Masonry Grids',
+            singular: 'Grid Section',
+            plural: 'Grid Sections',
           },
           fields: [
+            // ── Section identity fields ────────────────────────────────────
+            {
+              name: 'sectionName',
+              type: 'text',
+              label: 'Section Name',
+              admin: {
+                description: 'Displayed as a header above this section on the public page.',
+                placeholder: 'e.g. Campaign Video, Product Stills',
+              },
+            },
+            {
+              name: 'sectionAnchor',
+              type: 'text',
+              label: 'Section Anchor (auto-generated)',
+              admin: {
+                readOnly: true,
+                description: 'URL anchor for deep linking — auto-generated from section name.',
+              },
+              hooks: {
+                beforeChange: [generateSectionAnchor],
+              },
+              // Privacy note (Issue 9): collection-level access control restricts private
+              // portfolios entirely — no field-level restriction needed here.
+              // The DB-level unique index (migration 20260602_000002) prevents duplicate anchors
+              // even if two concurrent saves race past the application-level deduplication hook.
+            },
+            {
+              // Admin-only escape hatch for fixing corrupt anchors (C-1)
+              name: 'sectionAnchorOverride',
+              type: 'text',
+              label: 'Anchor Override (admin only)',
+              access: {
+                read: adminOnlyFieldAccess,
+                update: adminOnlyFieldAccess,
+                create: adminOnlyFieldAccess,
+              },
+              admin: {
+                description: 'If set, overrides the auto-generated anchor. Clear to revert to auto.',
+                // Hidden from regular admin UI; the field hook reads it server-side
+                condition: () => false,
+              },
+            },
+            {
+              name: 'showSectionHeader',
+              type: 'checkbox',
+              label: 'Show section name publicly',
+              defaultValue: false,
+              admin: {
+                description: 'Display the section name as a heading on the public portfolio page.',
+              },
+            },
+            {
+              name: 'layoutStyle',
+              type: 'select',
+              label: 'Layout Style',
+              defaultValue: 'masonry',
+              required: true,
+              options: [
+                { label: 'Auto (Justified rows)', value: 'masonry' },
+                { label: 'Filmstrip', value: 'filmstrip' },
+                { label: 'Uniform Grid', value: 'uniform_grid' },
+              ],
+            },
+            {
+              name: 'preserveAspectRatio',
+              type: 'checkbox',
+              label: 'Preserve original aspect ratios',
+              defaultValue: false,
+              admin: {
+                description: 'Show images at their natural proportions — no cropping to row height. Only applies to Auto layout.',
+                condition: (_, siblingData) => siblingData?.layoutStyle === 'masonry',
+              },
+            },
+            {
+              name: 'sectionWidth',
+              type: 'select',
+              label: 'Section width',
+              defaultValue: 'full',
+              options: [
+                { label: 'Full width', value: 'full' },
+                { label: 'Wide (1400px)', value: 'wide' },
+                { label: 'Contained (1100px)', value: 'contained' },
+                { label: 'Narrow (800px)', value: 'narrow' },
+              ],
+              admin: {
+                description: 'Constrain the maximum width of this section. Useful for preventing very large images on wide monitors.',
+              },
+            },
+            {
+              name: 'filmstripTrackHeight',
+              type: 'select',
+              label: 'Filmstrip Track Height',
+              defaultValue: 'comfortable',
+              options: [
+                { label: 'Compact (280px)', value: 'compact' },
+                { label: 'Comfortable (400px)', value: 'comfortable' },
+                { label: 'Editorial (560px)', value: 'editorial' },
+              ],
+              admin: {
+                // C-9 confirmed: siblingData pattern is valid for block fields
+                condition: (_, siblingData) => siblingData?.layoutStyle === 'filmstrip',
+              },
+            },
+            {
+              name: 'uniformGridColumns',
+              type: 'select',
+              label: 'Columns',
+              defaultValue: '3',
+              options: [
+                { label: '2 Columns', value: '2' },
+                { label: '3 Columns', value: '3' },
+                { label: '4 Columns', value: '4' },
+              ],
+              admin: {
+                condition: (_, siblingData) => siblingData?.layoutStyle === 'uniform_grid',
+              },
+            },
+            // ── Grid items ────────────────────────────────────────────────
             // Standard Array Field (Placeholder for now)
             {
               name: 'items',

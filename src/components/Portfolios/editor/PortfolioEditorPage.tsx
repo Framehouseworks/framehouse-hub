@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -20,24 +19,27 @@ import {
   publishPortfolioAction,
   generatePreviewTokenAction,
 } from '@/app/(dashboard)/actions/portfolios'
-import type { Portfolio, Media } from '@/payload-types'
-import type { WizardState, WizardGridItem } from '../types'
+import type { Portfolio } from '@/payload-types'
+import type { WizardState } from '../types'
 import {
   plainTextToLexical,
   itemsToLayoutBlocks,
+  sectionsToLayoutBlocks,
+  hydrateServerSections,
   extractRichTextPlain,
 } from '../types'
 import { WizardStepMetadata } from '../wizard/WizardStepMetadata'
-import { WizardStepAssetTray } from '../wizard/WizardStepAssetTray'
+import { WizardStepSectionLayout } from '../wizard/WizardStepSectionLayout'
 import { WizardStepOverrides } from '../wizard/WizardStepOverrides'
 import { WizardStepTheme } from '../wizard/WizardStepTheme'
 import { WizardStepShare } from '../wizard/WizardStepShare'
 
-type Tab = 'metadata' | 'assets' | 'overrides' | 'theme' | 'share'
+// 'assets' tab removed — all asset management in 'layout' tab (C-7)
+type Tab = 'metadata' | 'layout' | 'overrides' | 'theme' | 'share'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'metadata', label: 'Details' },
-  { id: 'assets', label: 'Assets' },
+  { id: 'layout', label: 'Layout' },
   { id: 'overrides', label: 'Overrides' },
   { id: 'theme', label: 'Theme' },
   { id: 'share', label: 'Share' },
@@ -46,31 +48,15 @@ const TABS: { id: Tab; label: string }[] = [
 const AUTOSAVE_DELAY = 3000
 
 function portfolioToWizardState(portfolio: Portfolio): WizardState {
-  const gridBlock = portfolio.layoutBlocks?.find((b) => b.blockType === 'grid')
-  const items: WizardGridItem[] = ((gridBlock as { items?: NonNullable<typeof gridBlock & { blockType: 'grid' }>['items'] } | undefined)?.items ?? [])
-    .filter((item) => item.media && typeof item.media === 'object')
-    .map((item) => {
-      const media = item.media as Media
-      const vt = (item as { videoThumbnail?: { mode?: string; timecodeSeconds?: number; customMedia?: unknown } }).videoThumbnail
-      const fp = (item as { focalPoint?: { x?: number; y?: number } }).focalPoint
-      return {
-        instanceId: item.instanceId ?? crypto.randomUUID(),
-        media,
-        size: (item.size as WizardGridItem['size']) ?? 'medium',
-        alt: item.alt,
-        caption: item.caption,
-        link: item.link,
-        instanceTitle: (item as { instanceTitle?: string | null }).instanceTitle ?? null,
-        focalPoint: fp ? { x: fp.x ?? 50, y: fp.y ?? 50 } : null,
-        videoThumbnail: vt
-          ? {
-              mode: (vt.mode as 'auto' | 'timecode' | 'custom') ?? 'auto',
-              timecodeSeconds: vt.timecodeSeconds,
-              customMedia: (vt.customMedia as Media | number | null | undefined) ?? null,
-            }
-          : null,
-      }
-    })
+  const layoutBlocks = portfolio.layoutBlocks ?? []
+
+  // Hydrate sections from all grid blocks (C-5: uses block.id as DnD key)
+  const sections = hydrateServerSections(layoutBlocks)
+
+  // Flatten items from sections for legacy compatibility (used by WizardStepOverrides)
+  const items = sections.flatMap((s) => s.items)
+
+  const hasSections = sections.length > 0
 
   return {
     portfolioId: portfolio.id,
@@ -79,6 +65,9 @@ function portfolioToWizardState(portfolio: Portfolio): WizardState {
     subtitle: extractRichTextPlain(portfolio.subheading),
     description: '',
     items,
+    sections,
+    sectionMode: hasSections,
+    layoutSpacing: 'medium',
     theme: {
       fontPairing: portfolio.theme?.fontPairing ?? 'modern-sans',
       backgroundColor: portfolio.theme?.backgroundColor ?? '#000000',
@@ -96,11 +85,10 @@ interface Props {
 }
 
 export function PortfolioEditorPage({ portfolio }: Props) {
-  const router = useRouter()
   const [tab, setTab] = useState<Tab>('metadata')
   const [state, setState] = useState<WizardState>(() => portfolioToWizardState(portfolio))
   const [dirtyTabs, setDirtyTabs] = useState<Set<Tab>>(new Set())
-  const [saving, setSaving] = useState(false)
+  const [_saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [publishing, setPublishing] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
@@ -108,6 +96,9 @@ export function PortfolioEditorPage({ portfolio }: Props) {
   const [previewUsed, setPreviewUsed] = useState(false)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savingRef = useRef(false)
+  // Set to the timestamp of the last successful publish so performAutosave can
+  // skip creating a draft version that would immediately shadow the published state.
+  const lastPublishedAtRef = useRef<number | null>(null)
 
   const slug = portfolio.slug ?? ''
 
@@ -121,6 +112,11 @@ export function PortfolioEditorPage({ portfolio }: Props) {
   }
 
   function buildPayloadData(s: WizardState): Partial<Portfolio> {
+    const layoutBlocks =
+      s.sectionMode && s.sections.length > 0
+        ? sectionsToLayoutBlocks(s.sections, s.layoutSpacing)
+        : itemsToLayoutBlocks(s.items, s.layoutSpacing)
+
     return {
       name: s.name || s.title || 'Untitled Portfolio',
       title: s.title ? plainTextToLexical(s.title) : undefined,
@@ -128,7 +124,7 @@ export function PortfolioEditorPage({ portfolio }: Props) {
       visibility: s.visibility,
       password: s.visibility === 'shared' ? s.password : undefined,
       theme: s.theme,
-      layoutBlocks: itemsToLayoutBlocks(s.items),
+      layoutBlocks,
     } as Partial<Portfolio>
   }
 
@@ -140,6 +136,9 @@ export function PortfolioEditorPage({ portfolio }: Props) {
   const performAutosave = useCallback(
     async (s: WizardState) => {
       if (!s.portfolioId || savingRef.current) return
+      // Skip the first autosave that fires in the same render-cycle as a publish —
+      // without this guard the draft write races the published write and can shadow it.
+      if (lastPublishedAtRef.current && Date.now() - lastPublishedAtRef.current < 5000) return
       savingRef.current = true
       setSaving(true)
       setSaveStatus('saving')
@@ -207,10 +206,19 @@ export function PortfolioEditorPage({ portfolio }: Props) {
 
   async function handlePublish() {
     if (!state.portfolioId) return
+    // Wait for any in-flight autosave before publishing — prevents race where
+    // autosave completes after publish and shadows the published state
+    if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null }
+    const raceDeadline = Date.now() + 3000
+    while (savingRef.current && Date.now() < raceDeadline) {
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    if (savingRef.current) { toast.error('Still saving — please try again in a moment.'); return }
     setPublishing(true)
     const result = await publishPortfolioAction(state.portfolioId, buildPayloadData(state))
     setPublishing(false)
     if (result.success) {
+      lastPublishedAtRef.current = Date.now()
       toast.success('Portfolio published')
       setDirtyTabs(new Set())
     } else {
@@ -339,8 +347,9 @@ export function PortfolioEditorPage({ portfolio }: Props) {
             <WizardStepMetadata state={state} onChange={updateState} slugPreview={slugPreview()} />
           )}
         </div>
-        <div role="tabpanel" id="editor-panel-assets" hidden={tab !== 'assets'}>
-          {tab === 'assets' && <WizardStepAssetTray state={state} onChange={updateState} />}
+        {/* Layout tab — asset management integrated into sections (C-7) */}
+        <div role="tabpanel" id="editor-panel-layout" hidden={tab !== 'layout'}>
+          {tab === 'layout' && <WizardStepSectionLayout state={state} onChange={updateState} />}
         </div>
         <div role="tabpanel" id="editor-panel-overrides" hidden={tab !== 'overrides'}>
           {tab === 'overrides' && <WizardStepOverrides state={state} onChange={updateState} />}
@@ -383,7 +392,7 @@ export function PortfolioEditorPage({ portfolio }: Props) {
           </DialogHeader>
           <DialogFooter>
             <Button
-              onClick={() => router.refresh()}
+              onClick={() => window.location.reload()}
               className="w-full gap-2 rounded-xl"
             >
               <RefreshCw size={14} />

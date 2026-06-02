@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -17,15 +17,13 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Trash2, Film, ImageIcon, GripVertical } from 'lucide-react'
+import { Plus, Trash2, Film, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Media } from '@/payload-types'
 import type { WizardGridItem, WizardState } from '../types'
 import { getMediaPreviewUrl, isVideoMedia } from '../types'
-import { MasonryGrid } from '@/components/Portfolio/MasonryGrid'
 import { AssetPickerSheet } from './AssetPickerSheet'
 
-// Size cycling order
 const SIZE_CYCLE: WizardGridItem['size'][] = ['small', 'medium', 'large', 'full']
 const SIZE_LABELS = { small: 'S', medium: 'M', large: 'L', full: '■' }
 const MAX_ASSETS = 100
@@ -59,53 +57,49 @@ function SortableThumbnail({ item, onRemove, onCycleSize }: SortableThumbnailPro
     <div
       ref={setNodeRef}
       style={style}
-      className="relative group aspect-square rounded-xl overflow-hidden bg-gallery-surface"
+      {...attributes}
+      {...listeners}
+      className="relative group aspect-square rounded-xl overflow-hidden bg-gallery-surface cursor-grab active:cursor-grabbing touch-none"
+      aria-label={`${item.media.title ?? item.media.filename ?? 'Asset'} — drag to reorder`}
     >
       {previewUrl ? (
         <img
           src={previewUrl}
-          alt={item.media.alt}
-          className="w-full h-full object-cover"
+          alt={item.media.alt ?? item.media.title ?? ''}
+          className="w-full h-full object-cover pointer-events-none"
           loading="lazy"
+          draggable={false}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          {isVideo ? <Film size={20} className="text-on-surface/30" /> : <ImageIcon size={20} className="text-on-surface/30" />}
+        <div className="w-full h-full flex items-center justify-center pointer-events-none">
+          {isVideo
+            ? <Film size={20} className="text-on-surface/30" />
+            : <ImageIcon size={20} className="text-on-surface/30" />}
         </div>
       )}
 
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-1 left-1 w-5 h-5 flex items-center justify-center rounded bg-black/50 text-white/70 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity touch-none"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical size={10} />
-      </div>
-
-      {/* Video indicator */}
       {isVideo && (
-        <div className="absolute bottom-1 right-6 bg-black/60 rounded px-1 py-0.5">
+        <div className="absolute bottom-1 right-6 bg-black/60 rounded px-1 py-0.5 pointer-events-none">
           <Film size={9} className="text-white" />
         </div>
       )}
 
       {/* Size badge */}
       <button
-        onClick={onCycleSize}
-        className="absolute bottom-1 right-1 bg-black/70 text-white font-rubik text-[8px] w-4 h-4 rounded flex items-center justify-center hover:bg-gallery-gold/80 transition-colors"
-        aria-label={`Size: ${item.size}. Click to change.`}
-        title={`Size: ${item.size}`}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onCycleSize() }}
+        className="absolute bottom-1 right-1 bg-black/70 text-white font-rubik text-[8px] w-4 h-4 rounded flex items-center justify-center hover:bg-gallery-gold/80 transition-colors pointer-events-auto cursor-pointer"
+        aria-label={`Size: ${item.size}. Tap to change.`}
       >
         {SIZE_LABELS[item.size]}
       </button>
 
       {/* Remove */}
       <button
-        onClick={onRemove}
-        className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white/80 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#bb1800]/80"
-        aria-label={`Remove ${item.media.title}`}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onRemove() }}
+        className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white/80 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#bb1800]/80 pointer-events-auto cursor-pointer"
+        aria-label={`Remove ${item.media.title ?? item.media.filename ?? 'asset'}`}
       >
         <Trash2 size={9} />
       </button>
@@ -114,7 +108,17 @@ function SortableThumbnail({ item, onRemove, onCycleSize }: SortableThumbnailPro
 }
 
 export function WizardStepAssetTray({ state, onChange }: Props) {
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [mobilePickerOpen, setMobilePickerOpen] = useState(false)
+  // Default true so SSR and desktop first-render show sidebar; mobile corrects on mount
+  const [isDesktop, setIsDesktop] = useState(true)
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -127,12 +131,7 @@ export function WizardStepAssetTray({ state, onChange }: Props) {
       onChange({ items: state.items.filter((i) => i.media.id !== media.id) })
     } else {
       if (state.items.length >= MAX_ASSETS) return
-      const newItem: WizardGridItem = {
-        instanceId: crypto.randomUUID(),
-        media,
-        size: 'medium',
-      }
-      onChange({ items: [...state.items, newItem] })
+      onChange({ items: [...state.items, { instanceId: crypto.randomUUID(), media, size: 'medium' }] })
     }
   }
 
@@ -154,11 +153,9 @@ export function WizardStepAssetTray({ state, onChange }: Props) {
     (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
-
       const oldIndex = state.items.findIndex((i) => i.instanceId === active.id)
       const newIndex = state.items.findIndex((i) => i.instanceId === over.id)
       if (oldIndex < 0 || newIndex < 0) return
-
       const next = [...state.items]
       const [moved] = next.splice(oldIndex, 1)
       next.splice(newIndex, 0, moved)
@@ -167,30 +164,6 @@ export function WizardStepAssetTray({ state, onChange }: Props) {
     [state.items, onChange],
   )
 
-  // Build MasonryGrid-compatible items for live preview
-  const previewItems = state.items.map((item) => ({
-    id: item.instanceId,
-    instanceId: item.instanceId,
-    media: item.media,
-    size: item.size,
-    alt: item.alt,
-    caption: item.caption,
-    link: item.link,
-    instanceTitle: item.instanceTitle,
-    focalPoint: item.focalPoint,
-    videoThumbnail: item.videoThumbnail
-      ? {
-          mode: item.videoThumbnail.mode,
-          timecodeSeconds: item.videoThumbnail.timecodeSeconds,
-          customMedia:
-            item.videoThumbnail.customMedia && typeof item.videoThumbnail.customMedia === 'object'
-              ? item.videoThumbnail.customMedia
-              : null,
-        }
-      : null,
-  }))
-
-  // Type counts
   const typeCounts: Record<string, number> = {}
   for (const item of state.items) {
     const ext = item.media.filename?.split('.').pop()?.toUpperCase() ?? item.media.mediaType.toUpperCase()
@@ -198,63 +171,56 @@ export function WizardStepAssetTray({ state, onChange }: Props) {
   }
 
   return (
-    <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 w-full">
+    <div className="flex flex-col lg:grid lg:grid-cols-[1fr_320px] lg:items-stretch gap-6 w-full">
       {/* Left — tray */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h2 className="text-lg font-semibold tracking-tight text-primary">Curate assets</h2>
-            <p className="text-xs text-on-surface/40">Drag to reorder · tap size badge to change</p>
+            <p className="text-xs text-on-surface/40">
+              Drag any image to reorder · tap size badge to resize
+            </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPickerOpen(true)}
-            disabled={state.items.length >= MAX_ASSETS}
-            className="gap-1.5 rounded-xl text-gallery-gold hover:text-gallery-gold hover:bg-gallery-gold/10 text-xs"
-            aria-label="Open asset picker"
-          >
-            <Plus size={14} />
-            Add assets
-          </Button>
+          {/* Mobile only — desktop has permanent sidebar */}
+          {!isDesktop && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobilePickerOpen(true)}
+              disabled={state.items.length >= MAX_ASSETS}
+              className="gap-1.5 rounded-xl text-gallery-gold hover:text-gallery-gold hover:bg-gallery-gold/10 text-xs"
+            >
+              <Plus size={14} />
+              Add
+            </Button>
+          )}
         </div>
 
-        {/* Type pills */}
         {state.items.length > 0 && (
-          <div className="flex flex-wrap gap-1.5" aria-label="Asset type summary">
+          <div className="flex flex-wrap gap-1.5">
             {Object.entries(typeCounts).map(([ext, count]) => (
-              <span
-                key={ext}
-                className="font-rubik text-[9px] tracking-wider bg-on-surface/5 text-on-surface/40 px-2 py-0.5 rounded-sm uppercase"
-              >
+              <span key={ext} className="font-rubik text-[9px] tracking-wider bg-on-surface/5 text-on-surface/40 px-2 py-0.5 rounded-sm uppercase">
                 {count} {ext}
               </span>
             ))}
             <span className="font-rubik text-[9px] tracking-wider bg-on-surface/5 text-on-surface/40 px-2 py-0.5 rounded-sm uppercase">
-              {state.items.length}/{MAX_ASSETS} total
+              {state.items.length}/{MAX_ASSETS}
             </span>
           </div>
         )}
 
         {state.items.length === 0 ? (
-          <button
-            onClick={() => setPickerOpen(true)}
-            className="flex flex-col items-center justify-center gap-3 h-48 rounded-2xl border-2 border-dashed border-on-surface/10 text-on-surface/30 hover:border-gallery-gold/30 hover:text-gallery-gold/60 transition-colors"
-            aria-label="Add assets from archive"
-          >
+          <div className="flex flex-col items-center justify-center gap-3 h-48 rounded-2xl border-2 border-dashed border-on-surface/10 text-on-surface/25">
             <Plus size={24} />
-            <span className="text-sm">Add assets from your archive</span>
-          </button>
+            <span className="text-sm">Select assets from the archive →</span>
+          </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext
-              items={state.items.map((i) => i.instanceId)}
-              strategy={rectSortingStrategy}
-            >
+            <SortableContext items={state.items.map((i) => i.instanceId)} strategy={rectSortingStrategy}>
               <div
-                className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5"
+                className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-1.5"
                 role="list"
-                aria-label="Portfolio assets, drag to reorder"
+                aria-label="Portfolio assets — drag to reorder"
               >
                 {state.items.map((item) => (
                   <div key={item.instanceId} role="listitem">
@@ -271,38 +237,30 @@ export function WizardStepAssetTray({ state, onChange }: Props) {
         )}
       </div>
 
-      {/* Right — live grid preview (desktop) */}
-      <div className="hidden lg:flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold tracking-tight text-primary">Grid preview</span>
-          <span className="font-rubik text-[9px] text-on-surface/30 tracking-wider uppercase">
-            TITAN V3 layout
-          </span>
+      {/* Right — archive picker:
+           Desktop: permanent sidebar (open=true always)
+           Mobile: bottom sheet triggered by button above */}
+      {isDesktop ? (
+        <div className="flex flex-col rounded-2xl overflow-hidden border border-on-surface/8 bg-white dark:bg-zinc-900 min-h-[320px]">
+          <div className="px-4 pt-3 pb-1 flex-shrink-0 border-b border-on-surface/8">
+            <span className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase">Archive</span>
+          </div>
+          <AssetPickerSheet
+            open={true}
+            onClose={() => {}}
+            selectedIds={selectedIds}
+            onToggle={handleToggleMedia}
+            inline
+          />
         </div>
-        <div className="bg-zinc-950 rounded-2xl overflow-hidden p-4 min-h-48 flex-1">
-          {previewItems.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-white/20 text-xs">
-              Assets will preview here
-            </div>
-          ) : (
-            <div className="pointer-events-none" aria-hidden="true">
-              <MasonryGrid items={previewItems as Parameters<typeof MasonryGrid>[0]['items']} spacing="small" />
-            </div>
-          )}
-        </div>
-        <p className="text-[10px] text-on-surface/25 leading-relaxed">
-          Order in the tray is fed to the TITAN engine which packs items into rows by weight. Size
-          badges affect visual prominence, not pixel position.
-        </p>
-      </div>
-
-      {/* Asset picker sheet */}
-      <AssetPickerSheet
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        selectedIds={selectedIds}
-        onToggle={handleToggleMedia}
-      />
+      ) : (
+        <AssetPickerSheet
+          open={mobilePickerOpen}
+          onClose={() => setMobilePickerOpen(false)}
+          selectedIds={selectedIds}
+          onToggle={handleToggleMedia}
+        />
+      )}
     </div>
   )
 }

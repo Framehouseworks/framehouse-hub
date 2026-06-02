@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 type Props = {
-  searchParams: Promise<{ assets?: string }>
+  searchParams: Promise<{ assets?: string; resumeId?: string }>
 }
 
 export default async function NewPortfolioPage({ searchParams }: Props) {
@@ -16,6 +16,7 @@ export default async function NewPortfolioPage({ searchParams }: Props) {
   const preloadedAssetIds = params.assets
     ? params.assets.split(',').map(Number).filter(Boolean)
     : []
+  const resumePortfolioId = params.resumeId ? Number(params.resumeId) : undefined
 
-  return <PortfolioWizardPage preloadedAssetIds={preloadedAssetIds} />
+  return <PortfolioWizardPage preloadedAssetIds={preloadedAssetIds} resumePortfolioId={resumePortfolioId} />
 }
