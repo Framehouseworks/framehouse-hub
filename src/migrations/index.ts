@@ -226,6 +226,6 @@ export const migrations = [
   {
     up: migration_20260602_220000_fix_portfolios_title_nullable.up,
     down: migration_20260602_220000_fix_portfolios_title_nullable.down,
-    name: '20260602_220000_fix_portfolios_title_nullable',
+    name: '20260602_220000_fix_portfolios_title_nullable'
   },
 ];

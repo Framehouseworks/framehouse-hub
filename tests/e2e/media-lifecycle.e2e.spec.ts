@@ -74,17 +74,19 @@ test.describe('Media lifecycle (e2e)', () => {
       // 1. Sign in. Drive the form via fill + button click but also wait
       // for the /api/users/login POST so react-hook-form's onSubmit has
       // actually fired before we expect navigation.
-      await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' })
+      // 'load' waits for all scripts (React hydration) without hanging on
+      // Next.js HMR websockets — works in both dev and production.
+      await page.goto(`${baseURL}/login`, { waitUntil: 'load' })
       await page.locator('input[name="email"]').fill(creativeEmail)
       await page.locator('input[name="password"]').fill(creativePassword)
       await Promise.all([
         page.waitForResponse(
           (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
-          { timeout: 60_000 },
+          { timeout: 15_000 },
         ),
         page.getByRole('button', { name: /continue/i }).click(),
       ])
-      await page.waitForURL(/\/dashboard/, { timeout: 60_000 })
+      await page.waitForURL(/\/dashboard/, { timeout: 20_000 })
 
       // 2. Trigger the upload picker, populate the hidden input.
       await page.locator('button:has-text("Ingest")').first().click()
