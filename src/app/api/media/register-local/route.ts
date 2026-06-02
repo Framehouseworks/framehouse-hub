@@ -39,6 +39,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (!user.roles?.some((r) => r === 'creative' || r === 'admin')) {
+      return NextResponse.json({ error: 'Forbidden — creative role required' }, { status: 403 })
+    }
 
     if (process.env.GCS_BUCKET) {
       return NextResponse.json(
