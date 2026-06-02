@@ -1,0 +1,18 @@
+{
+  "id": "20260602_000001_add_section_layout_fields",
+  "schema": [
+    {
+      "collection": "portfolios",
+      "type": "alter",
+      "alterations": [
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "section_name", "dataType": "text" },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "section_anchor", "dataType": "text" },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "section_anchor_override", "dataType": "text" },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "show_section_header", "dataType": "boolean", "notNull": true, "default": false },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "layout_style", "dataType": "text", "notNull": true, "default": "masonry" },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "filmstrip_track_height", "dataType": "text", "notNull": true, "default": "comfortable" },
+        { "table": "portfolios_blocks_grid", "action": "add", "column": "uniform_grid_columns", "dataType": "text", "notNull": true, "default": "3" }
+      ]
+    }
+  ]
+}

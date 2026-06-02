@@ -69,7 +69,7 @@ if ! docker run --name "$CONTAINER_NAME" \
   -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
   -e POSTGRES_DB=$POSTGRES_DB \
   -p $PORT:5432 \
-  -d postgres:15-alpine > /dev/null 2>&1; then
+  -d public.ecr.aws/docker/library/postgres:15-alpine > /dev/null 2>&1; then
     echo "Error: Failed to start Docker container. Is port $PORT already in use?"
     exit 1
 fi

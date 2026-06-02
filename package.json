@@ -17,6 +17,7 @@
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation pnpm exec tsx ./src/seed/standalone.ts",
+    "generate:migration-snapshot": "cross-env NODE_OPTIONS=--no-deprecation pnpm exec tsx scripts/generate-snapshot.ts",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test",
@@ -72,6 +73,7 @@
     "react-hook-form": "7.54.1",
     "react-virtuoso": "^4.18.7",
     "sharp": "0.34.2",
+    "archiver": "^7.0.1",
     "sonner": "^1.7.2",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7"
@@ -84,6 +86,7 @@
     "@tailwindcss/postcss": "4.0.12",
     "@tailwindcss/typography": "^0.5.12",
     "@testing-library/react": "16.3.0",
+    "@types/archiver": "^6.0.3",
     "@types/node": "22.5.4",
     "@types/react": "19.0.1",
     "@types/react-dom": "19.0.1",
