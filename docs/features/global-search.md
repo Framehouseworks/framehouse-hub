@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - `GlobalSearch/index.tsx` in `src/components/GlobalSearch/` — embedded in `TopBar` in the dashboard layout.
+> - Search API: `GET /api/media/search?q=&limit=&offset=` — full-text search against GIN index `media_search_idx` / `media_full_search_idx`.
+> - GIN index covers: `title`, `filename`, `original_filename`, `technical_camera_model`, `technical_lens_model`, `shoot_name` (see migrations `20260519_161500_add_media_search_gin_index.ts` and `20260522_100000_add_media_full_search_idx.ts`).
+> - `⌘K` / `/` keyboard shortcut confirmed implemented.
+> - E2E test coverage: `tests/e2e/globalSearch.spec.ts`.
+> - Integration test: `tests/int/mediaSearch.int.spec.ts`.
+> - `SearchInput` UI component in `src/components/ui/search-input.tsx`.
+>
+> **Key files:** `src/components/GlobalSearch/`, `src/app/api/media/search/route.ts`, `src/lib/searchMedia.ts`, `src/components/layout/DashboardLayout/TopBar.tsx`
+
+---
+
 # Global Search & Frontend Cleanup Specification
 
 This document details the specification for designing and implementing the omnipresent Global Search in the authenticated user dashboard of **Framehouse Hub**, aligning with **"The Curated Gallery"** design system and **GCP/Neon free-tier constraints**.

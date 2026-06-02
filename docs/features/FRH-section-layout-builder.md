@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - Section layout fields added via migration `20260602_000001_add_section_layout_fields` (and follow-up scale/width/aspect-ratio migrations).
+> - `WizardStepSectionLayout.tsx` provides the multi-lane layout configurator in the portfolio creation wizard.
+> - `SectionLane.tsx` + `SectionLaneHeader.tsx` render individual section lanes with drag-and-drop via `@dnd-kit`.
+> - `ModernMasonryEditor.tsx` in `src/collections/Portfolios/components/MasonryGridV2/` handles the Payload admin editor.
+> - `SectionLayoutAdminField.tsx` in `src/collections/Portfolios/components/` is the custom Payload admin field component.
+> - Section anchors auto-generated via `generateSectionAnchor` hook; deduplication via `deduplicateSectionAnchors` hook.
+> - Section indexes (`20260602_000002_section_scale_indexes`) optimize section queries.
+>
+> **Key files:** `src/components/Portfolios/wizard/WizardStepSectionLayout.tsx`, `src/components/Portfolios/wizard/SectionLane.tsx`, `src/collections/Portfolios/components/SectionLayoutAdminField.tsx`, `src/migrations/20260602_000001_add_section_layout_fields.ts`
+
+---
+
 # FRH — Multi-Lane Section Layout Builder: Product Specification
 
 > **Branch context**: FRH-58-Portfolio-Creation-Wizard  

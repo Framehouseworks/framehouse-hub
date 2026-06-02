@@ -1,3 +1,19 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - Collections: `AdminDiagnosticSessions` and `AdminActivityLogs` in `src/collections/`.
+> - Custom Payload admin tab: `CreativeOversightView` component in `src/collections/Users/components/CreativeOversightView` — registered as `/oversight` tab on Users edit view.
+> - Diagnostic mirror mode: `src/components/DiagnosticBanner/` — `DiagnosticBanner.tsx`, `DiagnosticMirrorContent.tsx`, `DiagnosticModeProvider.tsx`.
+> - Dashboard diagnostic pages: `/dashboard/diagnostic/[token]`, `/dashboard/diagnostic/[token]/expired`.
+> - API endpoints: `GET /api/admin/diagnostic-sessions/[token]`, `POST /api/admin/diagnostic-sessions`, `GET /api/admin/creative-metrics/[userId]`.
+> - `POST /api/admin/media/force-fail` for testing media failure states.
+> - No full session impersonation — confirmed replaced by Diagnostic Mirror Mode (admin renders creative workspace via own auth token).
+> - Test coverage: `tests/int/admin-oversight.int.spec.ts`.
+>
+> **Key files:** `src/collections/AdminDiagnosticSessions/`, `src/collections/AdminActivityLogs/`, `src/collections/Users/components/`, `src/components/DiagnosticBanner/`, `src/app/api/admin/`
+
+---
+
 # FRH-Admin-Oversight: Creative Account Oversight & Diagnostic Dashboard
 
 **Spec Version**: 1.0  

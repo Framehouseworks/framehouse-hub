@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - Collections: `PortfolioClientSessions`, `PortfolioClientReviews`, `PortfolioAssetComments`, `PortfolioDownloadLogs` — all in `src/collections/`.
+> - API routes: `/api/portfolio-review/[slug]/session`, `/session/identify`, `/session/selections`, `/submit`, `/comments/[mediaId]`, `/download`.
+> - Frontend: `src/components/Portfolio/review/` — `ReviewModeProvider`, `SelectionBar`, `SelectionCheckbox`, `SelectionModePill`, `CommentPanel`, `DownloadSheet`, `SubmitSelectionSheet`, `ClientIdentificationModal`.
+> - Review session signing uses HMAC cookies (HTTP-only, `review_session_{portfolioId}`).
+> - Download route (`POST /api/portfolio-review/{slug}/download`) streams a ZIP archive of selected assets using the `archiver` npm package.
+> - Dashboard reviews surface: `/dashboard/portfolios/[id]/reviews` + `PortfolioReviewsPage.tsx`.
+> - Test coverage: `tests/int/portfolio-review.int.spec.ts`, `tests/e2e/client-review-portal.spec.ts`.
+>
+> **Key files:** `src/collections/Portfolio*`, `src/app/api/portfolio-review/`, `src/components/Portfolio/review/`, `src/components/Portfolios/reviews/`
+
+---
+
 # FRH-62: Client Review Portal — Product & Engineering Specification
 
 **Status:** Implemented — Post-Implementation Review Complete  

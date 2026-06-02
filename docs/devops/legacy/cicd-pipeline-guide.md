@@ -1,3 +1,5 @@
+> **SUPERSEDED** — This document has been superseded by [`docs/devops/ci-cd.md`](../ci-cd.md). It is retained for historical reference only. Do not update this file.
+
 # CI/CD Pipeline Guide — Framehouse Hub
 
 **Audience:** Engineers, DevOps, onboarding team members  

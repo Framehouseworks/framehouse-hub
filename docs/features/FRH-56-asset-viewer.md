@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Key deviations from spec:**
+> - `ForensicDrawer.tsx` has been **deleted** and fully replaced by `AssetViewer/`.
+> - All components in `src/components/AssetViewer/` exist as specced: `index.tsx`, `MediaStage.tsx`, `MetadataPanel.tsx`, `ActionBar.tsx`, `NavControls.tsx`, `ProgressiveImage.tsx`, `VideoStub.tsx`.
+> - Hooks exist: `hooks/useAssetNavigation.ts`, `hooks/useViewerKeyboard.ts`, `hooks/useZoom.ts`.
+> - `MediaDetailModal.tsx` remains in `src/components/Gallery/` for the gallery context — `AssetViewer` is the full-screen overlay mode.
+> - The `?asset=<id>` URL param pattern is implemented as specced.
+> - `UnsupportedStub.tsx` is **not a separate file** — unsupported type handling is inline in `VideoStub.tsx`.
+> - Pinch-to-zoom on mobile remains deferred (spec §2 lists as out of scope — confirmed).
+>
+> **Key files:** `src/components/AssetViewer/`, `src/components/Gallery/MediaGrid.tsx` (mounts AssetViewer)
+
+---
+
 # FRH-56 — Expanded Asset Viewer: Spec & Design Plan
 
 > **North Star:** A cinematic, distraction-free lightbox workspace that frames creative work with the same editorial quality as "The Curated Gallery" design system. Not an inspector panel. Not an editing suite. A stage.

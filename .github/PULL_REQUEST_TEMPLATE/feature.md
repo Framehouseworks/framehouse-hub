@@ -1,7 +1,7 @@
 ## What & Why
 
 **Ticket:** [FRH-XX](https://linear.app/framehouse/issue/FRH-XX)
-**Target:** `dev` ← feature branch _(never `main` directly — see [branch rules](../docs/workflows/git-workflow.md))_
+**Target:** `dev` ← feature branch _(never `main` directly — see [branch rules](../../docs/workflows/git-workflow.md))_
 
 > One paragraph: what changed and why. Link the ticket for full context.
 
@@ -36,7 +36,7 @@
 - [ ] New searchable fields added to both the GIN index migration **and** `/api/media/search`
 
 **Design** _(skip if no UI changes)_
-- [ ] No 1px borders (tonal layering only — see [design system](../docs/frontend/design-system.md))
+- [ ] No 1px borders (tonal layering only — see [design system](../../docs/frontend/design-system.md))
 - [ ] `ROUND_SIXTEEN`+ radii on all cards/containers
 - [ ] Dark mode verified
 

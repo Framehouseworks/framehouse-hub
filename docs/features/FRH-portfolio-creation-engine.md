@@ -1,3 +1,18 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - Multi-step wizard in `src/components/Portfolios/wizard/`: `PortfolioWizardPage.tsx`, `WizardStepAssetTray.tsx`, `WizardStepMetadata.tsx`, `WizardStepOverrides.tsx`, `WizardStepSectionLayout.tsx`, `WizardStepTheme.tsx`, `WizardStepShare.tsx`.
+> - Supporting wizard components: `AssetPickerSheet.tsx`, `SectionLane.tsx`, `SectionLaneHeader.tsx`, `FocalPointCanvas.tsx`, `VideoThumbnailControls.tsx`, `AutoParseBar.tsx`.
+> - Portfolio editor (post-creation): `PortfolioEditorPage.tsx` + `ModernMasonryEditor.tsx` (in `src/collections/Portfolios/components/MasonryGridV2/`).
+> - Dashboard pages: `/dashboard/portfolios` (`PortfolioListPage`), `/dashboard/portfolios/new` (wizard), `/dashboard/portfolios/[id]` (editor).
+> - Server actions in `src/app/(dashboard)/actions/portfolios.ts` — CRUD operations via Payload local API.
+> - Portfolio endpoints in `src/collections/Portfolios/endpoints.ts`.
+> - Payload admin remains available for admin/support use — bespoke wizard is the primary creative flow.
+>
+> **Key files:** `src/components/Portfolios/`, `src/app/(dashboard)/dashboard/portfolios/`, `src/collections/Portfolios/`
+
+---
+
 # FRH Portfolio Creation Engine — Bespoke Frontend Spec
 
 > **Ticket context:** FRH multi-step portfolio creation engine with granular asset overrides  

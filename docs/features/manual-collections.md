@@ -1,3 +1,20 @@
+> **IMPLEMENTATION STATUS: FULLY IMPLEMENTED** — Audited against codebase 2026-06-02.
+>
+> **Implementation summary:**
+> - Sessions and Manual Collections share a unified approach: both concepts are fully implemented.
+> - Manual Collections use the `SmartCollections` Payload collection with `type: 'manual'` or `type: 'hybrid'`.
+> - `ManualOverridesPanel.tsx` in `src/components/SmartCollections/` handles include/exclude overrides.
+> - `MediaPickerModal.tsx` in `src/components/SmartCollections/` for manual asset selection.
+> - `CollectionPickerPopover.tsx` for quick collection assignment from the media grid.
+> - `BulkAddToCollectionModal.tsx` for bulk assignment from selection toolbar.
+> - Sessions are in the dedicated `Sessions` collection (`src/collections/Sessions/`) — not in SmartCollections.
+> - Sessions UI: `src/components/Sessions/` directory.
+> - The mental model distinction (Sessions = provenance/temporal, Collections = editorial/selective) is enforced at the routing level: separate `/library/sessions` and `/library/collections` pages.
+>
+> **Key files:** `src/collections/SmartCollections/`, `src/collections/Sessions/`, `src/components/SmartCollections/ManualOverridesPanel.tsx`, `src/components/SmartCollections/MediaPickerModal.tsx`
+
+---
+
 # Manual Collections & Sessions — UX/UI Spec
 
 > **North Star:** Two complementary mental models, each with a single clear home. Sessions answer *"how I produced this work"* — temporal, exhaustive, fixed. Manual Collections answer *"how I present and share this work"* — editorial, selective, intentional. The platform must make this distinction feel immediately obvious, not learned. Every screen, action, and word choice must reinforce it without needing a tooltip to explain it.

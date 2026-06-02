@@ -1,3 +1,5 @@
+> **SUPERSEDED** — This document has been superseded by [`docs/devops/ci-cd.md`](../ci-cd.md). It is retained for historical reference only. Do not update this file.
+
 # CI/CD Manual Test Steps
 
 **Caveman summary:** Run these steps after implementation to verify the pipelines work. Each test has a clear action, what to look for, and what PASS means. Do them in order — later tests depend on earlier ones passing.
