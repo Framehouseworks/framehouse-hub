@@ -2154,6 +2154,46 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       )
     }
 
+    // Seed admin oversight example activity log entry
+    try {
+      const adminUser = await payload.find({
+        collection: 'users',
+        where: { email: { equals: 'sys.admin@framehouseworks.com' } },
+        limit: 1,
+      })
+      const creativeUser = await payload.find({
+        collection: 'users',
+        where: { email: { equals: creativeEmail } },
+        limit: 1,
+      })
+      if (adminUser.docs[0] && creativeUser.docs[0]) {
+        const existing = await payload.find({
+          collection: 'admin-activity-logs',
+          where: { actionType: { equals: 'inspect_account' } },
+          limit: 1,
+        })
+        if (existing.docs.length === 0) {
+          await payload.create({
+            collection: 'admin-activity-logs',
+            data: {
+              adminUser: adminUser.docs[0].id,
+              targetUser: creativeUser.docs[0].id,
+              actionType: 'inspect_account',
+              actionDescription: `Admin 'System Admin' viewed diagnostic mirror for creative 'Creative User' (seed example)`,
+              metadata: { seeded: true },
+            },
+            overrideAccess: true,
+            context: { disableRevalidate: true },
+          })
+          payload.logger.info('Seeded example AdminActivityLog entry.')
+        }
+      }
+    } catch (err) {
+      payload.logger.warn(
+        `Could not seed AdminActivityLog example: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
     payload.logger.info('Seeding complete.')
   } catch (error: unknown) {
     payload.logger.error('Critical Error during Company/Hub seeding:')

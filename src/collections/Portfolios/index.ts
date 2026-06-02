@@ -11,6 +11,7 @@ import type { CollectionConfig, Where } from 'payload'
 // REMOVED: Direct component imports to prevent CSS loading errors in Node
 // import { FolderCell } from './components/FolderCell'
 // import { LibraryRedirector } from './components/LibraryRedirector'
+import { auditAdminChanges } from './hooks/auditAdminChanges'
 import { deduplicateSectionAnchors } from './hooks/deduplicateSectionAnchors'
 import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSectionAnchor } from './hooks/generateSectionAnchor'
@@ -64,6 +65,7 @@ export const Portfolios: CollectionConfig = {
       ensureLibraryAssignment,
       deduplicateSectionAnchors,
     ],
+    afterChange: [auditAdminChanges],
   },
   access: {
     create: () => true,

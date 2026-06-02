@@ -33,6 +33,7 @@ import * as migration_20260602_000001_add_section_layout_fields from './20260602
 import * as migration_20260602_000002_section_scale_indexes from './20260602_000002_section_scale_indexes';
 import * as migration_20260602_000003_add_section_width_aspect_ratio from './20260602_000003_add_section_width_aspect_ratio';
 import * as migration_20260602_100000_frh62_client_review_portal from './20260602_100000_frh62_client_review_portal';
+import * as migration_20260602_200000_add_admin_oversight from './20260602_200000_add_admin_oversight';
 
 export const migrations = [
   {
@@ -209,5 +210,10 @@ export const migrations = [
     up: migration_20260602_100000_frh62_client_review_portal.up,
     down: migration_20260602_100000_frh62_client_review_portal.down,
     name: '20260602_100000_frh62_client_review_portal',
+  },
+  {
+    up: migration_20260602_200000_add_admin_oversight.up,
+    down: migration_20260602_200000_add_admin_oversight.down,
+    name: '20260602_200000_add_admin_oversight',
   },
 ];
