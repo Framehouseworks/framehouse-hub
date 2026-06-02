@@ -40,7 +40,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing X-Filename header' }, { status: 400 })
   }
 
-  const mimeType = req.headers.get('content-type') ?? 'image/png'
+  const mimeType = req.headers.get('content-type')
+  if (!mimeType) {
+    return NextResponse.json({ error: 'Missing Content-Type header' }, { status: 400 })
+  }
   const allowedMime = ['image/png', 'image/jpeg', 'image/svg+xml']
   if (!allowedMime.includes(mimeType)) {
     return NextResponse.json({ error: 'Only PNG, JPEG, and SVG are allowed.' }, { status: 415 })
@@ -76,6 +79,10 @@ export async function POST(req: Request): Promise<NextResponse> {
       size: buffer.length,
     },
   })
+
+  if (!mediaRecord?.id) {
+    return NextResponse.json({ error: 'Media record creation failed' }, { status: 500 })
+  }
 
   return NextResponse.json({ mediaId: mediaRecord.id })
 }

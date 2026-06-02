@@ -1,8 +1,20 @@
 import iconLogo from '@/assets/framehouse_logo_transparent_padded.svg'
 import Image from 'next/image'
 
-export function LogoIcon() {
+type Props = {
+  className?: string
+  size?: number
+}
+
+export function LogoIcon({ className, size = 40 }: Props) {
   return (
-    <Image className='h-20' src={iconLogo} alt="Framehouse Logo Icon" />
+    <Image
+      src={iconLogo}
+      alt="Framehouse Hub"
+      width={size}
+      height={size}
+      className={className}
+      priority
+    />
   )
 }

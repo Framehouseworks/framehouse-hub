@@ -1,4 +1,5 @@
 import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
+import { creativeOrAdmin } from '@/access/creativeOrAdmin'
 import { ownerOrAdmin } from '@/access/ownerOrAdmin'
 import {
   AlignFeature,
@@ -68,7 +69,7 @@ export const Portfolios: CollectionConfig = {
     afterChange: [auditAdminChanges],
   },
   access: {
-    create: () => true,
+    create: creativeOrAdmin,
     read: ({ req: { user } }) => {
       if (user?.roles?.includes('admin')) return true
 
