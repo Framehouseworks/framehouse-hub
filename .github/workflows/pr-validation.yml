@@ -208,9 +208,29 @@ jobs:
         env:
           PAYLOAD_SECRET: ci_secret
 
+      # Run only on shard 1 — drift is a code-quality check, not per-shard work.
       - name: Verify schema drift
+        if: matrix.shard == 1
         run: |
-          pnpm run payload migrate:create --name check_drift
+          # </dev/null   → process.stdin.isTTY  = false inside Node.js
+          # 2>&1 | cat   → process.stdout.isTTY = false (stdout is a pipe, not a pty)
+          #              → process.stderr.isTTY = false (stderr merged into the same pipe)
+          # Together these three redirections make drizzle-kit 0.31.x see a
+          # non-interactive environment and skip its rename-detection TUI, which
+          # would otherwise block indefinitely in the GitHub Actions pseudo-TTY.
+          # timeout 90 is a hard circuit-breaker against future drizzle-kit regressions.
+          timeout 90 pnpm run payload migrate:create --name check_drift </dev/null 2>&1 | cat
+          EC=${PIPESTATUS[0]}
+          if [ "$EC" = "124" ]; then
+            echo "### 🛑 Schema drift check timed out (90 s)" >> $GITHUB_STEP_SUMMARY
+            echo "drizzle-kit may have rendered an interactive TUI despite the pipe redirect." >> $GITHUB_STEP_SUMMARY
+            echo "Bump drizzle-kit or investigate with: pnpm payload migrate:create --name check_drift" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          if [ "$EC" != "0" ]; then
+            echo "### 🛑 Schema drift check failed (exit $EC)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
           DRIFT=$(git status --porcelain src/migrations/)
           if [ -n "$DRIFT" ]; then
             echo "### 🛑 Schema Drift Detected" >> $GITHUB_STEP_SUMMARY
