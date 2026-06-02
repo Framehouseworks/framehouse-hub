@@ -6,8 +6,9 @@ const password = 'password123'
 
 test.describe('Global Search (FRH-44)', () => {
   test.beforeEach(async ({ page }) => {
-    // /login has no persistent connections — networkidle is safe here
-    await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' })
+    // 'load' waits for all scripts (React hydration) but ignores persistent
+    // WebSocket connections (Next.js HMR), so it resolves in both dev and CI.
+    await page.goto(`${baseURL}/login`, { waitUntil: 'load' })
     await page.locator('input[name="email"]').fill(email)
     await page.locator('input[name="password"]').fill(password)
     await Promise.all([
@@ -57,7 +58,8 @@ test.describe('Global Search (FRH-44)', () => {
     await input.click()
     await input.pressSequentially('iceland')
     await input.press('Enter')
-    await expect(page).toHaveURL(/\/dashboard\/library\?search=iceland/)
+    // waitForURL is more resilient than toHaveURL for async router.push transitions.
+    await page.waitForURL(/\/dashboard\/library\?search=iceland/, { timeout: 10_000 })
   })
 
   test('clicking quick filter chip sets ?search= and navigates to /dashboard/library', async ({

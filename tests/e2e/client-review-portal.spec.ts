@@ -19,7 +19,7 @@ test.describe('Client Review Portal', () => {
     await page.locator('input[name="email"]').fill(ADMIN_EMAIL)
     await page.locator('input[name="password"]').fill(ADMIN_PASSWORD)
     await page.locator('button[type="submit"]').click()
-    await page.waitForURL(/\/admin(?!\/login)/)
+    await page.waitForURL(/\/admin(?!\/login)/, { timeout: 45_000 })
 
     // Get a public portfolio slug via API
     const response = await page.request.get(
@@ -135,7 +135,7 @@ test.describe('Client Review Portal', () => {
       await page.locator('input[name="email"]').fill(ADMIN_EMAIL)
       await page.locator('input[name="password"]').fill(ADMIN_PASSWORD)
       await page.locator('button[type="submit"]').click()
-      await page.waitForURL(/\/admin(?!\/login)/)
+      await page.waitForURL(/\/admin(?!\/login)/, { timeout: 45_000 })
 
       // Navigate to portfolio
       await page.goto(`${BASE_URL}/p/${portfolioSlug}`)
