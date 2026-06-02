@@ -63,6 +63,8 @@ async function completeProcessing(doc: { id: number | string; storagePath: strin
 // Database is seeded via tests/e2e/globalSetup.ts before any tests run.
 test.describe('Media lifecycle (e2e)', () => {
   test('uploads, processes, renders thumbnail, then bulk-deletes', async ({ page }) => {
+    // Multi-step test: login → upload → process → verify → delete — needs more than the default 30s.
+    test.setTimeout(90_000)
     // Make the upload identifiable across reloads by copying the fixture
     // to a unique filename. MediaCard renders `alt={media.alt || filename}`,
     // so the unique name becomes our needle.

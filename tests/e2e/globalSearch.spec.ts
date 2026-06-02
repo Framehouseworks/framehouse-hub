@@ -11,10 +11,18 @@ test.describe('Global Search (FRH-44)', () => {
     await page.goto(`${baseURL}/login`, { waitUntil: 'load' })
     await page.locator('input[name="email"]').fill(email)
     await page.locator('input[name="password"]').fill(password)
+    // Wait for the login API response before checking navigation so we don't
+    // race against the cookie being set (avoids redirect back to /login?warning=).
     await Promise.all([
-      page.waitForURL('**/dashboard**'),
+      page.waitForResponse(
+        (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
+        { timeout: 25_000 },
+      ),
       page.locator('button[type="submit"]').click(),
     ])
+    // Use a regex anchored to the path so the warning query-param URL
+    // (/login?warning=...dashboard...) can't accidentally satisfy this wait.
+    await page.waitForURL(/\/dashboard(?:[/?#]|$)/, { timeout: 25_000 })
     // Wait for the header search input to be present before each test.
     // /dashboard/library holds an open SSE connection (/api/media/status-stream)
     // so waitUntil: 'networkidle' is never satisfied — use explicit element wait.
