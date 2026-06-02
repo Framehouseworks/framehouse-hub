@@ -38,6 +38,19 @@ type Props = {
   searchParams: Promise<{ preview_token?: string }>
 }
 
+// Extract portfolio ID from token without validating HMAC (used to unlock access-control bypass)
+function getPortfolioIdFromToken(token: string): number | null {
+  try {
+    const decoded = Buffer.from(token, 'base64url').toString('utf-8')
+    const parts = decoded.split(':')
+    if (parts.length !== 3) return null
+    const id = Number(parts[0])
+    return isNaN(id) ? null : id
+  } catch {
+    return null
+  }
+}
+
 function validatePreviewToken(token: string, portfolioId: number): boolean {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8')
@@ -153,13 +166,22 @@ export default async function PortfolioPage({ params, searchParams }: Props) {
 
   const fetchDraft = !!user
 
+  // When a preview_token is present, bypass collection access control so
+  // unauthenticated recipients of a shared preview link can still load
+  // private/draft portfolios. HMAC validation below confirms the token is
+  // genuine — the bypass is safe only after that check.
+  const tokenPortfolioId = preview_token ? getPortfolioIdFromToken(preview_token) : null
+  const useAccessBypass = !!(preview_token && tokenPortfolioId)
+
   const { docs } = await payload.find({
     collection: 'portfolios',
-    where: { slug: { equals: slug } },
+    where: useAccessBypass
+      ? { and: [{ slug: { equals: slug } }, { id: { equals: tokenPortfolioId } }] }
+      : { slug: { equals: slug } },
     limit: 1,
     depth: 3,
-    draft: fetchDraft,
-    user,
+    draft: useAccessBypass ? true : fetchDraft,
+    ...(useAccessBypass ? { overrideAccess: true } : { user }),
   })
 
   const portfolio = docs[0]
@@ -168,6 +190,10 @@ export default async function PortfolioPage({ params, searchParams }: Props) {
   const hasValidPreviewToken = preview_token
     ? validatePreviewToken(preview_token, portfolio.id)
     : false
+
+  // If we bypassed access control to load a draft/private portfolio, the token
+  // MUST be valid — otherwise an attacker could probe slugs with a malformed token.
+  if (useAccessBypass && !hasValidPreviewToken) return notFound()
 
   const ownerId =
     typeof portfolio.owner === 'object' ? (portfolio.owner as User).id : portfolio.owner

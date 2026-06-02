@@ -41,6 +41,10 @@ export default function PortfolioViewerLayout({ children }: { children: ReactNod
         inter.variable,
       )}
       lang="en"
+      // globals.css sets html{opacity:0} and only restores when data-theme is set
+      // by InitTheme (which is not present in this standalone layout). We fix with
+      // a static dark value — the portfolio viewer controls its own visual identity.
+      data-theme="dark"
       suppressHydrationWarning
     >
       <head>

@@ -1,18 +1,36 @@
 import Link from 'next/link'
-import React from 'react'
-
 import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
-    <div className="container py-28">
-      <div className="prose max-w-none">
-        <h1 style={{ marginBottom: 0 }}>404</h1>
-        <p className="mb-4">This page could not be found.</p>
+    <div className="flex min-h-[calc(100vh-200px)] flex-col items-center justify-center px-6 py-24 text-center">
+      {/* Error label */}
+      <div
+        className="mb-6 text-[9px] uppercase tracking-[0.35em] text-on-surface/25"
+        style={{ fontFamily: "'Rubik Mono One', monospace" }}
+      >
+        Error 404
       </div>
-      <Button asChild variant="default">
-        <Link href="/">Go home</Link>
-      </Button>
+
+      {/* Headline */}
+      <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-primary mb-4 leading-tight">
+        Page not found
+      </h1>
+
+      {/* Sub-copy */}
+      <p className="text-sm text-on-surface/40 max-w-sm leading-relaxed mb-10">
+        The page you're looking for doesn't exist, may have moved, or you may not have access.
+      </p>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <Button asChild size="default" className="rounded-[24px] px-6">
+          <Link href="/dashboard">Go to Dashboard</Link>
+        </Button>
+        <Button asChild variant="ghost" size="default" className="rounded-[24px] px-6">
+          <Link href="/">Home</Link>
+        </Button>
+      </div>
     </div>
   )
 }
