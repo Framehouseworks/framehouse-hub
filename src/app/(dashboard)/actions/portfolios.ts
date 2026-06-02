@@ -193,11 +193,14 @@ export async function publishPortfolioAction(
 
     const { id: _id, updatedAt: _updatedAt, createdAt: _createdAt, ...updateData } = data as Record<string, unknown>
 
+    // Payload's publish path (draft: false) does NOT set _status unless the
+    // caller explicitly passes _status: 'published' in data.  Without it,
+    // the existing _status: 'draft' persists and queryDrafts (draft:true) returns
+    // the "latest" version still showing draft, making the portfolio appear unfinished.
     const doc = await payload.update({
       collection: 'portfolios',
       id,
-      data: updateData,
-      draft: false,
+      data: { ...updateData, _status: 'published' },
       user,
     })
 

@@ -385,7 +385,7 @@ export function PortfolioWizardPage({ preloadedAssetIds = [], resumePortfolioId 
           <WizardStepMetadata state={state} onChange={updateState} slugPreview={slug} />
         )}
         {step === 2 && <WizardStepAssetTray state={state} onChange={updateState} />}
-        {step === 3 && <WizardStepSectionLayout state={state} onChange={updateState} />}
+        {step === 3 && <WizardStepSectionLayout state={state} onChange={updateState} isSaving={saving} />}
         {step === 4 && <WizardStepOverrides state={state} onChange={updateState} />}
         {step === 5 && <WizardStepTheme state={state} onChange={updateState} />}
         {step === 6 && (

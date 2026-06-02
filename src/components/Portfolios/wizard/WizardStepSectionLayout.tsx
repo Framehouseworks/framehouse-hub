@@ -38,6 +38,7 @@ const MAX_ASSETS = 100
 interface Props {
   state: WizardState
   onChange: (patch: Partial<WizardState>) => void
+  isSaving?: boolean
 }
 
 function totalAssets(sections: WizardSection[]): number {
@@ -58,7 +59,7 @@ function newSection(): WizardSection {
   }
 }
 
-export function WizardStepSectionLayout({ state, onChange }: Props) {
+export function WizardStepSectionLayout({ state, onChange, isSaving = false }: Props) {
   const [autoParseRan, setAutoParseRan] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   // Which section's picker is open (-1 = none)
@@ -329,6 +330,7 @@ export function WizardStepSectionLayout({ state, onChange }: Props) {
                       index={idx}
                       total={sections.length}
                       isMobile={isMobile}
+                      isSaving={isSaving}
                       totalAssets={total}
                       maxAssets={MAX_ASSETS}
                       overItemId={overItemId}

@@ -283,60 +283,179 @@ function mimeCategory(media: Media): 'video' | 'image' | 'other' {
   return 'other'
 }
 
-const MIME_ORDER: Array<'video' | 'image' | 'other'> = ['video', 'image', 'other']
-const MIME_LABEL: Record<'video' | 'image' | 'other', string> = {
-  video: 'Videos',
-  image: 'Images',
-  other: 'Files',
+function isPortraitAsset(media: Media): boolean {
+  const w = media.width ?? 0
+  const h = media.height ?? 0
+  return h > w && w > 0
 }
-const MIME_LAYOUT: Record<'video' | 'image' | 'other', SectionLayoutStyle> = {
-  video: 'filmstrip',
-  image: 'masonry',
-  other: 'uniform_grid',
+
+function slugifyGroupId(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+}
+
+function makeSection(
+  id: string,
+  sectionName: string,
+  layoutStyle: SectionLayoutStyle,
+  items: WizardGridItem[],
+  overrides: Partial<WizardSection> = {},
+): WizardSection {
+  return {
+    id,
+    sectionName,
+    showSectionHeader: false,
+    layoutStyle,
+    filmstripTrackHeight: 'comfortable',
+    uniformGridColumns: '3',
+    preserveAspectRatio: false,
+    sectionWidth: 'full',
+    items,
+    ...overrides,
+  }
+}
+
+// Threshold: ≥2 distinct shootNames in at least 40% of items triggers shoot-based grouping
+const SHOOT_GROUP_MIN_SHOOTS = 2
+const SHOOT_GROUP_MIN_RATIO = 0.4
+
+// Threshold for aspect-ratio split within an image group
+const ASPECT_SPLIT_MIN_ITEMS = 5
+const ASPECT_SPLIT_THRESHOLD = 0.4 // both orientations must be ≥40% to warrant splitting
+
+/**
+ * Splits an image-only group into portrait + landscape sub-sections when the spread
+ * is significant enough to warrant distinct layout treatment.
+ * Returns the original array unchanged (as a single section) if the split doesn't apply.
+ */
+function splitImagesByAspect(
+  items: WizardGridItem[],
+  idPrefix: string,
+): WizardSection[] {
+  if (items.length < ASPECT_SPLIT_MIN_ITEMS) {
+    return [makeSection(`${idPrefix}-image`, 'Images', 'masonry', items)]
+  }
+
+  const portraits = items.filter((i) => isPortraitAsset(i.media))
+  const landscapes = items.filter((i) => !isPortraitAsset(i.media))
+  const portRatio = portraits.length / items.length
+  const landRatio = landscapes.length / items.length
+
+  // Only split when both orientations are substantive — avoids a "Landscape (1 item)" section
+  if (portRatio >= ASPECT_SPLIT_THRESHOLD && landRatio >= ASPECT_SPLIT_THRESHOLD) {
+    const result: WizardSection[] = []
+    if (landscapes.length > 0) {
+      result.push(
+        makeSection(`${idPrefix}-landscape`, 'Landscape', 'masonry', landscapes),
+      )
+    }
+    if (portraits.length > 0) {
+      result.push(
+        makeSection(`${idPrefix}-portrait`, 'Portrait', 'uniform_grid', portraits, {
+          uniformGridColumns: '3',
+        }),
+      )
+    }
+    return result
+  }
+
+  return [makeSection(`${idPrefix}-image`, 'Images', 'masonry', items)]
 }
 
 /**
- * Groups a flat items pool into WizardSection[] by MIME type category.
- * Uses deterministic IDs (e.g. 'auto-video') so re-runs don't regenerate DnD keys (Issue 7).
+ * Groups a flat items pool into WizardSection[] using a three-tier priority strategy:
+ *
+ * Priority 1 — Shoot-based grouping: if ≥2 distinct shootNames cover ≥40% of items,
+ *   group by shoot (creator intent preserved). Videos and unrecognised types fall into
+ *   a catch-all "Other" section appended last.
+ *
+ * Priority 2 — Aspect-ratio split: within the image group, if both portrait and landscape
+ *   orientations each account for ≥40% of images (and total ≥5), produce separate
+ *   "Portrait" (Grid) and "Landscape" (Auto) sections.
+ *
+ * Priority 3 — MIME fallback: video → filmstrip, images → masonry, other → grid.
+ *
+ * Uses deterministic IDs (e.g. 'auto-video', 'auto-shoot-{slug}') so re-runs don't
+ * regenerate DnD keys (Issue 7).
  */
 export function autoParseSections(items: WizardGridItem[]): WizardSection[] {
-  const groups = new Map<'video' | 'image' | 'other', WizardGridItem[]>()
+  if (items.length === 0) {
+    return [makeSection('auto-all', 'All Assets', 'masonry', [])]
+  }
+
+  // ── Priority 1: shoot-based grouping ──────────────────────────────────────
+  const itemsWithShoot = items.filter((i) => i.media.shootName?.trim())
+  const shootNames = new Set(itemsWithShoot.map((i) => i.media.shootName!.trim()))
+
+  if (
+    shootNames.size >= SHOOT_GROUP_MIN_SHOOTS &&
+    itemsWithShoot.length / items.length >= SHOOT_GROUP_MIN_RATIO
+  ) {
+    const shootGroups = new Map<string, WizardGridItem[]>()
+    const unassigned: WizardGridItem[] = []
+
+    for (const item of items) {
+      const shoot = item.media.shootName?.trim()
+      if (shoot) {
+        if (!shootGroups.has(shoot)) shootGroups.set(shoot, [])
+        shootGroups.get(shoot)!.push(item)
+      } else {
+        unassigned.push(item)
+      }
+    }
+
+    const sections: WizardSection[] = []
+
+    // Sort shoot groups largest-first so lead work appears first
+    const sorted = [...shootGroups.entries()].sort((a, b) => b[1].length - a[1].length)
+    for (const [name, groupItems] of sorted) {
+      const slug = slugifyGroupId(name)
+      // Within a shoot, choose layout by dominant media type
+      const hasVideo = groupItems.some((i) => i.media.mediaType === 'video')
+      const layout: SectionLayoutStyle = hasVideo ? 'filmstrip' : 'masonry'
+      sections.push(makeSection(`auto-shoot-${slug}`, name, layout, groupItems))
+    }
+
+    if (unassigned.length > 0) {
+      sections.push(makeSection('auto-shoot-other', 'Other', 'uniform_grid', unassigned))
+    }
+
+    return sections
+  }
+
+  // ── Priority 2 + 3: MIME split with aspect-ratio refinement ───────────────
+  const videoItems: WizardGridItem[] = []
+  const imageItems: WizardGridItem[] = []
+  const otherItems: WizardGridItem[] = []
+
   for (const item of items) {
     const cat = mimeCategory(item.media)
-    if (!groups.has(cat)) groups.set(cat, [])
-    groups.get(cat)!.push(item)
+    if (cat === 'video') videoItems.push(item)
+    else if (cat === 'image') imageItems.push(item)
+    else otherItems.push(item)
   }
 
   const sections: WizardSection[] = []
-  for (const cat of MIME_ORDER) {
-    const catItems = groups.get(cat)
-    if (!catItems?.length) continue
-    sections.push({
-      id: `auto-${cat}`,
-      sectionName: MIME_LABEL[cat],
-      showSectionHeader: false,
-      layoutStyle: MIME_LAYOUT[cat],
-      filmstripTrackHeight: 'comfortable',
-      uniformGridColumns: '3',
-      preserveAspectRatio: false,
-      sectionWidth: 'full',
-      items: catItems,
-    })
+
+  if (videoItems.length > 0) {
+    sections.push(makeSection('auto-video', 'Videos', 'filmstrip', videoItems))
   }
 
-  // Fallback: if pool is empty or no items, produce at least one section
+  if (imageItems.length > 0) {
+    // Attempt aspect-ratio split within image group
+    sections.push(...splitImagesByAspect(imageItems, 'auto'))
+  }
+
+  if (otherItems.length > 0) {
+    sections.push(makeSection('auto-other', 'Files', 'uniform_grid', otherItems))
+  }
+
   if (sections.length === 0) {
-    sections.push({
-      id: 'auto-all',
-      sectionName: 'All Assets',
-      showSectionHeader: false,
-      layoutStyle: 'masonry',
-      filmstripTrackHeight: 'comfortable',
-      uniformGridColumns: '3',
-      preserveAspectRatio: false,
-      sectionWidth: 'full',
-      items,
-    })
+    sections.push(makeSection('auto-all', 'All Assets', 'masonry', items))
   }
 
   return sections

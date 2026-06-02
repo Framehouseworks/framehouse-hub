@@ -11,6 +11,7 @@ interface SectionLaneHeaderProps {
   total: number
   hasPortraitWarning: boolean
   isMobile: boolean
+  isSaving: boolean
   onRename: (name: string) => void
   onLayoutChange: (style: SectionLayoutStyle) => void
   onTrackHeightChange: (h: FilmstripTrackHeight) => void
@@ -55,6 +56,7 @@ export function SectionLaneHeader({
   total,
   hasPortraitWarning,
   isMobile,
+  isSaving,
   onRename,
   onLayoutChange,
   onTrackHeightChange,
@@ -95,14 +97,21 @@ export function SectionLaneHeader({
     <div className="flex flex-col gap-2 pb-3 border-b border-on-surface/8">
       {/* Row 1: drag handle + name + mobile move buttons + delete */}
       <div className="flex items-center gap-2 min-w-0">
-        {/* Desktop drag handle */}
+        {/* Desktop drag handle — with sync indicator */}
         {!isMobile && (
           <div
             {...dragHandleProps}
-            className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-[#7f5700]/60 cursor-grab active:cursor-grabbing hover:text-[#7f5700] transition-colors touch-none"
+            className="relative flex-shrink-0 w-7 h-7 flex items-center justify-center text-[#7f5700]/60 cursor-grab active:cursor-grabbing hover:text-[#7f5700] transition-colors touch-none"
             aria-label="Drag to reorder section"
+            aria-busy={isSaving}
           >
             <GripVertical size={14} aria-hidden="true" />
+            {isSaving && (
+              <span
+                aria-hidden="true"
+                className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#7f5700]/50 animate-pulse"
+              />
+            )}
           </div>
         )}
 
@@ -144,13 +153,21 @@ export function SectionLaneHeader({
           </p>
         </div>
 
-        {/* Item count */}
-        <span
-          className="flex-shrink-0 font-['Rubik_Mono_One',monospace] text-[9px] text-on-surface/30 bg-on-surface/5 px-2 py-0.5 rounded-full"
-          aria-label={`${section.items.length} assets in this section`}
-        >
-          {section.items.length}
-        </span>
+        {/* Item count + mobile sync indicator */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isSaving && isMobile && (
+            <span
+              aria-hidden="true"
+              className="w-1.5 h-1.5 rounded-full bg-[#7f5700]/50 animate-pulse"
+            />
+          )}
+          <span
+            className="font-['Rubik_Mono_One',monospace] text-[9px] text-on-surface/30 bg-on-surface/5 px-2 py-0.5 rounded-full"
+            aria-label={`${section.items.length} assets in this section`}
+          >
+            {section.items.length}
+          </span>
+        </div>
 
         {/* Mobile up/down — 44px minimum touch targets (WCAG 2.5.5) */}
         {isMobile && (
@@ -325,11 +342,26 @@ export function SectionLaneHeader({
           ))}
         </div>
 
-        {/* Portrait warning */}
-        {hasPortraitWarning && !section.preserveAspectRatio && (
-          <div role="alert" className="flex items-center gap-1 text-[9px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded-full">
+        {/* Portrait warning — filmstrip: always show (blur fill is active but mobile may distort) */}
+        {hasPortraitWarning && section.layoutStyle === 'filmstrip' && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="flex items-center gap-1.5 text-[9px] text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full"
+          >
             <AlertTriangle size={9} aria-hidden="true" />
-            {section.layoutStyle === 'filmstrip' ? 'Portrait — blur fill applied' : 'Natural ratio recommended'}
+            <span>Vertical assets — blur fill applied. Grid recommended.</span>
+          </div>
+        )}
+        {/* Portrait warning — non-filmstrip: only surface when aspect-ratio cropping is active */}
+        {hasPortraitWarning && section.layoutStyle !== 'filmstrip' && !section.preserveAspectRatio && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="flex items-center gap-1.5 text-[9px] text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full"
+          >
+            <AlertTriangle size={9} aria-hidden="true" />
+            <span>Portrait-heavy — enable Natural ratio to avoid cropping</span>
           </div>
         )}
       </div>

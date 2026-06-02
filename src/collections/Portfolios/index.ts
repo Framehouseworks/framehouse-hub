@@ -293,6 +293,12 @@ export const Portfolios: CollectionConfig = {
                 { label: 'Filmstrip', value: 'filmstrip' },
                 { label: 'Uniform Grid', value: 'uniform_grid' },
               ],
+              admin: {
+                description: 'Visual presentation style for this section. Filmstrip = horizontal scroll reel; Grid = fixed columns; Auto = justified rows.',
+                components: {
+                  Field: '@/collections/Portfolios/components/SectionLayoutAdminField#SectionLayoutAdminField',
+                },
+              },
             },
             {
               name: 'preserveAspectRatio',
@@ -320,6 +326,7 @@ export const Portfolios: CollectionConfig = {
               },
             },
             {
+              // Backing field for filmstrip track height — controlled visually via SectionLayoutAdminField
               name: 'filmstripTrackHeight',
               type: 'select',
               label: 'Filmstrip Track Height',
@@ -330,11 +337,12 @@ export const Portfolios: CollectionConfig = {
                 { label: 'Editorial (560px)', value: 'editorial' },
               ],
               admin: {
-                // C-9 confirmed: siblingData pattern is valid for block fields
-                condition: (_, siblingData) => siblingData?.layoutStyle === 'filmstrip',
+                // Hidden from the raw admin UI — managed inline by SectionLayoutAdminField above
+                condition: () => false,
               },
             },
             {
+              // Backing field for column count — controlled visually via SectionLayoutAdminField
               name: 'uniformGridColumns',
               type: 'select',
               label: 'Columns',
@@ -345,7 +353,8 @@ export const Portfolios: CollectionConfig = {
                 { label: '4 Columns', value: '4' },
               ],
               admin: {
-                condition: (_, siblingData) => siblingData?.layoutStyle === 'uniform_grid',
+                // Hidden from the raw admin UI — managed inline by SectionLayoutAdminField above
+                condition: () => false,
               },
             },
             // ── Grid items ────────────────────────────────────────────────

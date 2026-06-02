@@ -22,70 +22,91 @@ interface OverrideControlsProps {
   item: WizardGridItem
   onUpdate: (patch: Partial<WizardGridItem>) => void
   showFocalPoint?: boolean
+  /** Wide layout: focal point canvas moves to a right column; crop previews stack vertically beside canvas */
+  wide?: boolean
 }
 
-function OverrideControls({ item, onUpdate, showFocalPoint = true }: OverrideControlsProps) {
+function OverrideControls({ item, onUpdate, showFocalPoint = true, wide = false }: OverrideControlsProps) {
   const previewUrl = getMediaPreviewUrl(item.media)
   const videoUrl = getVideoPreviewUrl(item.media)
   const ready = isMediaReady(item.media)
   const isVideo = isVideoMedia(item.media)
   const canShowFocalPoint = isImageMedia(item.media) || isVideoMedia(item.media)
+  const hasFocalPoint = canShowFocalPoint && showFocalPoint
+
+  const displayNameField = (
+    <div>
+      <label
+        htmlFor="override-display-name"
+        className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase block mb-1.5"
+      >
+        Display name
+      </label>
+      <input
+        id="override-display-name"
+        type="text"
+        value={item.instanceTitle ?? ''}
+        onChange={(e) => onUpdate({ instanceTitle: e.target.value || null })}
+        placeholder={item.media.title || item.media.filename || 'Original name'}
+        className="w-full bg-gallery-surface/60 rounded-xl px-3 py-2 text-sm text-primary placeholder:text-on-surface/30 border border-transparent focus:border-gallery-gold/40 focus:outline-none"
+        aria-label="Client-facing display name for this asset in this portfolio"
+      />
+      <p className="text-[10px] text-on-surface/25 mt-1">
+        Shown to client. Master archive is unchanged.
+      </p>
+    </div>
+  )
+
+  const focalPointSection = hasFocalPoint ? (
+    <div>
+      <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase mb-2">
+        Focal point
+      </p>
+      {!ready ? (
+        <p className="text-xs text-on-surface/30 bg-on-surface/5 rounded-xl px-3 py-2.5">
+          Processing… Focal point available after worker completes.
+        </p>
+      ) : previewUrl ? (
+        <FocalPointCanvas
+          imageUrl={previewUrl}
+          focalPoint={item.focalPoint ?? { x: 50, y: 50 }}
+          onChange={(fp) => onUpdate({ focalPoint: fp })}
+          sideLayout={wide}
+        />
+      ) : (
+        <p className="text-xs text-on-surface/30">No preview available.</p>
+      )}
+    </div>
+  ) : null
+
+  const videoSection = isVideo ? (
+    <VideoThumbnailControls
+      value={item.videoThumbnail ?? { mode: 'auto' }}
+      onChange={(vt) => onUpdate({ videoThumbnail: vt })}
+      proxyVideoUrl={ready ? videoUrl : null}
+      thumbnailUrl={ready ? item.media.thumbnailUrl ?? null : null}
+    />
+  ) : null
+
+  if (wide && hasFocalPoint) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-6 lg:gap-8 items-start">
+        {/* Left column: text + video controls */}
+        <div className="flex flex-col gap-5">
+          {displayNameField}
+          {videoSection}
+        </div>
+        {/* Right column: focal point canvas (crop previews rendered beside canvas via sideLayout) */}
+        <div>{focalPointSection}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Display Name */}
-      <div>
-        <label
-          htmlFor="override-display-name"
-          className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase block mb-1.5"
-        >
-          Display name
-        </label>
-        <input
-          id="override-display-name"
-          type="text"
-          value={item.instanceTitle ?? ''}
-          onChange={(e) => onUpdate({ instanceTitle: e.target.value || null })}
-          placeholder={item.media.title || item.media.filename || 'Original name'}
-          className="w-full bg-gallery-surface/60 rounded-xl px-3 py-2 text-sm text-primary placeholder:text-on-surface/30 border border-transparent focus:border-gallery-gold/40 focus:outline-none"
-          aria-label="Client-facing display name for this asset in this portfolio"
-        />
-        <p className="text-[10px] text-on-surface/25 mt-1">
-          Shown to client. Master archive is unchanged.
-        </p>
-      </div>
-
-      {/* Focal point */}
-      {canShowFocalPoint && showFocalPoint && (
-        <div>
-          <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/40 uppercase mb-2">
-            Focal point
-          </p>
-          {!ready ? (
-            <p className="text-xs text-on-surface/30 bg-on-surface/5 rounded-xl px-3 py-2.5">
-              Processing… Focal point available after worker completes.
-            </p>
-          ) : previewUrl ? (
-            <FocalPointCanvas
-              imageUrl={previewUrl}
-              focalPoint={item.focalPoint ?? { x: 50, y: 50 }}
-              onChange={(fp) => onUpdate({ focalPoint: fp })}
-            />
-          ) : (
-            <p className="text-xs text-on-surface/30">No preview available.</p>
-          )}
-        </div>
-      )}
-
-      {/* Video thumbnail */}
-      {isVideo && (
-        <VideoThumbnailControls
-          value={item.videoThumbnail ?? { mode: 'auto' }}
-          onChange={(vt) => onUpdate({ videoThumbnail: vt })}
-          proxyVideoUrl={ready ? videoUrl : null}
-          thumbnailUrl={ready ? item.media.thumbnailUrl ?? null : null}
-        />
-      )}
+      {displayNameField}
+      {focalPointSection}
+      {videoSection}
     </div>
   )
 }
@@ -267,9 +288,9 @@ export function WizardStepOverrides({ state, onChange }: Props) {
         </button>
       </div>
 
-      {/* Controls panel — full content flow, no nested scroll */}
-      {!narrow && activeItem && (
-        <div className="bg-gallery-surface/40 rounded-2xl p-5">
+      {/* Controls panel */}
+      {activeItem && (
+        <div className={cn('bg-gallery-surface/40 rounded-2xl', narrow ? 'p-4' : 'p-5 md:p-6')}>
           {/* Asset identity */}
           <div className="flex items-center gap-2 mb-4">
             <span className="font-rubik text-[9px] tracking-wider bg-on-surface/5 text-on-surface/40 px-1.5 py-0.5 rounded-sm uppercase">
@@ -279,21 +300,7 @@ export function WizardStepOverrides({ state, onChange }: Props) {
               {activeItem.instanceTitle ?? activeItem.media.title ?? activeItem.media.filename}
             </span>
           </div>
-          <OverrideControls item={activeItem} onUpdate={handleUpdate} showFocalPoint />
-        </div>
-      )}
-
-      {narrow && activeItem && (
-        <div className="bg-gallery-surface/40 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="font-rubik text-[9px] tracking-wider bg-on-surface/5 text-on-surface/40 px-1.5 py-0.5 rounded-sm uppercase">
-              {activeItem.media.filename?.split('.').pop()?.toUpperCase() ?? activeItem.media.mediaType.toUpperCase()}
-            </span>
-            <span className="text-xs text-on-surface/30 truncate">
-              {activeItem.instanceTitle ?? activeItem.media.title ?? activeItem.media.filename}
-            </span>
-          </div>
-          <OverrideControls item={activeItem} onUpdate={handleUpdate} showFocalPoint />
+          <OverrideControls item={activeItem} onUpdate={handleUpdate} showFocalPoint wide={!narrow} />
         </div>
       )}
 
