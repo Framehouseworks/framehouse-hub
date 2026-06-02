@@ -6,7 +6,7 @@ import {
   ItalicFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 // REMOVED: Direct component imports to prevent CSS loading errors in Node
 // import { FolderCell } from './components/FolderCell'
 // import { LibraryRedirector } from './components/LibraryRedirector'
@@ -14,6 +14,7 @@ import { ensureLibraryAssignment } from './hooks/ensureLibraryAssignment'
 import { generateSlug } from './hooks/generateSlug'
 import { reorderItems } from './hooks/reorderItems'
 import { stripDocumentId } from './hooks/stripDocumentId'
+import { portfolioEndpoints } from './endpoints'
 
 // Minimal Lexical for Titles/Subheadings
 const minimalistLexical = lexicalEditor({
@@ -31,6 +32,14 @@ const richLexical = lexicalEditor({
 export const Portfolios: CollectionConfig = {
   slug: 'portfolios',
   folders: true,
+  versions: {
+    drafts: {
+      autosave: {
+        interval: 3000,
+      },
+    },
+    maxPerDoc: 10,
+  },
   admin: {
     group: 'Content',
     useAsTitle: 'name',
@@ -43,6 +52,7 @@ export const Portfolios: CollectionConfig = {
       url: ({ data }) => `${process.env.NEXT_PUBLIC_SERVER_URL}/p/${data.slug}`,
     },
   },
+  endpoints: portfolioEndpoints,
   hooks: {
     beforeChange: [reorderItems, stripDocumentId, generateSlug, ensureLibraryAssignment],
   },
@@ -51,26 +61,25 @@ export const Portfolios: CollectionConfig = {
     read: ({ req: { user } }) => {
       if (user?.roles?.includes('admin')) return true
 
-      const publicQuery = {
-        visibility: {
-          in: ['public', 'shared'],
-        },
-      }
-
-      if (!user) {
-        return publicQuery
-      }
-
-      return {
-        or: [
-          publicQuery,
-          {
-            owner: {
-              equals: user.id,
-            },
-          },
+      // Published public/shared portfolios are world-readable.
+      // _status is a Payload versions field — cast needed because it's not
+      // in the generated Where type but is available at query runtime.
+      const publishedPublicQuery: Where = {
+        and: [
+          { visibility: { in: ['public', 'shared'] } } as Where,
+          { _status: { equals: 'published' } } as unknown as Where,
         ],
       }
+
+      if (!user) return publishedPublicQuery
+
+      // Authenticated users also see their own portfolios (draft + published)
+      return {
+        or: [
+          publishedPublicQuery,
+          { owner: { equals: user.id } } as Where,
+        ],
+      } as Where
     },
     update: ownerOrAdmin,
     delete: ownerOrAdmin,
@@ -276,6 +285,84 @@ export const Portfolios: CollectionConfig = {
                     style: { display: 'none' },
                     readOnly: true,
                   },
+                },
+                {
+                  name: 'instanceTitle',
+                  type: 'text',
+                  label: 'Display Name',
+                  admin: {
+                    description:
+                      'Client-facing name for this asset in this portfolio only. Blank = uses original media title.',
+                  },
+                },
+                {
+                  name: 'focalPoint',
+                  type: 'group',
+                  label: 'Focal Point',
+                  admin: {
+                    description:
+                      'X/Y percentage from top-left. 50/50 = center. Set visually in the dashboard editor; values here are for admin reference only.',
+                  },
+                  fields: [
+                    {
+                      name: 'x',
+                      type: 'number',
+                      min: 0,
+                      max: 100,
+                      defaultValue: 50,
+                      admin: { description: '0 = left edge, 100 = right edge' },
+                    },
+                    {
+                      name: 'y',
+                      type: 'number',
+                      min: 0,
+                      max: 100,
+                      defaultValue: 50,
+                      admin: { description: '0 = top edge, 100 = bottom edge' },
+                    },
+                  ],
+                },
+                {
+                  name: 'videoThumbnail',
+                  type: 'group',
+                  label: 'Video Thumbnail Override',
+                  admin: {
+                    description:
+                      "Custom cover image for this video in this portfolio only. Does not affect the master media archive.",
+                  },
+                  fields: [
+                    {
+                      name: 'mode',
+                      type: 'select',
+                      defaultValue: 'auto',
+                      options: [
+                        { label: 'Auto (worker-generated)', value: 'auto' },
+                        { label: 'Timecode frame', value: 'timecode' },
+                        { label: 'Custom upload', value: 'custom' },
+                      ],
+                    },
+                    {
+                      name: 'timecodeSeconds',
+                      type: 'number',
+                      min: 0,
+                      label: 'Timecode (seconds)',
+                      admin: {
+                        condition: (_, siblingData) => siblingData?.mode === 'timecode',
+                        description: 'Seconds from start to use as poster frame',
+                      },
+                    },
+                    {
+                      name: 'customMedia',
+                      type: 'relationship',
+                      relationTo: 'media',
+                      label: 'Custom Cover Image',
+                      admin: {
+                        condition: (_, siblingData) => siblingData?.mode === 'custom',
+                        description:
+                          'Upload ID for the custom video cover image for this asset in this portfolio.',
+                      },
+                    },
+                  ],
                 },
               ],
             },
