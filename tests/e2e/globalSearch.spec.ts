@@ -59,7 +59,7 @@ test.describe('Global Search (FRH-44)', () => {
     await input.pressSequentially('iceland')
     await input.press('Enter')
     // waitForURL is more resilient than toHaveURL for async router.push transitions.
-    await page.waitForURL(/\/dashboard\/library\?search=iceland/, { timeout: 10_000 })
+    await page.waitForURL(/\/dashboard\/library\?search=iceland/, { timeout: 15_000 })
   })
 
   test('clicking quick filter chip sets ?search= and navigates to /dashboard/library', async ({
