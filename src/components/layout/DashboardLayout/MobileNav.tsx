@@ -8,8 +8,7 @@ import {
   Plus,
   Camera,
   FolderRoot,
-  Settings,
-  User,
+  UserCircle,
   X,
   MoreHorizontal,
   Share2,
@@ -32,8 +31,7 @@ const PRIMARY_NAV = [
 const MORE_NAV = [
   { icon: BookImage, href: '/dashboard/portfolios', label: 'Portfolios' },
   { icon: Share2, href: '/dashboard/shared', label: 'Shared' },
-  { icon: Settings, href: '/dashboard/settings', label: 'Settings' },
-  { icon: User, href: '/account', label: 'Profile' },
+  { icon: UserCircle, href: '/account', label: 'Account' },
 ]
 
 const MORE_ROUTES = MORE_NAV.map((i) => i.href)
