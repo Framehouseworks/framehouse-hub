@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Pen, Film, ImageIcon, FileText } from 'lucid
 import { cn } from '@/utilities/cn'
 import type { WizardState, WizardGridItem } from '../types'
 import { isVideoMedia, isImageMedia, getMediaPreviewUrl, getVideoPreviewUrl, isMediaReady } from '../types' // getVideoPreviewUrl used in OverrideControls
-import { FocalPointCanvas } from './FocalPointCanvas'
+import { FocalPointCanvas, CropPreview } from './FocalPointCanvas'
 import { VideoThumbnailControls } from './VideoThumbnailControls'
 
 interface Props {
@@ -22,7 +22,7 @@ interface OverrideControlsProps {
   item: WizardGridItem
   onUpdate: (patch: Partial<WizardGridItem>) => void
   showFocalPoint?: boolean
-  /** Wide layout: focal point canvas moves to a right column; crop previews stack vertically beside canvas */
+  /** Wide layout: crop previews move to a fixed right column beside the canvas */
   wide?: boolean
 }
 
@@ -33,6 +33,8 @@ function OverrideControls({ item, onUpdate, showFocalPoint = true, wide = false 
   const isVideo = isVideoMedia(item.media)
   const canShowFocalPoint = isImageMedia(item.media) || isVideoMedia(item.media)
   const hasFocalPoint = canShowFocalPoint && showFocalPoint
+  const showCropColumn = wide && hasFocalPoint && ready && !!previewUrl
+  const focalPoint = item.focalPoint ?? { x: 50, y: 50 }
 
   const displayNameField = (
     <div>
@@ -69,9 +71,9 @@ function OverrideControls({ item, onUpdate, showFocalPoint = true, wide = false 
       ) : previewUrl ? (
         <FocalPointCanvas
           imageUrl={previewUrl}
-          focalPoint={item.focalPoint ?? { x: 50, y: 50 }}
+          focalPoint={focalPoint}
           onChange={(fp) => onUpdate({ focalPoint: fp })}
-          sideLayout={wide}
+          hideCropPreviews={showCropColumn}
         />
       ) : (
         <p className="text-xs text-on-surface/30">No preview available.</p>
@@ -88,16 +90,31 @@ function OverrideControls({ item, onUpdate, showFocalPoint = true, wide = false 
     />
   ) : null
 
-  if (wide && hasFocalPoint) {
+  // Wide: left column holds display name + canvas + inputs + video;
+  // right column is a narrow fixed-width strip of stacked crop previews.
+  if (showCropColumn) {
     return (
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] gap-6 lg:gap-8 items-start">
-        {/* Left column: text + video controls */}
-        <div className="flex flex-col gap-5">
+      <div className="flex gap-5 lg:gap-7 items-start min-w-0">
+        {/* Left: everything except crop previews */}
+        <div className="flex flex-col gap-5 flex-1 min-w-0">
           {displayNameField}
+          {focalPointSection}
           {videoSection}
         </div>
-        {/* Right column: focal point canvas (crop previews rendered beside canvas via sideLayout) */}
-        <div>{focalPointSection}</div>
+        {/* Right: crop previews column — fixed width, stacked vertically */}
+        <div
+          className="flex-shrink-0 w-[90px] sm:w-[104px]"
+          aria-label="Crop simulations based on focal point"
+        >
+          <p className="font-rubik text-[9px] tracking-[0.2em] text-on-surface/30 uppercase mb-2">
+            Previews
+          </p>
+          <div className="flex flex-col gap-2.5">
+            <CropPreview imageUrl={previewUrl} focalPoint={focalPoint} aspect={[9, 16]} label="9:16" />
+            <CropPreview imageUrl={previewUrl} focalPoint={focalPoint} aspect={[1, 1]} label="1:1" />
+            <CropPreview imageUrl={previewUrl} focalPoint={focalPoint} aspect={[16, 9]} label="16:9" />
+          </div>
+        </div>
       </div>
     )
   }
