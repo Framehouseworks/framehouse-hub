@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { AccountForm } from '@/components/forms/AccountForm'
+import { AccountSettingsShell } from '@/components/account/AccountSettingsShell'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
@@ -18,21 +18,21 @@ export default async function AccountPage() {
     )
   }
 
-  return (
-    <>
-      <div className="border p-8 rounded-lg bg-primary-foreground">
-        <h1 className="text-3xl font-medium mb-8">Account settings</h1>
-        <AccountForm />
-      </div>
-    </>
-  )
+  // Resolve the studioLogo relation so the shell gets the full Media object
+  const fullUser = await payload.findByID({
+    collection: 'users',
+    id: user.id,
+    depth: 1,
+  })
+
+  return <AccountSettingsShell user={fullUser} />
 }
 
 export const metadata: Metadata = {
-  description: 'Manage your Framehouse Hub account settings.',
+  description: 'Manage your Framehouse Hub account settings, studio identity, and security.',
   openGraph: mergeOpenGraph({
-    title: 'Account',
+    title: 'Account Settings',
     url: '/account',
   }),
-  title: 'Account',
+  title: 'Account Settings',
 }

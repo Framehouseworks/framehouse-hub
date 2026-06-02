@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -18,6 +18,77 @@ import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
 import { Button } from '@/components/ui/button'
 import { useUpload } from '@/providers/UploadProvider'
+import { useAuth } from '@/providers/Auth'
+
+type StorageSummary = { usagePercent: number; totalBytes: number; tierLimitBytes: number }
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  const val = bytes / 1024 ** i
+  return `${val < 10 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
+}
+
+function SidebarStorage() {
+  const { status } = useAuth()
+  const [storage, setStorage] = useState<StorageSummary | null>(null)
+
+  const fetchStorage = useCallback(async () => {
+    if (status !== 'loggedIn') return
+    try {
+      const res = await fetch('/api/users/me/storage', { credentials: 'include' })
+      if (res.ok) setStorage(await res.json())
+    } catch { /* non-fatal */ }
+  }, [status])
+
+  useEffect(() => {
+    void fetchStorage()
+    const id = setInterval(fetchStorage, 30_000)
+    return () => clearInterval(id)
+  }, [fetchStorage])
+
+  if (!storage) return null
+
+  const pct = Math.min(Math.round(storage.usagePercent), 100)
+  const isWarning = pct >= 80 && pct < 100
+  const isOverage = pct >= 100
+  const barColor = isOverage ? 'bg-gallery-red' : isWarning ? 'bg-amber-500' : 'bg-gallery-gold'
+  const pctColor = isOverage ? 'text-gallery-red' : isWarning ? 'text-amber-500' : 'text-gallery-gold'
+
+  return (
+    <div className="bg-white/40 dark:bg-white/[0.04] p-4 rounded-2xl">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-rubik text-[9px] tracking-wider text-on-surface/40 uppercase">Storage</span>
+        <span className={cn('font-rubik text-[9px]', pctColor)}>{pct}%</span>
+      </div>
+      <div
+        className="h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Storage ${pct}% used`}
+      >
+        <div
+          className={cn('h-full rounded-full transition-[width] duration-700', barColor)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-on-surface/30 mt-1.5">
+        {formatBytes(storage.totalBytes)} of {formatBytes(storage.tierLimitBytes)}
+      </p>
+      {isOverage && (
+        <Link
+          href="/pricing"
+          className="block mt-2 text-[10px] text-gallery-red font-medium hover:underline"
+        >
+          Upgrade tier →
+        </Link>
+      )}
+    </div>
+  )
+}
 
 const navItems = [
   {
@@ -121,17 +192,9 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Footer / System Status */}
+      {/* Footer / Storage widget */}
       <div className="p-6 mt-auto">
-        <div className="bg-white/40 p-4 rounded-2xl border border-white/60">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-rubik text-[9px] tracking-wider text-on-surface/40">STORAGE</span>
-            <span className="font-rubik text-[9px] text-gallery-gold">84%</span>
-          </div>
-          <div className="h-1 bg-black/5 rounded-full overflow-hidden">
-            <div className="h-full bg-gallery-gold w-[84%] rounded-full" />
-          </div>
-        </div>
+        <SidebarStorage />
       </div>
     </aside>
   )
