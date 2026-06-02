@@ -10,6 +10,17 @@ const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
  * waiting for Next.js JIT compilation.
  */
 async function globalSetup() {
+  // Apply any pending migrations before seeding so the schema is always current.
+  // This is idempotent (no-op when already up to date) and handles the common
+  // case where new migrations were added after the developer last migrated locally.
+  try {
+    console.log('⚙ Applying pending migrations...')
+    execSync('pnpm run payload migrate', { stdio: 'inherit' })
+    console.log('✓ Migrations up to date')
+  } catch (err) {
+    console.warn('⚠ Migration step failed — tests may fail if schema is out of date:', err)
+  }
+
   try {
     console.log('🌱 Running database seed before E2E tests...')
     execSync('pnpm run seed', { stdio: 'inherit' })
