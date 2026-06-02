@@ -1234,6 +1234,37 @@ export interface Portfolio {
           caption?: string | null;
           link?: string | null;
           instanceId?: string | null;
+          /**
+           * Client-facing name for this asset in this portfolio only. Blank = uses original media title.
+           */
+          instanceTitle?: string | null;
+          /**
+           * X/Y percentage from top-left. 50/50 = center. Set visually in the dashboard editor; values here are for admin reference only.
+           */
+          focalPoint?: {
+            /**
+             * 0 = left edge, 100 = right edge
+             */
+            x?: number | null;
+            /**
+             * 0 = top edge, 100 = bottom edge
+             */
+            y?: number | null;
+          };
+          /**
+           * Custom cover image for this video in this portfolio only. Does not affect the master media archive.
+           */
+          videoThumbnail?: {
+            mode?: ('auto' | 'timecode' | 'custom') | null;
+            /**
+             * Seconds from start to use as poster frame
+             */
+            timecodeSeconds?: number | null;
+            /**
+             * Upload ID for the custom video cover image for this asset in this portfolio.
+             */
+            customMedia?: (number | null) | Media;
+          };
           id?: string | null;
         }[];
         spacing?: ('small' | 'medium' | 'large' | 'none') | null;
@@ -1295,6 +1326,7 @@ export interface Portfolio {
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2085,6 +2117,20 @@ export interface PortfoliosSelect<T extends boolean = true> {
                     caption?: T;
                     link?: T;
                     instanceId?: T;
+                    instanceTitle?: T;
+                    focalPoint?:
+                      | T
+                      | {
+                          x?: T;
+                          y?: T;
+                        };
+                    videoThumbnail?:
+                      | T
+                      | {
+                          mode?: T;
+                          timecodeSeconds?: T;
+                          customMedia?: T;
+                        };
                     id?: T;
                   };
               spacing?: T;
@@ -2120,6 +2166,7 @@ export interface PortfoliosSelect<T extends boolean = true> {
   folder?: T;
   updatedAt?: T;
   createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

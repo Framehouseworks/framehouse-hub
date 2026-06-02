@@ -12,6 +12,7 @@ import {
   PlusCircle,
   CloudUpload,
   Camera,
+  BookImage,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
@@ -25,6 +26,12 @@ const navItems = [
       { name: 'Archive', icon: Archive, href: '/dashboard/library' },
       { name: 'Sessions', icon: Camera, href: '/dashboard/library/sessions' },
       { name: 'Collections', icon: FolderRoot, href: '/dashboard/library/collections' },
+    ],
+  },
+  {
+    label: 'PUBLISH',
+    items: [
+      { name: 'Portfolios', icon: BookImage, href: '/dashboard/portfolios' },
       { name: 'Shared', icon: LayoutGrid, href: '/dashboard/shared' },
     ],
   },

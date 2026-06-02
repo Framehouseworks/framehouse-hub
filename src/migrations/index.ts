@@ -28,6 +28,7 @@ import * as migration_20260527_160000_add_camera_make from './20260527_160000_ad
 import * as migration_20260527_210000_add_sessions_collection from './20260527_210000_add_sessions_collection';
 import * as migration_20260527_240000_add_collection_generated_from_camera_date from './20260527_240000_add_collection_generated_from_camera_date';
 import * as migration_20260601_164135 from './20260601_164135';
+import * as migration_20260601_233722 from './20260601_233722';
 
 export const migrations = [
   {
@@ -178,6 +179,11 @@ export const migrations = [
   {
     up: migration_20260601_164135.up,
     down: migration_20260601_164135.down,
-    name: '20260601_164135'
+    name: '20260601_164135',
+  },
+  {
+    up: migration_20260601_233722.up,
+    down: migration_20260601_233722.down,
+    name: '20260601_233722'
   },
 ];

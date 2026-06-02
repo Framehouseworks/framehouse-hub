@@ -1,6 +1,5 @@
 'use client'
 
-import { Media } from '@/components/Media'
 import { Media as MediaType, Portfolio } from '@/payload-types'
 import { cn } from '@/utilities/cn'
 import React, { useMemo, useState } from 'react'
@@ -11,6 +10,13 @@ type GridItem = NonNullable<NonNullable<Extract<NonNullable<Portfolio['layoutBlo
     alt?: string | null
     caption?: string | null
     link?: string | null
+    instanceTitle?: string | null
+    focalPoint?: { x?: number | null; y?: number | null } | null
+    videoThumbnail?: {
+        mode?: ('auto' | 'timecode' | 'custom') | null
+        timecodeSeconds?: number | null
+        customMedia?: (number | null) | MediaType
+    } | null
 }
 
 interface MasonryGridProps {
@@ -136,27 +142,63 @@ export const MasonryGrid: React.FC<MasonryGridProps> = ({
                                 maxWidth: isSparseLastRow ? `${Math.min(growFactor * 25, 50)}%` : 'none'
                             }
 
+                            // Build object-position from focalPoint (portfolio-level override)
+                            const fpX = item.focalPoint?.x ?? 50
+                            const fpY = item.focalPoint?.y ?? 50
+                            const objectPosition = `${fpX}% ${fpY}%`
+
+                            // Resolve video poster
+                            const isVideo = media.mediaType === 'video'
+                            const posterUrl: string | undefined = isVideo
+                                ? item.videoThumbnail?.mode === 'custom' &&
+                                  item.videoThumbnail.customMedia &&
+                                  typeof item.videoThumbnail.customMedia === 'object'
+                                    ? (item.videoThumbnail.customMedia as MediaType).thumbnailUrl ?? undefined
+                                    : media.thumbnailUrl ?? undefined
+                                : undefined
+
+                            // Display name: instanceTitle > media.title > filename
+                            const displayName = item.instanceTitle || item.caption || null
+
                             return (
                                 <div
-                                    key={item.id || media.id}
+                                    key={item.instanceId || item.id || `media-${media.id}-${stripIndex}`}
                                     className="w-full relative min-h-0"
                                     style={itemStyle}
                                 >
                                     <MotionContainer type="reveal" delay={0.1}>
                                         <div
                                             className="relative cursor-pointer bg-zinc-900 group overflow-hidden w-full h-full"
-                                            onClick={() => !item.link && setSelectedImage(media)}
+                                            onClick={() => !item.link && !isVideo && setSelectedImage(media)}
                                         >
-                                            <Media
-                                                resource={media}
-                                                alt={item.alt || media.alt}
-                                                imgClassName="w-full h-full object-cover object-center transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
-                                            />
+                                            {isVideo ? (
+                                                <video
+                                                    src={media.proxyUrl ?? media.originalUrl ?? undefined}
+                                                    poster={posterUrl}
+                                                    className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
+                                                    style={{ objectPosition }}
+                                                    muted
+                                                    loop
+                                                    playsInline
+                                                    preload="none"
+                                                    aria-label={item.alt || media.alt}
+                                                    onMouseEnter={(e) => { (e.target as HTMLVideoElement).play().catch(() => {}) }}
+                                                    onMouseLeave={(e) => { (e.target as HTMLVideoElement).pause() }}
+                                                />
+                                            ) : (
+                                                <img
+                                                    src={media.thumbnailUrl ?? media.proxyUrl ?? media.originalUrl ?? media.url ?? undefined}
+                                                    alt={item.alt || media.alt || ''}
+                                                    className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-[1.02] rounded-none shadow-sm"
+                                                    style={{ objectPosition }}
+                                                    loading="lazy"
+                                                />
+                                            )}
                                             <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors duration-500 pointer-events-none" />
 
-                                            {item.caption && (
+                                            {displayName && (
                                                 <div className="absolute bottom-4 left-4 right-4 text-[white] opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[10px] tracking-widest uppercase italic bg-black/40 backdrop-blur-sm p-2">
-                                                    {item.caption}
+                                                    {displayName}
                                                 </div>
                                             )}
                                         </div>
