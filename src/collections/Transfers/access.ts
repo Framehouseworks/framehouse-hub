@@ -9,7 +9,7 @@ import { checkRole } from '@/access/utilities'
  * - Delete: Sender or admin only.
  */
 export const transfersAccess = {
-  create: (({ req: { user } }) => Boolean(user)) as Access,
+  create: (({ req: { user } }) => Boolean(user && checkRole(['creative', 'admin'], user))) as Access,
 
   read: (({ req: { user } }) => {
     // Admins have unrestricted read access

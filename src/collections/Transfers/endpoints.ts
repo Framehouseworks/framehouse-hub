@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { sql } from '@payloadcms/db-postgres'
+import { checkRole } from '@/access/utilities'
 
 const MAX_BYTES = 250 * 1024 * 1024 // 250MB hard limit for MVP transfers
 
@@ -16,14 +17,27 @@ function slugifyFilename(filename: string): string {
   return `${slug || 'file'}.${ext}`
 }
 
+async function getStorageClient() {
+  const { Storage } = await import('@google-cloud/storage')
+  if (process.env.GCP_SERVICE_ACCOUNT_KEY) {
+    try {
+      const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
+      return new Storage({ credentials, projectId: process.env.GCS_PROJECT_ID })
+    } catch {
+      return new Storage({ projectId: process.env.GCS_PROJECT_ID })
+    }
+  }
+  return new Storage({ projectId: process.env.GCS_PROJECT_ID })
+}
+
 export const transferEndpoints: CollectionConfig['endpoints'] = [
   // ── 1. Mint signed upload URL ─────────────────────────────────────────────
   {
     path: '/signed-url',
     method: 'post',
     handler: async (req) => {
-      if (!req.user) {
-        return Response.json({ error: 'Unauthorized — active account required' }, { status: 401 })
+      if (!req.user || !checkRole(['creative', 'admin'], req.user)) {
+        return Response.json({ error: 'Unauthorized — active creative account required' }, { status: 401 })
       }
 
       let body: { filename?: string; filesize?: number; mimeType?: string } = {}
@@ -45,7 +59,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
 
       if (numericSize > MAX_BYTES) {
         return Response.json(
-          { error: 'File exceeds 250MB limit for link transfers' },
+          { error: 'File exceeds 250MB transfer limit' },
           { status: 413 },
         )
       }
@@ -66,20 +80,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       }
 
       try {
-        const { Storage } = await import('@google-cloud/storage')
-        let storage: InstanceType<typeof Storage>
-
-        if (process.env.GCP_SERVICE_ACCOUNT_KEY) {
-          try {
-            const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
-            storage = new Storage({ credentials, projectId: process.env.GCS_PROJECT_ID })
-          } catch {
-            storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-          }
-        } else {
-          storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-        }
-
+        const storage = await getStorageClient()
         const bucket = storage.bucket(bucketName)
         const file = bucket.file(storagePath)
 
@@ -153,20 +154,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       const bucketName = process.env.GCS_BUCKET
       if (bucketName) {
         try {
-          const { Storage } = await import('@google-cloud/storage')
-          let storage: InstanceType<typeof Storage>
-
-          if (process.env.GCP_SERVICE_ACCOUNT_KEY) {
-            try {
-              const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
-              storage = new Storage({ credentials, projectId: process.env.GCS_PROJECT_ID })
-            } catch {
-              storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-            }
-          } else {
-            storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-          }
-
+          const storage = await getStorageClient()
           const file = storage.bucket(bucketName).file(transfer.storagePath)
           const [signedGetUrl] = await file.getSignedUrl({
             version: 'v4',
@@ -205,8 +193,8 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     path: '/upload-local',
     method: 'post',
     handler: async (req) => {
-      if (!req.user) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      if (!req.user || !checkRole(['creative', 'admin'], req.user)) {
+        return Response.json({ error: 'Unauthorized — active creative account required' }, { status: 401 })
       }
 
       const storagePathHeader = req.headers.get('x-storage-path')
@@ -218,6 +206,13 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       const normalized = path.normalize(storagePathHeader)
       if (!normalized.startsWith('transfers/') || normalized.includes('..')) {
         return Response.json({ error: 'Invalid storage path' }, { status: 400 })
+      }
+
+      // Enforce tenant boundary: user must match storage path unless admin
+      const userPrefix = `transfers/${req.user.id}/`
+      const isAdmin = Boolean((req.user as any)?.roles?.includes('admin'))
+      if (!isAdmin && !normalized.startsWith(userPrefix)) {
+        return Response.json({ error: 'Storage path does not match authenticated user' }, { status: 403 })
       }
 
       const destination = path.resolve(process.cwd(), 'public/media', normalized)

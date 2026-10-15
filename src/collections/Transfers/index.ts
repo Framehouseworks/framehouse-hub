@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { transfersAccess } from './access'
 import { autoAssignSender } from './hooks/autoAssignSender'
 import { setTransferDefaults } from './hooks/setTransferDefaults'
+import { cleanupTransferFile } from './hooks/cleanupTransferFile'
 import { transferEndpoints } from './endpoints'
 
 export const Transfers: CollectionConfig = {
@@ -16,6 +17,7 @@ export const Transfers: CollectionConfig = {
   endpoints: transferEndpoints,
   hooks: {
     beforeChange: [setTransferDefaults],
+    afterDelete: [cleanupTransferFile],
   },
   fields: [
     {
@@ -116,7 +118,6 @@ export const Transfers: CollectionConfig = {
       required: true,
       index: true,
       admin: {
-        readOnly: true,
         position: 'sidebar',
         description: 'Expiration timestamp (strictly 3 days from creation).',
       },
@@ -126,7 +127,6 @@ export const Transfers: CollectionConfig = {
       type: 'number',
       defaultValue: 0,
       admin: {
-        readOnly: true,
         position: 'sidebar',
         description: 'Number of times this transfer was downloaded.',
       },
@@ -135,7 +135,6 @@ export const Transfers: CollectionConfig = {
       name: 'lastDownloadedAt',
       type: 'date',
       admin: {
-        readOnly: true,
         position: 'sidebar',
         description: 'Timestamp of the most recent download.',
       },
