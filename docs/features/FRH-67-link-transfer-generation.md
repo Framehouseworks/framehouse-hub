@@ -618,3 +618,129 @@ graph LR
 3. **Strict 3-Day Ephemeral Retention**: Transfers are strictly bounded by a 72-hour time-to-live (`expiresAt = NOW() + 3 days`). Storage cleanup is enforced passively via query gating and actively via GCS Object Lifecycle Management rules on the `transfers/` prefix, ensuring Framehouse Hub operates safely within the **5GB Google Cloud Storage free allowance**.
 4. **Isolated Operational Surface**: Transfer assets live strictly outside the permanent archival DAM path (`transfers/*` vs `tenants/{userId}/*`). This guarantees that Eventarc triggers, Go worker microservices, EXIF parsers, and WebP generators remain idle during file transfers, conserving compute and database CPU.
 5. **Payload 3.x Maximization**: All custom endpoints (`/signed-url`, `/:shareHash/download`, `/upload-local`) live directly on the `Transfers` collection config. Document creation uses Payload's native REST API. Recipient resolution uses Payload's direct Local API in React Server Components. The implementation requires zero extraneous Next.js route handlers and zero jerry-rigged upload adapters.
+
+---
+
+## 11. Hyperscaler (Cloud Run + GCS) Deployment Readiness
+
+This section documents what changes between local development and the deployed cloud environment, and the exhaustive checklist of one-time infrastructure tasks that must be completed before the Transfers feature is fully functional on `dev` and `prod`.
+
+### 11.1 What Changes: Local Dev vs. Cloud
+
+| Concern | Local Dev | Cloud (Cloud Run + GCS) |
+|---|---|---|
+| **File upload target** | `POST /api/transfers/upload-local` — raw binary streamed to `public/media/transfers/` on the local filesystem | Browser XHR `PUT` directly to a v4 Signed PUT URL issued by `POST /api/transfers/signed-url` → bytes land in `gs://{bucket}/transfers/{userId}/{shareHash}/original/{filename}` |
+| **Download delivery** | `GET /api/transfers/:shareHash/download` streams bytes from `public/media/transfers/` via `fs.createReadStream` | Same endpoint issues an HTTP `302 Found` redirect to a 15-minute v4 Signed GET URL; browser fetches bytes directly from Google CDN — zero Cloud Run memory used |
+| **Storage client auth** | Not applicable (no GCS calls made when `GCS_BUCKET` is unset) | Runtime SA (`{PROJECT_NUMBER}-compute@developer.gserviceaccount.com`) must have `roles/iam.serviceAccountTokenCreator` self-granted so the GCS Node.js SDK can call `iamcredentials.signBlob` |
+| **File deletion on transfer delete** | `cleanupTransferFile` hook deletes from `public/media/` + recursively removes empty dirs | Same hook branches on `GCS_BUCKET`: calls `storage.bucket(bucket).file(storagePath).delete({ ignoreNotFound: true })` — GCS object is permanently deleted; no parent-dir cleanup needed (flat object namespace) |
+| **CORS policy** | Not required — browser and server share the same `localhost` origin | Must be explicitly applied to the GCS bucket for the `PUT` preflight (`OPTIONS`) and `PUT` to succeed; configured via `gcloud storage buckets update --cors-file=` (no Console UI) |
+| **Lifecycle auto-purge** | Not applicable — files are short-lived in `public/media` and cleaned up by the hook | `scripts/infra/set-transfers-lifecycle.sh` must be run once per bucket to apply a 3-day age-based delete rule on the `transfers/` prefix, providing a safety net if the afterDelete hook is skipped |
+| **Eventarc trigger** | No Eventarc — local uploads do not land in GCS, so no `object.finalized` event fires | **Critical**: The existing Eventarc trigger `framehouse-hub-worker-dev-finalize` listens on `object.finalized` for **all objects** in the bucket. Transfer uploads will fire this trigger. The Go worker must gracefully skip non-media paths (see §11.2 below) |
+| **Env var `GCS_BUCKET`** | Absent / empty → local mode branch is taken throughout all endpoints and hooks | Must be set on Cloud Run revision. Already injected by `_deploy-app.yml` via `env_vars: GCS_BUCKET=${{ inputs.gcs_bucket }}` — no workflow change needed |
+| **Env var `GCS_PROJECT_ID`** | Not required locally | Must be set. Already injected by `_deploy-app.yml`. Canonical name is `GCS_PROJECT_ID` — do not use `GCP_PROJECT_ID` in application code |
+| **`GCP_SERVICE_ACCOUNT_KEY`** | Not set locally | Optional override for explicit SA credentials JSON. On Cloud Run, the runtime SA's ambient credentials (ADC) are used automatically — this env var is only needed for local-to-cloud testing without a full ADC setup |
+
+### 11.2 Outstanding Pre-Launch Checklist
+
+The following tasks must be completed before the Transfers feature goes live on `dev` (and mirrored for `prod`). No code changes are required; these are all infrastructure and IAM configuration tasks.
+
+#### A. GCS Bucket CORS — **Must be updated**
+
+The current `scripts/infra/cors-dev.json` was written before FRH-67 and only covers `GET` and `OPTIONS` for media reads. It must be updated to allow browser `PUT` for direct transfer uploads:
+
+```json
+[
+  {
+    "origin": [
+      "https://dev.framehouseworks.com",
+      "https://framehouse-hub-dev-588985538639.us-central1.run.app"
+    ],
+    "method": ["GET", "PUT", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "x-goog-*"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+Apply with:
+```bash
+gcloud storage buckets update gs://framehouse-hub-dev \
+  --cors-file=scripts/infra/cors-dev.json
+```
+
+> **Requirement**: `PUT` and `x-goog-*` response headers must be present or the browser's XHR preflight will fail with a CORS error and the upload will never reach GCS.
+
+#### B. GCS Bucket Lifecycle Rule — **Must be applied once per bucket**
+
+Run `scripts/infra/set-transfers-lifecycle.sh` once against both the `dev` and `prod` buckets. This applies a 3-day age-based delete rule on the `transfers/` prefix as a safety net. The script is idempotent.
+
+```bash
+GCS_BUCKET=framehouse-hub-dev bash scripts/infra/set-transfers-lifecycle.sh
+GCS_BUCKET=framehouse-hub-prod bash scripts/infra/set-transfers-lifecycle.sh
+```
+
+Verify:
+```bash
+gcloud storage buckets describe gs://framehouse-hub-dev --format='json(lifecycle)'
+```
+
+#### C. IAM: Runtime SA `serviceAccountTokenCreator` Self-Grant — **Already required; confirm it covers transfers**
+
+This grant is already documented and required for media signed URL generation. The same grant covers transfer signed URL generation. Confirm it is active:
+
+```bash
+gcloud iam service-accounts get-iam-policy \
+  "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --format="json" | jq '.bindings[] | select(.role == "roles/iam.serviceAccountTokenCreator")'
+```
+
+If absent, re-apply:
+```bash
+RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+gcloud iam service-accounts add-iam-policy-binding "${RUNTIME_SA}" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/iam.serviceAccountTokenCreator"
+```
+
+#### D. Eventarc Worker: Skip Non-Media Paths — **Critical — Go worker code change required**
+
+The Eventarc trigger fires on **every** `object.finalized` event in the bucket, including `transfers/` objects. The Go worker must be updated to detect and skip transfer paths before attempting WebP processing, otherwise it will attempt to process arbitrary file types (`.zip`, `.mov`, `.dmg`, etc.) and fail or waste compute.
+
+**Required worker logic** (Go pseudocode):
+```go
+// At the top of the event handler, before any processing:
+if strings.HasPrefix(event.Name, "transfers/") {
+    log.Printf("Skipping transfer object (not a media asset): %s", event.Name)
+    w.WriteHeader(http.StatusNoContent) // 204 — acknowledge without processing
+    return
+}
+```
+
+This is a **Go worker code change** and must be merged before the first cloud transfer upload, or the worker will attempt to WebP-convert arbitrary binary files under `transfers/`.
+
+#### E. Secret Manager: No New Secrets Required
+
+FRH-67 transfers use only existing runtime env vars (`GCS_BUCKET`, `GCS_PROJECT_ID`) which are already injected as plain env vars by the deploy workflow. No new Secret Manager entries are needed.
+
+#### F. Neon Database: Migration Already Committed
+
+The migration `20261015_090323_add_transfers_collection.ts` was generated and committed as part of Phase 1. It will be applied automatically by the `_deploy-app.yml` workflow step (`pnpm payload migrate`) on the next deployment to `dev`. No manual migration step is required.
+
+#### G. Cloud Run Timeout — **Verify for large file uploads**
+
+The current `--timeout=300s` on `framehouse-hub-dev` is sufficient for signed URL generation (< 1s) and download redirect generation (< 1s). Transfer uploads themselves bypass Cloud Run entirely (direct browser-to-GCS PUT), so no timeout increase is needed. This is already correctly configured.
+
+### 11.3 Summary: Changes to the Cloud Stack vs. Local
+
+| Item | Action | Owner | Priority |
+|---|---|---|---|
+| GCS bucket CORS — add `PUT` + `x-goog-*` headers | Update `cors-dev.json` + run `gcloud storage buckets update` | Platform Ops | **P0 — blocks uploads** |
+| GCS lifecycle rule for `transfers/` prefix | Run `set-transfers-lifecycle.sh` once per bucket | Platform Ops | **P1 — storage safety net** |
+| IAM `serviceAccountTokenCreator` self-grant | Confirm existing grant is active | Platform Ops | **P0 — blocks signed URL generation** |
+| Go worker: skip `transfers/` path | Add prefix guard in Eventarc handler | Go Worker Engineer | **P0 — prevents corrupt worker invocations** |
+| Secret Manager | No action required | — | N/A |
+| Neon migration | Auto-applied on next deploy | CI/CD | Automatic |
+| Cloud Run timeout | No change required | — | N/A |
+| `GCS_BUCKET` + `GCS_PROJECT_ID` env vars | Already in deploy workflow | — | Already done |
+
+> **No application (Next.js / Payload) code changes are required** to run the Transfers feature on the cloud stack. The code already branches correctly on `GCS_BUCKET` presence. All outstanding items are infrastructure and IAM configuration, plus a single Go worker path guard.
