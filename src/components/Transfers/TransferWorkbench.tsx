@@ -14,32 +14,32 @@
  * 4. Recipient opens link -> instant zero-login download with 3-day retention.
  */
 
-import React, { useState, useRef, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
+import { MAX_TRANSFER_BYTES, TransferUploadResult, uploadTransfer } from '@/lib/transfer-upload'
+import type { Transfer } from '@/payload-types'
+import { cn } from '@/utilities/cn'
 import {
+  Check,
+  Clock,
   CloudUpload,
+  Copy,
+  ExternalLink,
   FileArchive,
-  FileText,
-  FileVideo,
   FileAudio,
   FileImage,
+  FileText,
+  FileVideo,
   File as GenericFile,
-  X,
-  SendHorizontal,
-  Check,
-  Copy,
-  Clock,
-  Sparkles,
   RotateCcw,
-  ExternalLink,
+  SendHorizontal,
+  Sparkles,
   Trash2,
+  X,
 } from 'lucide-react'
+import React, { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { cn } from '@/utilities/cn'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { Input } from '@/components/ui/input'
-import { uploadTransfer, MAX_TRANSFER_BYTES, TransferUploadResult } from '@/lib/transfer-upload'
-import type { Transfer } from '@/payload-types'
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return '0 B'
@@ -270,7 +270,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
 
   return (
     <div className="max-w-4xl mx-auto space-y-12">
-      {/* ── Editorial Header ────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span className="font-rubik text-[10px] tracking-[0.22em] text-gallery-gold uppercase px-2 py-0.5 rounded-full bg-gallery-gold/10">
@@ -282,10 +282,10 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
           </span>
         </div>
         <h1 className="font-varela text-3xl sm:text-4xl tracking-tight text-primary">
-          Link Transfers
+          File Transfers
         </h1>
         <p className="text-sm text-on-surface/60 max-w-xl">
-          High-performance deliverable sharing with 3-day retention and zero recipient login requirements.
+          Move your biggest ideas without the heavy lifting.
         </p>
       </div>
 
@@ -339,15 +339,12 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
               </div>
 
               {/* Tonal Policy Badges in Rubik Mono One */}
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2 uppercase">
                 <span className="font-rubik text-[9.5px] tracking-wider px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
-                  250MB MAX LIMIT
+                  250MB Max Limit
                 </span>
                 <span className="font-rubik text-[9.5px] tracking-wider px-3 py-1 rounded-full bg-gallery-gold/10 text-gallery-gold">
-                  3 DAYS RETENTION
-                </span>
-                <span className="font-rubik text-[9.5px] tracking-wider px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
-                  PUBLIC DOWNLOAD
+                  3 Days Retention
                 </span>
               </div>
             </div>
@@ -548,18 +545,18 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
 
       {/* ── Recent Transfers Ledger (Curated Tonal Table) ────────────────── */}
       {transfers.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 ">
           <div className="flex items-center justify-between px-2">
             <h2 className="font-rubik text-[10px] tracking-[0.2em] text-on-surface/40 uppercase">
-              Recent Link Transfers
+              Recent Transfers
             </h2>
-            <span className="font-rubik text-[10px] text-on-surface/30">
-              {transfers.length} {transfers.length === 1 ? 'TRANSFER' : 'TRANSFERS'}
+            <span className="font-rubik text-[10px] text-on-surface/30 uppercase">
+              {transfers.length} {transfers.length === 1 ? 'File' : 'Files'}
             </span>
           </div>
 
-          <div className="rounded-[24px] bg-white/40 dark:bg-white/[0.02] backdrop-blur-md overflow-hidden">
-            <div className="divide-y divide-black/[0.03] dark:divide-white/[0.03]">
+          <div className="relative rounded-[28px] p-4 bg-white/70 dark:bg-white/3 backdrop-blur-xl shadow-[0px_20px_48px_rgba(26,28,28,0.06)] overflow-hidden">
+            <div className="flex flex-col gap-y-4">
               {transfers.slice(0, 10).map((t) => {
                 const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/transfer/${t.shareHash}`
                 const countdown = formatCountdown(t.expiresAt, t.status)
@@ -569,7 +566,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                   <div
                     key={t.id}
                     data-testid="transfer-row"
-                    className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/50 dark:hover:bg-white/[0.03] transition-colors"
+                    className="rounded-[28px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gallery-surface/60 hover:bg-gallery-surface/90 dark:hover:bg-white/5 transition-colors"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-10 h-10 shrink-0 rounded-xl bg-gallery-gold/10 text-gallery-gold flex items-center justify-center">
@@ -597,7 +594,6 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                         </div>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
                       <Button
                         variant="ghost"
