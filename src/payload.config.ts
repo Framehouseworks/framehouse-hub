@@ -35,6 +35,7 @@ import { SmartCollections } from '@/collections/SmartCollections'
 import { Sessions } from '@/collections/Sessions'
 import { UploadBatches } from '@/collections/UploadBatches'
 import { Waitlist } from '@/collections/Waitlist'
+import { Transfers } from '@/collections/Transfers'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -107,6 +108,7 @@ export default buildConfig({
     Waitlist,
     AdminActivityLogs,
     AdminDiagnosticSessions,
+    Transfers,
   ],
   db: postgresAdapter({
     push: false,
