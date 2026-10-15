@@ -61,12 +61,12 @@ function formatCountdown(expiresAt: string): { label: string; isExpired: boolean
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
 
   if (days > 0) {
-    return { label: `Expires in ${days}d ${hours}h`, isExpired: false }
+    return { label: `Expires in about ${days}d ${hours}h`, isExpired: false }
   }
   if (hours > 0) {
-    return { label: `Expires in ${hours}h ${minutes}m`, isExpired: false }
+    return { label: `Expires in about ${hours}h ${minutes}m`, isExpired: false }
   }
-  return { label: `Expires in ${minutes}m`, isExpired: false }
+  return { label: `Expires in about ${minutes}m`, isExpired: false }
 }
 
 export type TransferStatus = 'active' | 'revoked' | 'expired' | 'not_found'
@@ -133,7 +133,7 @@ export function TransferDownloadView({
             <span className="font-varela text-xl tracking-tight text-primary">Hub Archive</span>
           </div>
 
-          <div className="rounded-[28px] bg-white/80 dark:bg-white/[0.04] backdrop-blur-xl p-8 sm:p-10 shadow-[0px_20px_48px_rgba(26,28,28,0.06)] space-y-6">
+          <div className="rounded-[28px] bg-white/80 dark:bg-white/4 backdrop-blur-xl p-8 sm:p-10 shadow-[0px_20px_48px_rgba(26,28,28,0.06)] space-y-6">
             <div className="w-14 h-14 mx-auto rounded-full bg-gallery-red/10 text-gallery-red flex items-center justify-center">
               <AlertTriangle size={28} />
             </div>
@@ -173,30 +173,26 @@ export function TransferDownloadView({
   const ext = transfer.filename.split('.').pop()?.toUpperCase() || 'FILE'
 
   return (
-    <main className="min-h-screen bg-gallery-surface flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-lg mx-auto space-y-6">
+    <main className="min-h-screen bg-linear-to-b to-gallery-surface flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="w-full max-w-xl mx-auto space-y-6">
         {/* Curator Header Mark */}
         <div className="flex items-center justify-center gap-3">
           <LogoIcon size={38} />
           <span className="font-varela text-xl tracking-tight text-primary">Framehouse Hub</span>
         </div>
 
-        {/* Archival Museum-Grade Presentation Card */}
-        <div className="rounded-[32px] bg-white/80 dark:bg-white/[0.04] backdrop-blur-2xl p-6 sm:p-10 shadow-[0px_24px_56px_rgba(26,28,28,0.07)] space-y-8">
+        {/* Presentation Card */}
+        <div className="rounded-4xl bg-white/80 dark:bg-white/4 backdrop-blur-2xl p-6 sm:p-10 shadow-[0px_24px_56px_rgba(26,28,28,0.07)] space-y-8">
           {/* Header & Sender Attribution */}
           <div className="space-y-3 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <span className="font-rubik text-[9.5px] tracking-[0.22em] text-gallery-gold uppercase px-2.5 py-0.5 rounded-full bg-gallery-gold/10">
-                File Transfer
-              </span>
-              <span className="text-on-surface/20 text-xs">•</span>
-              <span className="font-rubik text-[9.5px] tracking-[0.18em] text-on-surface/40 uppercase">
-                Direct Delivery
+                File Transfers
               </span>
             </div>
 
             <div>
-              <h1 className="font-varela text-2xl sm:text-3xl tracking-tight text-primary">
+              <h1 className="font-varela text-2xl sm:text-3xl tracking-tight text-primary text-ellipsis">
                 {transfer.title || transfer.filename}
               </h1>
               <p className="text-xs text-on-surface/50 mt-1">
@@ -278,7 +274,7 @@ export function TransferDownloadView({
         {/* Footer Attribution */}
         <div className="text-center">
           <p className="font-rubik text-[9.5px] tracking-[0.2em] text-on-surface/30 uppercase">
-            Framehouse Hub • Curated Digital Transfer
+            Framehouse Hub • Transfers
           </p>
         </div>
       </div>
