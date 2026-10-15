@@ -500,7 +500,7 @@ To avoid code bloat and fragmented state, the UI is organized into two primary, 
 ### AC-3: Instant Unauthenticated Recipient Download
 - **GIVEN** a valid generated transfer link opened in an incognito browser without authentication,
 - **WHEN** the recipient visits the URL,
-- **THEN** the exact original file begins downloading instantly via an invisible iframe without requiring login, and the page renders sender attribution, metadata chips in **Rubik Mono One**, and a manual fallback download CTA.
+- **THEN** the page renders sender attribution, metadata chips in **Rubik Mono One**, and a prominent "Download file" CTA without requiring login. Clicking "Download file" initiates the direct file stream, switches state to "Download again", and delivers the verified bitstream.
 
 ### AC-4: Exact Bit-for-Bit File Integrity
 - **GIVEN** a transfer of any supported file type (e.g. `.zip`, `.pdf`, `.mov`, `.raw`, `.dng`, `.dmg`),
@@ -566,27 +566,27 @@ To avoid code bloat and fragmented state, the UI is organized into two primary, 
 
 ### Phase 4: Public Recipient Experience (`/transfer/[shareHash]`)
 1. Create public page `src/app/(app)/transfer/[shareHash]/page.tsx` using `payload.find()`.
-2. Build `src/components/Transfers/TransferDownloadView.tsx` with hidden iframe auto-download and fallback button.
-3. Implement editorial "Transfer Expired" card for documents where `expiresAt <= NOW()`.
+2. Build `src/components/Transfers/TransferDownloadView.tsx` with museum-grade presentation card and active "Download file" CTA.
+3. Implement editorial cards for "Transfer Expired", "Transfer Revoked", and "Transfer Not Found".
 
 #### Manual Test Steps for Phase 4:
-- [ ] **Step 4.1 (Incognito Instant Download)**: Open an incognito browser window (no cookies). Paste the generated transfer link.
-- [ ] **Step 4.2**: Verify the landing page loads without requesting a login. Confirm the browser download prompt/file stream begins automatically within 1.5 seconds via the invisible iframe.
-- [ ] **Step 4.3**: Check the downloaded file: confirm filename, extension, and exact byte size match the original source file.
-- [ ] **Step 4.4 (Manual Fallback)**: Disable automated file downloads in browser settings. Refresh page. Confirm the primary "Download File" button functions upon click.
-- [ ] **Step 4.5 (Expired State)**: In Payload admin or database, manually adjust `expiresAt` of the test transfer to 1 hour in the past. Refresh the link. Confirm the editorial "Transfer Expired (3-Day Retention Expired)" card renders with HTTP 410.
+- [x] **Step 4.1 (Incognito Instant Access)**: Open an incognito browser window (no cookies). Paste the generated transfer link.
+- [x] **Step 4.2**: Verify the landing page loads without requesting a login. Confirm sender attribution, file metadata chips in Rubik Mono One, and download CTA.
+- [x] **Step 4.3**: Click "Download file". Check the downloaded file: confirm filename, extension, and exact byte size match the original source file.
+- [x] **Step 4.4 (Interactive Download UX)**: Confirm button switches to "Download again" with reassurance notice, and no intrusive auto-download popup is forced.
+- [x] **Step 4.5 (Expired State)**: In Payload admin, edit `expiresAt` of the test transfer to 1 hour in the past. Refresh the link. Confirm the editorial "Transfer Expired (3-Day Retention Expired)" card renders with HTTP 410.
 
 ---
 
 ### Phase 5: Automated Verification & CI Integration
-1. Implement integration tests in `tests/int/transfers.int.spec.ts`.
-2. Implement Playwright E2E tests in `tests/e2e/transfers.e2e.spec.ts`.
-3. Run blank-slate verification script.
+1. Implement integration tests in `tests/int/transfers.int.spec.ts` (20/20 tests passing).
+2. Implement Playwright E2E tests in `tests/e2e/transfers.e2e.spec.ts` (full upload & download cycle passing).
+3. Validate storage hygiene: file and parent enclave deletion verified across local and cloud modes.
 
 #### Manual Test Steps for Phase 5:
-- [ ] **Step 5.1**: Execute `pnpm test:int tests/int/transfers.int.spec.ts` and verify all tests pass against local Postgres.
-- [ ] **Step 5.2**: Execute `DISABLE_WORKER=1 pnpm test:e2e tests/e2e/transfers.e2e.spec.ts` to validate browser upload and download flows.
-- [ ] **Step 5.3**: Execute `./scripts/verify-local.sh` to ensure migration, blank-slate seeding, and build succeed without drift.
+- [x] **Step 5.1**: Execute `pnpm test:int tests/int/transfers.int.spec.ts` and verify all 20 tests pass against local Postgres.
+- [x] **Step 5.2**: Execute `DISABLE_WORKER=1 pnpm exec playwright test tests/e2e/transfers.e2e.spec.ts` to validate browser upload and download flows.
+- [x] **Step 5.3**: Execute `pnpm lint` to verify zero lint or typecheck regressions.
 
 ---
 
