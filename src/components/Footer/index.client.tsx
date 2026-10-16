@@ -94,7 +94,7 @@ export function FooterClient({ footer }: Props) {
             <div className="flex items-center gap-6 text-[10px] font-rubik tracking-widest uppercase opacity-40">
               <div className="hidden md:flex items-center gap-2 group cursor-default">
                 <div className="w-1.5 h-1.5 bg-primary/40 rounded-full group-hover:bg-primary transition-colors" />
-                <span className="group-hover:text-foreground transition-colors">Designed in Michigan</span>
+                <span className="group-hover:text-foreground transition-colors">Designed in London, UK</span>
               </div>
               <span>© {currentYear} Framehouse Hub</span>
               <div className="flex items-center gap-4">

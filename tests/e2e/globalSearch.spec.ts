@@ -6,28 +6,21 @@ const password = 'password123'
 
 test.describe('Global Search (FRH-44)', () => {
   test.beforeEach(async ({ page }) => {
-    // 'load' waits for all scripts (React hydration) but ignores persistent
-    // WebSocket connections (Next.js HMR), so it resolves in both dev and CI.
-    await page.goto(`${baseURL}/login`, { waitUntil: 'load' })
-    await page.locator('input[name="email"]').fill(email)
-    await page.locator('input[name="password"]').fill(password)
-    // Wait for the login API response before checking navigation so we don't
-    // race against the cookie being set (avoids redirect back to /login?warning=).
-    await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().includes('/api/users/login') && r.request().method() === 'POST',
-        { timeout: 25_000 },
-      ),
-      page.locator('button[type="submit"]').click(),
-    ])
-    // Use a regex anchored to the path so the warning query-param URL
-    // (/login?warning=...dashboard...) can't accidentally satisfy this wait.
+    // Login via REST API directly — avoids the race where waitForResponse
+    // times out because an existing session cookie causes an immediate redirect
+    // before the form submit fires the /api/users/login request.
+    const res = await page.request.post(`${baseURL}/api/users/login`, {
+      data: { email, password },
+    })
+    expect(res.ok()).toBe(true)
+
+    // Navigate to the dashboard after the session cookie is set by the API response.
+    await page.goto(`${baseURL}/dashboard/library`, { waitUntil: 'load' })
     await page.waitForURL(/\/dashboard(?:[/?#]|$)/, { timeout: 25_000 })
     // Wait for the header search input to be present before each test.
-    // /dashboard/library holds an open SSE connection (/api/media/status-stream)
-    // so waitUntil: 'networkidle' is never satisfied — use explicit element wait.
     await expect(page.locator('header input[type="text"]')).toBeVisible()
   })
+
 
   test('/ key focuses the search input', async ({ page }) => {
     // CI headless Chromium does not give the document focus after navigation.

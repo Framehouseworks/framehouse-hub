@@ -104,7 +104,7 @@ export const Users: CollectionConfig = {
       type: 'select',
       access: {
         create: adminOnlyFieldAccess,
-        read: adminOnlyFieldAccess,
+        read: ({ req: { user } }) => Boolean(user),
         update: adminOnlyFieldAccess,
       },
       defaultValue: ['viewer'],

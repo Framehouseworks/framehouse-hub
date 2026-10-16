@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://dev.framehouseworks.com",
+      "https://framehouse-hub-dev-588985538639.us-central1.run.app",
+      "http://localhost:3000"
+    ],
+    "method": ["GET", "PUT", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "x-goog-*"],
+    "maxAgeSeconds": 3600
+  }
+]
