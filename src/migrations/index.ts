@@ -37,6 +37,7 @@ import * as migration_20260602_200000_add_admin_oversight from './20260602_20000
 import * as migration_20260602_210000_fix_admin_oversight_rels from './20260602_210000_fix_admin_oversight_rels';
 import * as migration_20260602_220000_fix_portfolios_title_nullable from './20260602_220000_fix_portfolios_title_nullable';
 import * as migration_20260602_230001_frh64_user_profile from './20260602_230001_frh64_user_profile';
+import * as migration_20261015_090323_add_transfers_collection from './20261015_090323_add_transfers_collection';
 
 export const migrations = [
   {
@@ -233,5 +234,10 @@ export const migrations = [
     up: migration_20260602_230001_frh64_user_profile.up,
     down: migration_20260602_230001_frh64_user_profile.down,
     name: '20260602_230001_frh64_user_profile',
+  },
+  {
+    up: migration_20261015_090323_add_transfers_collection.up,
+    down: migration_20261015_090323_add_transfers_collection.down,
+    name: '20261015_090323_add_transfers_collection'
   },
 ];

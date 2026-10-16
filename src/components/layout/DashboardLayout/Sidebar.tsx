@@ -12,6 +12,7 @@ import {
   CloudUpload,
   Camera,
   BookImage,
+  SendHorizontal,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { LogoIcon } from '@/components/Logo/LogoIcon'
@@ -108,6 +109,7 @@ const navItems = [
   {
     label: 'WORKSPACE',
     items: [
+      { name: 'Transfers', icon: SendHorizontal, href: '/dashboard/transfers' },
       { name: 'Archive Work', icon: CloudUpload, href: '/dashboard/upload' },
       { name: 'Account', icon: UserCircle, href: '/account' },
     ],
@@ -155,7 +157,7 @@ export const Sidebar: React.FC = () => {
                     : pathname === item.href || pathname.startsWith(item.href + '/')
                 const isUploadAction = item.name === 'Archive Work'
 
-                // Hide upload-triggering nav items for viewers
+                // Hide upload-triggering nav items for non-creatives (viewers)
                 if (isUploadAction && !isCreative) return null
 
                 return (

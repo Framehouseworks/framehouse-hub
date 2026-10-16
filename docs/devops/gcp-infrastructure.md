@@ -66,24 +66,39 @@ Public access prevention is enforced at the bucket level. All reads are served v
 There is **no Console UI** for bucket CORS. Apply via:
 
 ```bash
+# Dev
 gcloud storage buckets update gs://framehouse-hub-dev \
   --cors-file=scripts/infra/cors-dev.json
+
+# Prod
+gcloud storage buckets update gs://framehouse-hub-prod \
+  --cors-file=scripts/infra/cors-prod.json
 ```
 
 CORS allowlist must match exactly (scheme + host, no trailing slash):
-- `https://dev.framehouseworks.com`
-- `https://framehouse-hub-dev-588985538639.us-central1.run.app`
+- **Dev**: `https://dev.framehouseworks.com`, `https://framehouse-hub-dev-588985538639.us-central1.run.app`
+- **Prod**: `https://framehouseworks.com`, `https://hub.framehouseworks.com`
+
+Both CORS files include `PUT` and `x-goog-*` response headers — required for FRH-67 direct browser-to-GCS transfer uploads. Without `PUT` in the allowlist, the browser XHR preflight fails before the upload begins.
 
 Never use `*` — signed URLs are credential-equivalent.
 
 ### Storage paths
 
-All media is stored under:
+Media assets (permanent DAM):
 ```
 tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/original/{filename}
+tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/derivatives/{size}.webp
 ```
 
-URLs in DB are unsigned: `https://storage.googleapis.com/{bucket}/{path}`. The `signCloudUrls` hook rewrites them to signed GETs at read time.
+Link transfers (ephemeral, FRH-67):
+```
+transfers/{userId}/{shareHash}/original/{slugified-filename}
+```
+
+Transfer objects are subject to a 3-day lifecycle delete rule on the `transfers/` prefix (see `scripts/infra/set-transfers-lifecycle.sh`). They are **isolated** from the `tenants/` path — Eventarc/worker processing is skipped for all `transfers/*` objects.
+
+Media URLs in DB are unsigned: `https://storage.googleapis.com/{bucket}/{path}`. The `signCloudUrls` hook rewrites them to signed GETs at read time. Transfer download URLs are generated on-demand by the `/api/transfers/:shareHash/download` endpoint (15-min TTL).
 
 ---
 
@@ -254,8 +269,10 @@ Layer cache is scoped per service+environment (`cache_scope: app-dev`, `worker-d
 
 One-shot script to configure the Eventarc trigger and required IAM bindings. Run once per environment.
 
-Known patches needed (not yet applied):
-- Add `xargs` trim for `gcloud storage service-agent` output (leading whitespace bug).
+Patches applied:
+- ✅ `xargs` trim for `gcloud storage service-agent` output (leading whitespace bug — was causing `principal does not exist` IAM errors).
+
+Known gaps (not yet applied):
 - Add Eventarc service-agent bucket grant (`roles/storage.legacyBucketReader`).
 - Accept `--bucket-region` separate from `--service-region` (currently assumes they match).
 
