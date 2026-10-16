@@ -32,7 +32,7 @@ test.describe('FRH-67 Link Transfer Generation (E2E)', () => {
       // ── 2. Navigate to Transfers Workbench ─────────────────────────────────
       await page.goto(`${baseURL}/dashboard/transfers`, { waitUntil: 'load' })
       await expect(
-        page.getByRole('heading', { name: 'Link Transfers', exact: true }),
+        page.getByRole('heading', { name: 'File Transfers', exact: true }),
       ).toBeVisible({
         timeout: 20_000,
       })

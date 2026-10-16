@@ -57,7 +57,7 @@ export const Transfers: CollectionConfig = {
       name: 'filesize',
       type: 'number',
       required: true,
-      validate: (val) => {
+              validate: (val: any) => {
         if (typeof val !== 'number' || val <= 0) return 'Valid file size is required'
         if (val > 250 * 1024 * 1024) return 'File exceeds 250MB transfer limit'
         return true
