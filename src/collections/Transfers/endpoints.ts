@@ -227,7 +227,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
           return Response.json({ error: 'Empty request body' }, { status: 400 })
         }
 
-        fs.writeFileSync(destination, Buffer.from(arrayBuffer))
+        fs.writeFileSync(destination, new Uint8Array(arrayBuffer))
         return Response.json({ success: true, storagePath: normalized })
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Local upload failed'

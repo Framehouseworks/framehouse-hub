@@ -28,6 +28,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   describe('Schema & Field Defaults', () => {
     it('creates transfer with auto-assigned sender, shareHash, and 3-day expiry', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Campaign_Deliverables_4K.zip',
@@ -64,6 +65,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       await expect(
         payload.create({
+        draft: true,
           collection: 'transfers',
           data: {
             filename: 'Oversized_Raw_Archive.iso',
@@ -80,6 +82,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   describe('Access Control', () => {
     it('allows public read for active unexpired transfer by shareHash', async () => {
       const created = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Public_Teaser.mp4',
@@ -106,6 +109,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
     it('hides expired transfers from public queries', async () => {
       const expiredDate = new Date(Date.now() - 1000 * 60 * 60).toISOString() // 1 hour ago
       const expired = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Expired_Contract.pdf',
@@ -131,8 +135,8 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   })
 
   describe('Collection Endpoints', () => {
-    const signedUrlEndpoint = transferEndpoints?.find((e) => e.path === '/signed-url')
-    const downloadEndpoint = transferEndpoints?.find((e) => e.path === '/:shareHash/download')
+    const signedUrlEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/signed-url')
+    const downloadEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/:shareHash/download')
 
     it('signed-url endpoint rejects unauthenticated requests with 401', async () => {
       expect(signedUrlEndpoint).toBeDefined()
@@ -199,7 +203,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
       expect(res.status).toBe(410)
     })
 
-    const uploadLocalEndpoint = transferEndpoints?.find((e) => e.path === '/upload-local')
+    const uploadLocalEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/upload-local')
 
     it('upload-local endpoint rejects unauthenticated requests with 401', async () => {
       expect(uploadLocalEndpoint).toBeDefined()
@@ -254,6 +258,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // 2. Create database transfer record
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           shareHash,
@@ -331,12 +336,13 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   })
 
   describe('Lifecycle, Expiration & Manual Revocation', () => {
-    const downloadEndpoint = transferEndpoints?.find((e) => e.path === '/:shareHash/download')
+    const downloadEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/:shareHash/download')
 
     it('enforces 1-minute expiration: renders transfer inaccessible and returns 410', async () => {
       // Simulate a short-lived transfer whose 1-minute window expired
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Quick_Proof_1min.pdf',
@@ -368,6 +374,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
     it('allows sender to manually revoke / expire transfer early, cutting off download access', async () => {
       // Create active transfer
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Confidential_Rough.mp4',
@@ -422,6 +429,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // Create database transfer record
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           shareHash,
@@ -451,6 +459,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   describe('Public Recipient Resolution (Phase 4)', () => {
     it('resolves active transfer with populated sender details for public recipient view', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Presentation_Deck_Final.pdf',
@@ -490,6 +499,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
     it('correctly categorizes revoked transfer for recipient view', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Draft_To_Revoke.mov',
