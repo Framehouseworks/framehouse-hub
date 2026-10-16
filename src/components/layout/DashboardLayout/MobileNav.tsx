@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   Share2,
   BookImage,
+  SendHorizontal,
 } from 'lucide-react'
 import { cn } from '@/utilities/cn'
 import { useUpload } from '@/providers/UploadProvider'
@@ -29,9 +30,10 @@ const PRIMARY_NAV = [
 
 // Items surfaced inside the "More" bottom sheet
 const MORE_NAV = [
-  { icon: BookImage, href: '/dashboard/portfolios', label: 'Portfolios' },
-  { icon: Share2, href: '/dashboard/shared', label: 'Shared' },
-  { icon: UserCircle, href: '/account', label: 'Account' },
+  { icon: BookImage, href: '/dashboard/portfolios', label: 'Portfolios', creativeOnly: false },
+  { icon: Share2, href: '/dashboard/shared', label: 'Shared', creativeOnly: false },
+  { icon: SendHorizontal, href: '/dashboard/transfers', label: 'Transfers', creativeOnly: false },
+  { icon: UserCircle, href: '/account', label: 'Account', creativeOnly: false },
 ]
 
 const MORE_ROUTES = MORE_NAV.map((i) => i.href)
@@ -120,8 +122,13 @@ export const MobileNav: React.FC = () => {
         </div>
 
         {/* Items grid */}
-        <div className="px-3 pb-4 grid grid-cols-3 gap-1">
-          {MORE_NAV.map((item) => {
+        <div
+          className={cn(
+            'px-3 pb-4 grid gap-1',
+            isCreative ? 'grid-cols-4' : 'grid-cols-3',
+          )}
+        >
+          {MORE_NAV.filter((item) => !item.creativeOnly || isCreative).map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link

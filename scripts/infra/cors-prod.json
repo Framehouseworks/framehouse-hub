@@ -1,0 +1,11 @@
+[
+  {
+    "origin": [
+      "https://framehouseworks.com",
+      "https://hub.framehouseworks.com"
+    ],
+    "method": ["GET", "PUT", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "x-goog-*"],
+    "maxAgeSeconds": 3600
+  }
+]
