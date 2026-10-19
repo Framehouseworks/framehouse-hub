@@ -74,6 +74,25 @@ export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req 
       if (fs.existsSync(shareDir) && shareDir.startsWith(MEDIA_ROOT + path.sep)) {
         fs.rmSync(shareDir, { recursive: true, force: true })
       }
+
+      // If user folder has no other transfers left, clean it up
+      const userDir = path.dirname(shareDir)
+      if (
+        fs.existsSync(userDir) &&
+        userDir.startsWith(MEDIA_ROOT + path.sep) &&
+        userDir !== MEDIA_ROOT &&
+        path.basename(path.dirname(userDir)) === 'transfers'
+      ) {
+        try {
+          const remaining = fs.readdirSync(userDir)
+          if (remaining.length === 0) {
+            fs.rmdirSync(userDir)
+          }
+        } catch {
+          // Non-blocking if directory still has entries or active locks
+        }
+      }
+
       req.payload.logger.info(`[cleanupTransferFile] Purged local enclave: ${storagePath}`)
     }
   } catch (err) {
