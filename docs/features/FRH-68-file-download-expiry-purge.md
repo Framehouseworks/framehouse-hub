@@ -355,12 +355,12 @@ GCS_BUCKET=framehouse-hub-prod ./scripts/infra/set-transfers-lifecycle.sh
 **Manual verification:**
 1. Inspect Dev:
    ```bash
-   gcloud storage buckets describe gs://framehouse-hub-dev --format='json(lifecycle)'
+   gcloud storage buckets describe gs://framehouse-hub-dev --format='json(lifecycle_config)'
    ```
    Confirm `"age": 4` and `"matchesPrefix": ["transfers/"]` are returned.
 2. Inspect Prod:
    ```bash
-   gcloud storage buckets describe gs://framehouse-hub-prod --format='json(lifecycle)'
+   gcloud storage buckets describe gs://framehouse-hub-prod --format='json(lifecycle_config)'
    ```
    Confirm identical configuration.
 3. Confirm no `tenants/` prefix or unintended rules were affected.
