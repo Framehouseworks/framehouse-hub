@@ -298,6 +298,17 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
       })
       expect(refreshed.downloadCount).toBe(1)
       expect(refreshed.lastDownloadedAt).toBeDefined()
+
+      // 5. Clean up created transfer and verify enclave directory removal
+      await payload.delete({
+        collection: 'transfers',
+        id: transfer.id,
+        user: { id: testUserId } as any,
+      })
+      const diskPath = path.resolve(process.cwd(), 'public/media', storagePath)
+      expect(fs.existsSync(diskPath)).toBe(false)
+      expect(fs.existsSync(path.dirname(diskPath))).toBe(false)
+      expect(fs.existsSync(path.dirname(path.dirname(diskPath)))).toBe(false)
     })
   })
 
@@ -451,8 +462,60 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // Verify the physical file was purged from disk
       expect(fs.existsSync(fullDiskPath)).toBe(false)
-      // Verify the parent transfer directory was also purged
-      expect(fs.existsSync(path.dirname(path.dirname(fullDiskPath)))).toBe(false)
+      // Verify the parent transfer directory and original directory were also purged
+      const originalDirPath = path.dirname(fullDiskPath)
+      const shareDirPath = path.dirname(originalDirPath)
+      expect(fs.existsSync(originalDirPath)).toBe(false)
+      expect(fs.existsSync(shareDirPath)).toBe(false)
+    })
+
+    it('rejects transfer creation when expiresAt exceeds 3 days (72 hours)', async () => {
+      const farFutureExpiry = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+
+      try {
+        await payload.create({
+          collection: 'transfers',
+          data: {
+            shareHash: 'tr_test_reject',
+            sender: testUserId,
+            filename: 'too_long_expiry.pdf',
+            filesize: 1024,
+            mimeType: 'application/pdf',
+            storagePath: `transfers/${testUserId}/tr_invalid_exp/original/too-long-expiry.pdf`,
+            expiresAt: farFutureExpiry,
+          },
+          user: { id: testUserId } as any,
+        })
+        expect.unreachable('Should have thrown ValidationError')
+      } catch (err: any) {
+        expect(err.name).toBe('ValidationError')
+        expect(err.message).toContain('The following field is invalid: Expires At')
+        const fieldError = (err.data?.errors || err.errors)?.find(
+          (e: any) => e.path === 'expiresAt' || e.field === 'expiresAt',
+        )
+        expect(fieldError?.message).toContain('Transfer expiration cannot exceed 3 days')
+      }
+    })
+
+    it('allows transfer creation when expiresAt is within 3 days', async () => {
+      const validFutureExpiry = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+
+      const transfer = await payload.create({
+        collection: 'transfers',
+        data: {
+          shareHash: 'tr_test_accept',
+          sender: testUserId,
+          filename: 'valid_expiry.pdf',
+          filesize: 1024,
+          mimeType: 'application/pdf',
+          storagePath: `transfers/${testUserId}/tr_valid_exp/original/valid-expiry.pdf`,
+          expiresAt: validFutureExpiry,
+        },
+        user: { id: testUserId } as any,
+      })
+
+      expect(transfer.id).toBeDefined()
+      expect(new Date(transfer.expiresAt).getTime()).toBeCloseTo(new Date(validFutureExpiry).getTime(), -3)
     })
   })
 

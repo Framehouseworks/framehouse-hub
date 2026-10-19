@@ -96,7 +96,46 @@ Link transfers (ephemeral, FRH-67):
 transfers/{userId}/{shareHash}/original/{slugified-filename}
 ```
 
-Transfer objects are subject to a 3-day lifecycle delete rule on the `transfers/` prefix (see `scripts/infra/set-transfers-lifecycle.sh`). They are **isolated** from the `tenants/` path — Eventarc/worker processing is skipped for all `transfers/*` objects.
+### Transfer Lifecycle Rule & Storage Hygiene (FRH-68)
+
+Transfer objects are ephemeral deliverables uploaded directly via signed PUT URLs into the `transfers/` prefix. They are governed by:
+
+1. **GCS Lifecycle Policy (`age: 4`):**
+   Automated auto-purge rule applied via `scripts/infra/set-transfers-lifecycle.sh` to both `framehouse-hub-dev` and `framehouse-hub-prod`.
+   ```json
+   {
+     "rule": [
+       {
+         "action": { "type": "Delete" },
+         "condition": {
+           "age": 4,
+           "matchesPrefix": ["transfers/"]
+         }
+       }
+     ]
+   }
+   ```
+   - **Retention Window:** 72 hours (3 days) active transfer availability + 24-hour safety buffer to guarantee downloads never fail due to asynchronous daily GCS lifecycle evaluation boundaries.
+   - **Prefix Isolation:** Matches only `transfers/` — tenant media assets (`tenants/`) are untouched.
+   - **Verify Bucket Configuration:**
+     ```bash
+     gcloud storage buckets describe gs://framehouse-hub-dev --format='json(lifecycle_config)'
+     gcloud storage buckets describe gs://framehouse-hub-prod --format='json(lifecycle_config)'
+     ```
+
+2. **Synchronous Enclave & Placeholder Cleanup:**
+   When a transfer document is deleted via Payload API, the `cleanupTransferFile` `afterDelete` hook removes:
+   - `transfers/{userId}/{shareHash}/original/{filename}` (physical deliverable)
+   - `transfers/{userId}/{shareHash}/original/` (GCS directory placeholder)
+   - `transfers/{userId}/{shareHash}/` (GCS transfer enclave placeholder)
+   (In local dev mode, the entire `public/media/transfers/{userId}/{shareHash}` directory tree is recursively deleted).
+
+3. **Deploy-Time Orphan Placeholder Sweep:**
+   A safe metadata-filtered cleanup script (`scripts/infra/sweep-transfer-orphans.sh`) purges legacy zero-byte directory placeholders without touching active files:
+   ```bash
+   GCS_BUCKET=framehouse-hub-dev ./scripts/infra/sweep-transfer-orphans.sh
+   GCS_BUCKET=framehouse-hub-prod ./scripts/infra/sweep-transfer-orphans.sh
+   ```
 
 Media URLs in DB are unsigned: `https://storage.googleapis.com/{bucket}/{path}`. The `signCloudUrls` hook rewrites them to signed GETs at read time. Transfer download URLs are generated on-demand by the `/api/transfers/:shareHash/download` endpoint (15-min TTL).
 

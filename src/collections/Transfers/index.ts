@@ -4,6 +4,7 @@ import { autoAssignSender } from './hooks/autoAssignSender'
 import { setTransferDefaults } from './hooks/setTransferDefaults'
 import { cleanupTransferFile } from './hooks/cleanupTransferFile'
 import { transferEndpoints } from './endpoints'
+import { TRANSFER_EXPIRY_MS, MAX_TRANSFER_BYTES } from './constants'
 
 export const Transfers: CollectionConfig = {
   slug: 'transfers',
@@ -57,9 +58,9 @@ export const Transfers: CollectionConfig = {
       name: 'filesize',
       type: 'number',
       required: true,
-              validate: (val: any) => {
+      validate: (val: any) => {
         if (typeof val !== 'number' || val <= 0) return 'Valid file size is required'
-        if (val > 250 * 1024 * 1024) return 'File exceeds 250MB transfer limit'
+        if (val > MAX_TRANSFER_BYTES) return 'File exceeds 250MB transfer limit'
         return true
       },
       admin: {
@@ -117,9 +118,27 @@ export const Transfers: CollectionConfig = {
       type: 'date',
       required: true,
       index: true,
+      validate: (val: any, { operation, siblingData }: any) => {
+        // Allow unpopulated on create so setTransferDefaults beforeChange hook can set initial default
+        if (!val) {
+          if (operation === 'create') return true
+          return 'Expiration timestamp is required'
+        }
+
+        const dateVal = new Date(val).getTime()
+        if (Number.isNaN(dateVal)) return 'Invalid expiration date'
+
+        // Enforce 3-day max retention ceiling from now
+        const maxAllowed = Date.now() + TRANSFER_EXPIRY_MS
+        if (dateVal > maxAllowed) {
+          return 'Transfer expiration cannot exceed 3 days (72 hours) from now.'
+        }
+
+        return true
+      },
       admin: {
         position: 'sidebar',
-        description: 'Expiration timestamp (strictly 3 days from creation).',
+        description: 'Maximum 3 days from now (aligns with GCS storage retention). Default: 72 hours from creation.',
       },
     },
     {

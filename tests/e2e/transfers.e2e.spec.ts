@@ -127,8 +127,23 @@ test.describe('FRH-67 Link Transfer Generation (E2E)', () => {
       })
 
       await secondContext.close()
+
+      // ── 9. Verify on-disk storage cleanup of all transfer files & directories ──
+      const shareHashMatch = publicUrl.match(/tr_[a-f0-9]+/)
+      if (shareHashMatch) {
+        const shareHash = shareHashMatch[0]
+        const mediaRoot = path.resolve(process.cwd(), 'public/media/transfers')
+        if (fs.existsSync(mediaRoot)) {
+          // Verify no enclave directory with this shareHash exists under any user directory
+          const userDirs = fs.readdirSync(mediaRoot)
+          for (const uDir of userDirs) {
+            const enclavePath = path.join(mediaRoot, uDir, shareHash)
+            expect(fs.existsSync(enclavePath)).toBe(false)
+          }
+        }
+      }
     } finally {
-      // Clean up temp file
+      // Clean up local temp staging file
       if (fs.existsSync(tempFilePath)) {
         fs.unlinkSync(tempFilePath)
       }
