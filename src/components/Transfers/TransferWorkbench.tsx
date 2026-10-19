@@ -445,7 +445,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
             <Progress value={progress} className="h-3 bg-black/5 dark:bg-white/10" />
 
             <div className="flex items-center justify-between text-[11px] text-on-surface/40">
-              <span>We're uploading your file now...</span>
+              <span>We are uploading your file now...</span>
               <span className="font-rubik">{formatBytes((file.size * progress) / 100)} of {formatBytes(file.size)}</span>
             </div>
 
