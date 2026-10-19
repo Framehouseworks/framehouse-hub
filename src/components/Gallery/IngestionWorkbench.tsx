@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useUpload } from '@/providers/UploadProvider'
-import { CloudUpload, Image as ImageIcon, Camera, MapPin, Tag } from 'lucide-react'
-import NextImage from 'next/image'
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { LocationSearch, type PhotonResult } from '@/components/ui/location-search'
 import { TagInput } from '@/components/ui/tag-input'
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { useUpload } from '@/providers/UploadProvider'
+import { Camera, CloudUpload, Image as ImageIcon, MapPin, Tag } from 'lucide-react'
+import NextImage from 'next/image'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 interface SessionOption {
   id: number
@@ -62,7 +62,7 @@ export const IngestionWorkbench: React.FC = () => {
         const docs: SessionOption[] = data?.docs ?? []
         setSessionOptions(docs.map((s) => ({ value: String(s.id), label: s.name })))
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [isWorkbenchOpen])
 
   const totalSize = useMemo(() => {
@@ -202,11 +202,10 @@ export const IngestionWorkbench: React.FC = () => {
             <div className="lg:col-span-7 space-y-4">
               {/* Preview grid */}
               <div
-                className={`grid gap-3 rounded-[24px] overflow-hidden ${
-                  previews.length >= 3
+                className={`grid gap-3 rounded-[24px] overflow-hidden ${previews.length >= 3
                     ? 'grid-cols-3 h-[200px] sm:h-[240px]'
                     : 'grid-cols-1 h-[160px] sm:h-[200px]'
-                }`}
+                  }`}
               >
                 {previews.length > 0 ? (
                   previews.map((src, idx) => {
@@ -216,9 +215,8 @@ export const IngestionWorkbench: React.FC = () => {
                     return (
                       <div
                         key={idx}
-                        className={`relative overflow-hidden rounded-[20px] bg-black/[0.04] dark:bg-white/[0.04] ${
-                          isFirst && previews.length >= 3 ? 'col-span-2 row-span-2' : ''
-                        }`}
+                        className={`relative overflow-hidden rounded-[20px] bg-black/[0.04] dark:bg-white/[0.04] ${isFirst && previews.length >= 3 ? 'col-span-2 row-span-2' : ''
+                          }`}
                       >
                         <NextImage
                           src={src}
@@ -341,7 +339,7 @@ export const IngestionWorkbench: React.FC = () => {
           <Button
             onClick={onIngest}
             disabled={!sessionName.trim() || isCreatingSession}
-            className="w-full h-14 rounded-[20px] bg-gradient-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-sm font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:pointer-events-none"
+            className="w-full h-14 rounded-2xl bg-linear-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-sm font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:pointer-events-none"
           >
             <CloudUpload size={18} />
             {isCreatingSession ? 'Starting upload…' : `Upload ${stagedFiles.length} ${stagedFiles.length === 1 ? 'File' : 'Files'}`}
@@ -349,7 +347,7 @@ export const IngestionWorkbench: React.FC = () => {
           <Button
             variant="ghost"
             onClick={closeWorkbench}
-            className="w-full h-10 rounded-[16px] text-on-surface/35 hover:text-on-surface/60 font-space-mono text-[10px] font-bold uppercase tracking-[0.15em] transition-colors"
+            className="w-full h-10 rounded-2xl text-on-surface/35 hover:text-on-surface/60 font-space-mono text-[10px] font-bold uppercase tracking-[0.15em] transition-colors"
           >
             Cancel
           </Button>
