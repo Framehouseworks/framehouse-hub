@@ -66,24 +66,78 @@ Public access prevention is enforced at the bucket level. All reads are served v
 There is **no Console UI** for bucket CORS. Apply via:
 
 ```bash
+# Dev
 gcloud storage buckets update gs://framehouse-hub-dev \
   --cors-file=scripts/infra/cors-dev.json
+
+# Prod
+gcloud storage buckets update gs://framehouse-hub-prod \
+  --cors-file=scripts/infra/cors-prod.json
 ```
 
 CORS allowlist must match exactly (scheme + host, no trailing slash):
-- `https://dev.framehouseworks.com`
-- `https://framehouse-hub-dev-588985538639.us-central1.run.app`
+- **Dev**: `https://dev.framehouseworks.com`, `https://framehouse-hub-dev-588985538639.us-central1.run.app`
+- **Prod**: `https://framehouseworks.com`, `https://hub.framehouseworks.com`
+
+Both CORS files include `PUT` and `x-goog-*` response headers — required for FRH-67 direct browser-to-GCS transfer uploads. Without `PUT` in the allowlist, the browser XHR preflight fails before the upload begins.
 
 Never use `*` — signed URLs are credential-equivalent.
 
 ### Storage paths
 
-All media is stored under:
+Media assets (permanent DAM):
 ```
 tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/original/{filename}
+tenants/{userId}/{domain}/{year}/{month}/{assetUUID}/derivatives/{size}.webp
 ```
 
-URLs in DB are unsigned: `https://storage.googleapis.com/{bucket}/{path}`. The `signCloudUrls` hook rewrites them to signed GETs at read time.
+Link transfers (ephemeral, FRH-67):
+```
+transfers/{userId}/{shareHash}/original/{slugified-filename}
+```
+
+### Transfer Lifecycle Rule & Storage Hygiene (FRH-68)
+
+Transfer objects are ephemeral deliverables uploaded directly via signed PUT URLs into the `transfers/` prefix. They are governed by:
+
+1. **GCS Lifecycle Policy (`age: 4`):**
+   Automated auto-purge rule applied via `scripts/infra/set-transfers-lifecycle.sh` to both `framehouse-hub-dev` and `framehouse-hub-prod`.
+   ```json
+   {
+     "rule": [
+       {
+         "action": { "type": "Delete" },
+         "condition": {
+           "age": 4,
+           "matchesPrefix": ["transfers/"]
+         }
+       }
+     ]
+   }
+   ```
+   - **Retention Window:** 72 hours (3 days) active transfer availability + 24-hour safety buffer to guarantee downloads never fail due to asynchronous daily GCS lifecycle evaluation boundaries.
+   - **Prefix Isolation:** Matches only `transfers/` — tenant media assets (`tenants/`) are untouched.
+   - **Verify Bucket Configuration:**
+     ```bash
+     gcloud storage buckets describe gs://framehouse-hub-dev --format='json(lifecycle_config)'
+     gcloud storage buckets describe gs://framehouse-hub-prod --format='json(lifecycle_config)'
+     ```
+
+2. **Synchronous Enclave & Placeholder Cleanup:**
+   When a transfer document is deleted via Payload API, the `cleanupTransferFile` `afterDelete` hook removes:
+   - `transfers/{userId}/{shareHash}/original/{filename}` (physical deliverable)
+   - `transfers/{userId}/{shareHash}/original/` (GCS directory placeholder)
+   - `transfers/{userId}/{shareHash}/` (GCS transfer enclave placeholder)
+   (In local dev mode, the entire `public/media/transfers/{userId}/{shareHash}` directory tree is recursively deleted).
+
+3. **Deploy-Time Orphan Placeholder Sweep:**
+   A safe metadata-filtered cleanup script (`scripts/infra/sweep-transfer-orphans.sh`) purges legacy zero-byte directory placeholders without touching active files:
+   ```bash
+   GCS_BUCKET=framehouse-hub-dev ./scripts/infra/sweep-transfer-orphans.sh
+   GCS_BUCKET=framehouse-hub-prod ./scripts/infra/sweep-transfer-orphans.sh
+   ```
+
+Media URLs in DB are unsigned: `https://storage.googleapis.com/{bucket}/{path}`. The `signCloudUrls` hook rewrites them to signed GETs at read time. Transfer download URLs are generated on-demand by the `/api/transfers/:shareHash/download` endpoint (15-min TTL).
 
 ---
 
@@ -254,8 +308,10 @@ Layer cache is scoped per service+environment (`cache_scope: app-dev`, `worker-d
 
 One-shot script to configure the Eventarc trigger and required IAM bindings. Run once per environment.
 
-Known patches needed (not yet applied):
-- Add `xargs` trim for `gcloud storage service-agent` output (leading whitespace bug).
+Patches applied:
+- ✅ `xargs` trim for `gcloud storage service-agent` output (leading whitespace bug — was causing `principal does not exist` IAM errors).
+
+Known gaps (not yet applied):
 - Add Eventarc service-agent bucket grant (`roles/storage.legacyBucketReader`).
 - Accept `--bucket-region` separate from `--service-region` (currently assumes they match).
 
