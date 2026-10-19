@@ -316,11 +316,9 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
               }
             }}
             className={cn(
-              'group cursor-pointer rounded-[24px] p-8 sm:p-14 text-center transition-all duration-300',
-              'bg-gallery-surface/60 hover:bg-gallery-surface/90',
+              'group cursor-pointer rounded-3xl p-8 sm:p-14 text-center transition-all duration-300',
               isDragging
-                ? 'ring-2 ring-gallery-gold bg-gallery-gold/5 scale-[0.99]'
-                : 'hover:shadow-[0px_12px_32px_rgba(26,28,28,0.04)]',
+              && 'ring-2 ring-gallery-gold bg-gallery-gold/5 scale-[0.99]'
             )}
           >
             <div className="max-w-md mx-auto space-y-6">
@@ -427,18 +425,10 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                 variant="gallery"
                 size="lg"
                 onClick={handleStartUpload}
-                className="w-full sm:flex-1 h-13 gap-2.5 text-base font-semibold"
+                className="w-full sm:flex-1 h-13 gap-2.5 rounded-2xl bg-linear-to-r from-[#7f5700] to-[#d79922] text-white hover:opacity-90 shadow-[0_12px_32px_rgba(215,153,34,0.25)] font-inter text-base font-semibold tracking-tight transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               >
                 <SendHorizontal size={18} />
                 Get a link
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={handleReset}
-                className="w-full sm:w-auto h-13 rounded-[24px] text-on-surface/60 hover:text-primary"
-              >
-                Choose another file
               </Button>
             </div>
           </div>
@@ -446,7 +436,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
 
         {/* ── STATE 3: UPLOADING VIA XHR ────────────────────────────────── */}
         {state === 'UPLOADING' && file && (
-          <div className="py-8 space-y-6 text-center max-w-lg mx-auto">
+          <div className="py-8 space-y-6 text-center max-w-2xl mx-auto">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-primary truncate max-w-xs">{file.name}</span>
               <span className="font-rubik text-gallery-gold text-sm">{progress}%</span>
@@ -455,7 +445,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
             <Progress value={progress} className="h-3 bg-black/5 dark:bg-white/10" />
 
             <div className="flex items-center justify-between text-[11px] text-on-surface/40">
-              <span>Streaming to secure storage</span>
+              <span>We're uploading your file now...</span>
               <span className="font-rubik">{formatBytes((file.size * progress) / 100)} of {formatBytes(file.size)}</span>
             </div>
 
@@ -600,7 +590,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                         size="sm"
                         disabled={isInactive}
                         onClick={() => handleManualCopy(fullUrl)}
-                        className="rounded-full gap-1.5 text-xs text-on-surface/60 hover:text-primary"
+                        className="rounded-full gap-1.5 text-xs text-on-surface/60 hover:bg-gallery-gold/5 hover:text-gallery-gold"
                       >
                         <Copy size={13} />
                         <span>Copy</span>

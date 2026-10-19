@@ -1,27 +1,27 @@
 'use client'
 
-import React from 'react'
-import { createPortal } from 'react-dom'
-import Link from 'next/link'
-import {
-  Settings,
-  LogOut,
-  ShieldCheck,
-  Moon,
-  Sun,
-  ExternalLink,
-  X,
-} from 'lucide-react'
-import { useAuth } from '@/providers/Auth'
-import { useTheme } from '@/providers/Theme'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useAuth } from '@/providers/Auth'
+import { useTheme } from '@/providers/Theme'
 import { cn } from '@/utilities/cn'
-import { toast } from 'sonner'
+import {
+  ExternalLink,
+  LogOut,
+  Moon,
+  Settings,
+  ShieldCheck,
+  Sun,
+  X,
+} from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import React from 'react'
+import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
 
 // Derive up to two initials from a display name or email fallback.
 function getInitials(name?: string | null, email?: string): string {
@@ -142,7 +142,7 @@ function UserMenuContent({
           onClick={onClose}
           className={cn(itemCls, 'text-on-surface/70 hover:bg-gallery-gold/5 hover:text-gallery-gold')}
         >
-          <Settings size={18} className="text-on-surface/35 shrink-0" />
+          <Settings size={18} className="shrink-0" />
           <span>Profile Settings</span>
         </Link>
       </div>
