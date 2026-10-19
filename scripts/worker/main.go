@@ -176,6 +176,14 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// FRH-67: Skip link transfer objects — they live under transfers/ and are
+	// not media assets. Acknowledge with 200 so Eventarc does not retry.
+	if strings.HasPrefix(event.Name, "transfers/") {
+		log.Printf("[transfer-skip] Skipping non-media transfer object: %s", event.Name)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	parsed, ok := parseStoragePathV2(event.Name)
 	if !ok || parsed.Segment != "original" {
 		log.Printf("Ignoring non-original or unparseable path: %s", event.Name)
