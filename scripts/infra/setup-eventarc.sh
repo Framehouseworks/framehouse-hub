@@ -85,7 +85,7 @@ echo "   invoker : $INVOKER_SA"
 
 # Cloud Storage requires its service agent to have pubsub.publisher before
 # Eventarc will let us bind a GCS trigger. Idempotent.
-GCS_SA="$(gcloud storage service-agent --project="$PROJECT_ID")"
+GCS_SA="$(gcloud storage service-agent --project="$PROJECT_ID" | xargs)"
 echo "📡 Ensuring GCS service agent ($GCS_SA) has pubsub.publisher..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${GCS_SA}" \

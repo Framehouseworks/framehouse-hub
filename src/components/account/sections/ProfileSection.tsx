@@ -1,15 +1,15 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { LogoCropModal } from '@/components/account/LogoCropModal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { UploadCloud, X } from 'lucide-react'
-import { cn } from '@/utilities/cn'
-import { toast } from 'sonner'
-import { LogoCropModal } from '@/components/account/LogoCropModal'
 import type { Media as MediaType } from '@/payload-types'
+import { cn } from '@/utilities/cn'
+import { UploadCloud, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useFormContext } from 'react-hook-form'
+import { toast } from 'sonner'
 
 const ACCEPTED_LOGO_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/jpg']
 const MAX_LOGO_BYTES = 2 * 1024 * 1024 // 2 MB
@@ -88,9 +88,9 @@ export const ProfileSection: React.FC<Props> = ({
   return (
     <section id="profile" className="space-y-6 scroll-mt-[148px] lg:scroll-mt-8">
       <div>
-        <h2 className="text-lg font-semibold text-on-surface">Profile & Studio Identity</h2>
+        <h2 className="text-lg font-semibold text-on-surface">Profile Identity</h2>
         <p className="mt-1 text-sm text-on-surface/50">
-          Your public professional identity across the platform.
+          Make your profile feel a bit more like you.
         </p>
       </div>
 
