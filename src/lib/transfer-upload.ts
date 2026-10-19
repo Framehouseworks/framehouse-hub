@@ -8,7 +8,8 @@
  * - Registers final document via native Payload REST API
  */
 
-export const MAX_TRANSFER_BYTES = 250 * 1024 * 1024 // 250MB
+import { MAX_TRANSFER_BYTES } from '@/collections/Transfers/constants'
+export { MAX_TRANSFER_BYTES }
 
 export interface TransferUploadOptions {
   file: File

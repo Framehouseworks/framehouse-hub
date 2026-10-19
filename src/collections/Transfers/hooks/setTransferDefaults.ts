@@ -1,8 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 import crypto from 'crypto'
-
-// Strict 3-day retention policy (72 hours)
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+import { TRANSFER_EXPIRY_MS } from '../constants'
 
 /**
  * Sets default values on transfer document creation:
@@ -17,7 +15,7 @@ export const setTransferDefaults: CollectionBeforeChangeHook = ({ data, operatio
     }
 
     if (!data.expiresAt) {
-      data.expiresAt = new Date(Date.now() + THREE_DAYS_MS).toISOString()
+      data.expiresAt = new Date(Date.now() + TRANSFER_EXPIRY_MS).toISOString()
     }
 
     if (data.downloadCount == null) {

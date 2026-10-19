@@ -1803,7 +1803,7 @@ export interface Transfer {
    */
   status?: ('active' | 'revoked') | null;
   /**
-   * Expiration timestamp (strictly 3 days from creation).
+   * Maximum 3 days from now (aligns with GCS storage retention). Default: 72 hours from creation.
    */
   expiresAt: string;
   /**

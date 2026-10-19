@@ -1,23 +1,38 @@
 #!/bin/bash
 
-# --- GCS Transfer Objects Lifecycle Governance (FRH-67) ---
-# Enforces a strict 3-day (72-hour) retention policy on temporary transfer files
-# under the transfers/ prefix in Google Cloud Storage.
+# --- GCS Transfer Objects Lifecycle Governance (FRH-68) ---
+# Enforces a strict 4-day retention policy on temporary transfer files
+# under the transfers/ prefix in Google Cloud Storage (72h active + 24h buffer).
 # Protects the 5GB GCP free-tier allowance by automatically purging stale transfers.
-# Transfer objects are uploaded via direct XHR PUT (not multipart) — no multipart
-# abort rule is needed.
+# Safely preserves pre-existing non-transfers lifecycle rules on the target bucket.
 
-set -e
+set -euo pipefail
 
 BUCKET_NAME="${GCS_BUCKET:-framehouse-hub-dev}"
 
-# Use mktemp so the script is safe to run from any working directory
+EXISTING_RULES="$(mktemp /tmp/gcs-existing-lifecycle.XXXXXX.json)"
 POLICY_FILE="$(mktemp /tmp/gcs-transfers-lifecycle.XXXXXX.json)"
-trap 'rm -f "$POLICY_FILE"' EXIT
+trap 'rm -f "$EXISTING_RULES" "$POLICY_FILE"' EXIT
 
-echo "🏗️  Configuring GCS 3-day lifecycle policy on gs://${BUCKET_NAME}..."
+echo "🏗️  Fetching existing lifecycle configuration on gs://${BUCKET_NAME}..."
+gcloud storage buckets describe "gs://${BUCKET_NAME}" --format='json(lifecycle_config.rule)' > "$EXISTING_RULES"
 
-cat <<EOF > "$POLICY_FILE"
+# Merge existing rules (excluding existing transfers/ rule if present to be idempotent)
+if [ -s "$EXISTING_RULES" ] && [ "$(cat "$EXISTING_RULES")" != "null" ] && command -v jq >/dev/null 2>&1; then
+  jq '{
+    rule: (
+      ([.lifecycle_config.rule[]? | select(.condition.matchesPrefix != ["transfers/"])] // []) +
+      [{
+        action: { type: "Delete" },
+        condition: {
+          age: 4,
+          matchesPrefix: ["transfers/"]
+        }
+      }]
+    )
+  }' "$EXISTING_RULES" > "$POLICY_FILE"
+else
+  cat <<EOF > "$POLICY_FILE"
 {
   "rule": [
     {
@@ -25,16 +40,18 @@ cat <<EOF > "$POLICY_FILE"
         "type": "Delete"
       },
       "condition": {
-        "age": 3,
+        "age": 4,
         "matchesPrefix": ["transfers/"]
       }
     }
   ]
 }
 EOF
+fi
 
 echo "📡 Applying lifecycle policy to gs://${BUCKET_NAME}..."
 gcloud storage buckets update "gs://${BUCKET_NAME}" --lifecycle-file="$POLICY_FILE"
 
-echo "✅ GCS Transfer lifecycle policy applied successfully (3-day auto-purge for transfers/*)."
-echo "🔍 To verify, run: gcloud storage buckets describe gs://${BUCKET_NAME} --format='json(lifecycle)'"
+echo "✅ GCS Transfer lifecycle policy applied successfully (age: 4 auto-purge for transfers/*)."
+echo "🔍 Current policy on gs://${BUCKET_NAME}:"
+gcloud storage buckets describe "gs://${BUCKET_NAME}" --format='json(lifecycle_config)'
