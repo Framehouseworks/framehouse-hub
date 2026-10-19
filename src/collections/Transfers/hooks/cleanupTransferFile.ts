@@ -1,44 +1,62 @@
 import type { CollectionAfterDeleteHook } from 'payload'
 import fs from 'fs'
 import path from 'path'
+import { getStorageClient } from '@/lib/gcs-client'
 
 const MEDIA_ROOT = path.resolve(process.cwd(), 'public/media')
 
 /**
- * cleanupTransferFile — Purges physical file bytes upon transfer document deletion.
+ * Validates canonical transfer storage path:
+ * Expected shape: transfers/{userId}/{shareHash}/original/{filename} (exactly 5 parts)
+ */
+function isValidTransferStoragePath(storagePath: string): boolean {
+  const parts = storagePath.split('/')
+  return parts.length === 5 && parts[0] === 'transfers' && parts[3] === 'original' && Boolean(parts[1] && parts[2] && parts[4])
+}
+
+/**
+ * cleanupTransferFile — Purges physical file bytes and directory placeholders upon transfer document deletion.
  * Viable in both local dev (filesystem enclave) and deployed environments (Google Cloud Storage).
  */
 export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req }) => {
   const storagePath = (doc as { storagePath?: string }).storagePath
   if (!storagePath) return
 
-  // 1. Cloud Mode: Delete object from Google Cloud Storage
+  // 1. Cloud Mode: Delete object and folder placeholders from Google Cloud Storage
   const bucketName = process.env.GCS_BUCKET
   if (bucketName) {
     try {
-      const { Storage } = await import('@google-cloud/storage')
-      let storage: InstanceType<typeof Storage>
+      const storage = await getStorageClient()
+      const bucket = storage.bucket(bucketName)
 
-      if (process.env.GCP_SERVICE_ACCOUNT_KEY) {
-        try {
-          const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
-          storage = new Storage({ credentials, projectId: process.env.GCS_PROJECT_ID })
-        } catch {
-          storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-        }
-      } else {
-        storage = new Storage({ projectId: process.env.GCS_PROJECT_ID })
-      }
-
-      await storage.bucket(bucketName).file(storagePath).delete({ ignoreNotFound: true })
+      // Always delete the primary file object
+      await bucket.file(storagePath).delete({ ignoreNotFound: true })
       req.payload.logger.info(`[cleanupTransferFile] Purged GCS object: ${storagePath}`)
+
+      // Guard path shape before attempting placeholder deletions to prevent malformed deletions
+      if (isValidTransferStoragePath(storagePath)) {
+        const parts = storagePath.split('/')
+        const shareHashDir = `${parts[0]}/${parts[1]}/${parts[2]}`
+        const originalDir = `${shareHashDir}/${parts[3]}`
+
+        await Promise.allSettled([
+          bucket.file(`${originalDir}/`).delete({ ignoreNotFound: true }),
+          bucket.file(`${shareHashDir}/`).delete({ ignoreNotFound: true }),
+        ])
+        req.payload.logger.info(`[cleanupTransferFile] Purged GCS folder placeholders for: ${shareHashDir}`)
+      } else {
+        req.payload.logger.warn(
+          `[cleanupTransferFile] Skipping placeholder purge due to irregular storagePath shape: ${storagePath}`,
+        )
+      }
       return
     } catch (err) {
       req.payload.logger.error(
-        `[cleanupTransferFile] Failed to purge GCS object ${storagePath}: ${
+        `[cleanupTransferFile] Failed to purge GCS storage for ${storagePath}: ${
           err instanceof Error ? err.message : String(err)
         }`,
       )
+      return
     }
   }
 
@@ -56,6 +74,25 @@ export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req 
       if (fs.existsSync(shareDir) && shareDir.startsWith(MEDIA_ROOT + path.sep)) {
         fs.rmSync(shareDir, { recursive: true, force: true })
       }
+
+      // If user folder has no other transfers left, clean it up
+      const userDir = path.dirname(shareDir)
+      if (
+        fs.existsSync(userDir) &&
+        userDir.startsWith(MEDIA_ROOT + path.sep) &&
+        userDir !== MEDIA_ROOT &&
+        path.basename(path.dirname(userDir)) === 'transfers'
+      ) {
+        try {
+          const remaining = fs.readdirSync(userDir)
+          if (remaining.length === 0) {
+            fs.rmdirSync(userDir)
+          }
+        } catch {
+          // Non-blocking if directory still has entries or active locks
+        }
+      }
+
       req.payload.logger.info(`[cleanupTransferFile] Purged local enclave: ${storagePath}`)
     }
   } catch (err) {
@@ -66,3 +103,4 @@ export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req 
     )
   }
 }
+

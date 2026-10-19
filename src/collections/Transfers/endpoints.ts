@@ -5,7 +5,8 @@ import path from 'path'
 import { sql } from '@payloadcms/db-postgres'
 import { checkRole } from '@/access/utilities'
 
-const MAX_BYTES = 250 * 1024 * 1024 // 250MB hard limit for MVP transfers
+import { getStorageClient } from '@/lib/gcs-client'
+import { MAX_TRANSFER_BYTES } from './constants'
 
 function slugifyFilename(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || ''
@@ -15,19 +16,6 @@ function slugifyFilename(filename: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return `${slug || 'file'}.${ext}`
-}
-
-async function getStorageClient() {
-  const { Storage } = await import('@google-cloud/storage')
-  if (process.env.GCP_SERVICE_ACCOUNT_KEY) {
-    try {
-      const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_KEY)
-      return new Storage({ credentials, projectId: process.env.GCS_PROJECT_ID })
-    } catch {
-      return new Storage({ projectId: process.env.GCS_PROJECT_ID })
-    }
-  }
-  return new Storage({ projectId: process.env.GCS_PROJECT_ID })
 }
 
 export const transferEndpoints: CollectionConfig['endpoints'] = [
@@ -57,7 +45,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         return Response.json({ error: 'Filesize must be greater than 0' }, { status: 400 })
       }
 
-      if (numericSize > MAX_BYTES) {
+      if (numericSize > MAX_TRANSFER_BYTES) {
         return Response.json(
           { error: 'File exceeds 250MB transfer limit' },
           { status: 413 },
