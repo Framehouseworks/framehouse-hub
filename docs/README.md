@@ -64,6 +64,7 @@ pnpm seed                    # seeds DB with users, media, pages
 
 ### [Features](features/README.md)
 All feature specs are audited against the current codebase — each has an **IMPLEMENTATION STATUS** banner at the top.
+The [SDD Protocol](features/README.md#spec-driven-development-sdd-workflow) governs all new feature and bug work.
 
 | Feature | Status |
 |---------|--------|
@@ -72,6 +73,9 @@ All feature specs are audited against the current codebase — each has an **IMP
 | [Asset Viewer](features/FRH-56-asset-viewer.md) | Implemented |
 | [Portfolio Viewer](features/FRH-58-portfolio-viewer.md) | Implemented |
 | [Client Review Portal](features/FRH-62-client-review-portal.md) | Implemented |
+| [Unified Creative Profile](features/FRH-64-unified-profile-spec.md) | Specced — Not Started |
+| [Link Transfer Generation](features/FRH-67-link-transfer-generation.md) | Specced — Not Started |
+| [File Download Expiry & Purge](features/FRH-68-file-download-expiry-purge.md) | Specced — Not Started |
 | [Admin Oversight](features/FRH-admin-oversight.md) | Implemented |
 | [Portfolio Creation Engine](features/FRH-portfolio-creation-engine.md) | Implemented |
 | [Section Layout Builder](features/FRH-section-layout-builder.md) | Implemented |
