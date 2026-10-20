@@ -86,20 +86,17 @@ We use `@payloadcms/storage-gcs` for robust media file storage in production.
 
 1.  **Create a GCP Account**: Sign up on the [Google Cloud Console](https://console.cloud.google.com/) and enable the free trial.
 2.  **Create a Cloud Storage Bucket**:
-    - Set bucket name (e.g. `framehouse-assets-prod`).
-    - Choose a single region close to your Neon database (e.g. `us-east1` or `europe-west1`) for minimal network latency.
-    - Set **Access Control** to Fine-grained or Uniform. Ensure public read access is permitted if serving direct media URLs.
-3.  **Create Service Account Credentials**:
-    - Navigate to **IAM & Admin > Service Accounts**.
-    - Create a new service account with **Storage Object Admin** permissions.
-    - Generate and download a JSON Private Key.
+    - Set bucket name (e.g. `framehouse-hub-dev`).
+    - Choose region **`us-central1`** (all Framehouse resources are pinned to this region).
+    - Set **Access Control** to Uniform with **public access prevention enforced** — media is served via v4 signed URLs.
+3.  **Authentication**:
+    - **Cloud Run (recommended):** Uses Application Default Credentials (ADC) via the runtime service account. Grant `roles/iam.serviceAccountTokenCreator` on the SA for signed URL generation.
+    - **Local dev:** Run `gcloud auth application-default login` for ADC, or set `GCS_` env vars to empty for local disk fallback.
 4.  **Define Environment Variables**:
-    Configure these production environment variables in your hosting environment (e.g. Vercel, GCP Cloud Run, Render):
+    Configure these production environment variables in your Cloud Run service:
     ```env
-    GCS_BUCKET=framehouse-assets-prod
+    GCS_BUCKET=framehouse-hub-dev
     GCS_PROJECT_ID=your-gcp-project-id
-    GCS_CLIENT_EMAIL=your-service-account-email@project.iam.gserviceaccount.com
-    GCS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC..."
     ```
 
 ### **Local vs. Cloud Configuration Flags**

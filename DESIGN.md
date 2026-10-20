@@ -33,7 +33,7 @@ To prevent a "flat" or generic feel, floating menus and overlays should utilize 
 The typography strategy is a play between Swiss-style minimalism and brutalist accents.
 
 - **Logo/Brand (Varela Round):** Soft and approachable. It sits as the "curator's mark" on the experience.
-- **Headings & Body (Inter):** The workhorse. Inter provides the professional, neutral tone required for a DAM. 
+- **Headings & Body (Geist):** The workhorse. Geist provides the professional, neutral tone required for a DAM. 
     - *Display-Lg* should be tracked tightly (-0.02em) for an editorial headline feel.
 - **Accents & Bold Content (Rubik Mono One):** This is our "Artsy" edge. Use this exclusively for metadata (file sizes, dates, categories), labels, or high-impact numbers. It should feel like the technical labels found next to a painting in a gallery.
 
@@ -61,7 +61,7 @@ We achieve hierarchy through **Tonal Layering** rather than traditional structur
 
 ### Cards & Asset Thumbnails
 - **Rule:** Forbid all divider lines.
-- **Styling:** Use `ROUND_SIXTEEN` for thumbnails. The card should have zero border. The asset's name should be `title-sm` (Inter), and the file type should be `label-md` using **Rubik Mono One** to provide that creative edge.
+- **Styling:** Use `ROUND_SIXTEEN` for thumbnails. The card should have zero border. The asset's name should be `title-sm` (Geist), and the file type should be `label-md` using **Rubik Mono One** to provide that creative edge.
 
 ### Input Fields
 - **Style:** Underline only or soft-filled `surface_container_low`. 
