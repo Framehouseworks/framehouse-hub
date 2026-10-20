@@ -77,14 +77,14 @@ See [Getting Started](./getting-started.md) for the full Day 1 setup guide.
 | [Getting Started](./getting-started.md) | Prerequisites, environment setup, first run, common gotchas |
 | [Glossary](./glossary.md) | Platform terminology — Enclave, Accession ID, Smart Collection, etc. |
 | [Architecture Overview](../architecture/README.md) | System diagram, route groups, key decisions, environment modes |
-| [CI/CD Pipeline Guide](../cicd-pipeline-guide.md) | GitHub Actions workflows, branch guardrails, blank-slate verification |
-| [Seed Guide](../seed-guide.md) | How seeding works, what data is created, cloud vs. local caveats |
-| [FRH-52 Architecture](../FRH-52-architecture.md) | Media ingestion pipeline deep-dive (storage path contract, worker flow) |
-| [Ingest Sessions](../ingest-sessions-overhaul.md) | Upload session grouping, batch tracking |
-| [Portfolio Viewer Spec](../FRH-58-portfolio-viewer-spec.md) | Portfolio creation and client-facing viewer |
-| [Client Review Portal](../FRH-62-client-review-portal.md) | Stateless client review session design |
-| [Admin Oversight Dashboard](../FRH-admin-oversight-dashboard-spec.md) | Admin activity logs and diagnostics |
-| [Smart Collections Spec](../FRH-47-smart-collections-spec.md) | Rule engine and dynamic collection behavior |
+| [CI/CD Pipeline Guide](../devops/ci-cd.md) | GitHub Actions workflows, branch guardrails, blank-slate verification |
+| [Seed Guide](../devops/seed-guide.md) | How seeding works, what data is created, cloud vs. local caveats |
+| [Media Pipeline](../architecture/media-pipeline.md) | Media ingestion pipeline deep-dive (storage path contract, worker flow) |
+| [Ingest Sessions](../features/ingest-sessions.md) | Upload session grouping, batch tracking |
+| [Portfolio Viewer Spec](../features/FRH-58-portfolio-viewer.md) | Portfolio creation and client-facing viewer |
+| [Client Review Portal](../features/FRH-62-client-review-portal.md) | Stateless client review session design |
+| [Admin Oversight Dashboard](../features/FRH-admin-oversight.md) | Admin activity logs and diagnostics |
+| [Smart Collections Spec](../features/FRH-47-smart-collections.md) | Rule engine and dynamic collection behavior |
 
 ---
 
