@@ -86,6 +86,7 @@ export interface Config {
     'admin-activity-logs': AdminActivityLog;
     'admin-diagnostic-sessions': AdminDiagnosticSession;
     transfers: Transfer;
+    'transfer-wallpapers': TransferWallpaper;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -119,6 +120,7 @@ export interface Config {
     'admin-activity-logs': AdminActivityLogsSelect<false> | AdminActivityLogsSelect<true>;
     'admin-diagnostic-sessions': AdminDiagnosticSessionsSelect<false> | AdminDiagnosticSessionsSelect<true>;
     transfers: TransfersSelect<false> | TransfersSelect<true>;
+    'transfer-wallpapers': TransferWallpapersSelect<false> | TransferWallpapersSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -1818,6 +1820,92 @@ export interface Transfer {
   createdAt: string;
 }
 /**
+ * Curated and sponsored full-screen background artwork for transfer download pages.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "transfer-wallpapers".
+ */
+export interface TransferWallpaper {
+  id: number;
+  /**
+   * Artwork or campaign display title.
+   */
+  title: string;
+  /**
+   * External CDN or public storage URL. If an image file is uploaded above, this is optional and will default to the uploaded file URL.
+   */
+  assetUrl?: string | null;
+  /**
+   * Optional HTTPS URL or crop for mobile viewports.
+   */
+  mobileAssetUrl?: string | null;
+  /**
+   * Creator attribution (e.g. "Artwork by Studio K" or "Photo by Jane Doe").
+   */
+  artistCredit: string;
+  /**
+   * Destination URL when recipient clicks artist/campaign attribution badge.
+   */
+  clickThroughUrl?: string | null;
+  /**
+   * Sponsorship tier for brand takeovers vs curated editorial artwork.
+   */
+  sponsorshipStatus: 'editorial' | 'sponsored';
+  /**
+   * Curation availability state.
+   */
+  status: 'active' | 'inactive' | 'archived';
+  /**
+   * Display duration in seconds before rotating to next wallpaper (min: 5s, max: 300s, default: 45s).
+   */
+  displayDurationSeconds: number;
+  /**
+   * Schedule start date/time (default: now).
+   */
+  startDate: string;
+  /**
+   * Optional schedule end date/time.
+   */
+  endDate?: string | null;
+  /**
+   * Rotation priority weight (higher values appear earlier or more frequently).
+   */
+  weight: number;
+  /**
+   * CSS object-position focal point.
+   */
+  focalPoint?: ('center' | 'top' | 'bottom' | 'left' | 'right') | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    desktop?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
@@ -1933,6 +2021,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'transfers';
         value: number | Transfer;
+      } | null)
+    | ({
+        relationTo: 'transfer-wallpapers';
+        value: number | TransferWallpaper;
       } | null)
     | ({
         relationTo: 'forms';
@@ -2831,6 +2923,59 @@ export interface TransfersSelect<T extends boolean = true> {
   lastDownloadedAt?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "transfer-wallpapers_select".
+ */
+export interface TransferWallpapersSelect<T extends boolean = true> {
+  title?: T;
+  assetUrl?: T;
+  mobileAssetUrl?: T;
+  artistCredit?: T;
+  clickThroughUrl?: T;
+  sponsorshipStatus?: T;
+  status?: T;
+  displayDurationSeconds?: T;
+  startDate?: T;
+  endDate?: T;
+  weight?: T;
+  focalPoint?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        desktop?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -12,7 +12,12 @@
 
 import { LogoIcon } from '@/components/Logo/LogoIcon'
 import { Button } from '@/components/ui/button'
-import type { Transfer, User } from '@/payload-types'
+import type { Transfer, User, TransferWallpaper } from '@/payload-types'
+import {
+  TransferWallpaperCanvas,
+  TransferWallpaperCreditBadge,
+  FALLBACK_TRANSFER_WALLPAPER,
+} from '@/components/Transfers/TransferWallpaperCanvas'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -76,14 +81,20 @@ interface TransferDownloadViewProps {
   status?: TransferStatus
   /** Backwards-compatible flag */
   expired?: boolean
+  /** Active transfer wallpapers for background canvas */
+  wallpapers?: TransferWallpaper[]
 }
 
 export function TransferDownloadView({
   transfer,
   status,
   expired = false,
+  wallpapers = [],
 }: TransferDownloadViewProps) {
   const [hasClickedDownload, setHasClickedDownload] = useState(false)
+  const [activeWallpaper, setActiveWallpaper] = useState<TransferWallpaper>(
+    wallpapers[0] || FALLBACK_TRANSFER_WALLPAPER,
+  )
 
   // Resolve fine-grained status
   const effectiveStatus: TransferStatus =
@@ -126,14 +137,22 @@ export function TransferDownloadView({
     }
 
     return (
-      <main className="min-h-screen bg-gallery-surface flex flex-col items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-md mx-auto text-center space-y-6">
+      <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
+        {/* Layer 0 & 1: Transfer Background Canvas & Ambient Contrast Scrim */}
+        <TransferWallpaperCanvas
+          wallpapers={wallpapers}
+          onWallpaperChange={setActiveWallpaper}
+        />
+
+        <div className="w-full max-w-md mx-auto text-center space-y-6 relative z-10">
           <div className="flex items-center justify-center gap-3 mb-2">
             <LogoIcon size={36} />
-            <span className="font-varela text-xl tracking-tight text-primary">Hub Archive</span>
+            <span className="font-varela text-xl tracking-tight text-white dark:text-primary drop-shadow-sm">
+              Hub Archive
+            </span>
           </div>
 
-          <div className="rounded-[28px] bg-white/80 dark:bg-white/4 backdrop-blur-xl p-8 sm:p-10 shadow-[0px_20px_48px_rgba(26,28,28,0.06)] space-y-6">
+          <div className="rounded-[28px] bg-white/90 dark:bg-zinc-950/85 backdrop-blur-2xl p-8 sm:p-10 shadow-[0px_20px_48px_rgba(0,0,0,0.18)] border border-white/20 dark:border-white/10 space-y-6">
             <div className="w-14 h-14 mx-auto rounded-full bg-gallery-red/10 text-gallery-red flex items-center justify-center">
               <AlertTriangle size={28} />
             </div>
@@ -160,9 +179,14 @@ export function TransferDownloadView({
             </div>
           </div>
 
-          <p className="font-rubik text-[9.5px] tracking-[0.18em] text-on-surface/30 uppercase">
+          <p className="font-rubik text-[9.5px] tracking-[0.18em] text-white/50 dark:text-on-surface/30 uppercase drop-shadow-xs">
             Protected by Framehouse Hub Transfer
           </p>
+        </div>
+
+        {/* Layer 3: Credit Badge (Positioned inside transfer parent) */}
+        <div className="absolute bottom-4 left-4 z-20">
+          <TransferWallpaperCreditBadge wallpaper={activeWallpaper} />
         </div>
       </main>
     )
@@ -173,16 +197,24 @@ export function TransferDownloadView({
   const ext = transfer.filename.split('.').pop()?.toUpperCase() || 'FILE'
 
   return (
-    <main className="min-h-screen bg-linear-to-b to-gallery-surface flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-xl mx-auto space-y-6">
+    <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
+      {/* Layer 0 & 1: Transfer Background Canvas & Ambient Contrast Scrim */}
+      <TransferWallpaperCanvas
+        wallpapers={wallpapers}
+        onWallpaperChange={setActiveWallpaper}
+      />
+
+      <div className="w-full max-w-xl mx-auto space-y-6 relative z-10">
         {/* Curator Header Mark */}
         <div className="flex items-center justify-center gap-3">
           <LogoIcon size={38} />
-          <span className="font-varela text-xl tracking-tight text-primary">Framehouse Hub</span>
+          <span className="font-varela text-xl tracking-tight text-white dark:text-primary drop-shadow-sm">
+            Framehouse Hub
+          </span>
         </div>
 
         {/* Presentation Card */}
-        <div className="rounded-4xl bg-white/80 dark:bg-white/4 backdrop-blur-2xl p-6 sm:p-10 shadow-[0px_24px_56px_rgba(26,28,28,0.07)] space-y-8">
+        <div className="rounded-4xl bg-white/90 dark:bg-zinc-950/85 backdrop-blur-2xl p-6 sm:p-10 shadow-[0px_24px_56px_rgba(0,0,0,0.18)] border border-white/20 dark:border-white/10 space-y-8">
           {/* Header & Sender Attribution */}
           <div className="space-y-3 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
@@ -273,10 +305,15 @@ export function TransferDownloadView({
 
         {/* Footer Attribution */}
         <div className="text-center">
-          <p className="font-rubik text-[9.5px] tracking-[0.2em] text-on-surface/30 uppercase">
+          <p className="font-rubik text-[9.5px] tracking-[0.2em] text-white/50 dark:text-on-surface/30 uppercase drop-shadow-xs">
             Framehouse Hub • Transfers
           </p>
         </div>
+      </div>
+
+      {/* Layer 3: Credit Badge (Positioned inside transfer parent) */}
+      <div className="absolute bottom-4 left-4 z-20">
+        <TransferWallpaperCreditBadge wallpaper={activeWallpaper} />
       </div>
     </main>
   )
