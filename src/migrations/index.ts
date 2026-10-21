@@ -42,6 +42,7 @@ import * as migration_20261021_145507_add_transfer_wallpapers_collection from '.
 import * as migration_20261021_162847_add_media_upload_to_transfer_wallpapers from './20261021_162847_add_media_upload_to_transfer_wallpapers';
 import * as migration_20261021_174247_make_transfer_wallpapers_upload_collection from './20261021_174247_make_transfer_wallpapers_upload_collection';
 import * as migration_20261021_220153 from './20261021_220153';
+import * as migration_20261021_222524 from './20261021_222524';
 
 export const migrations = [
   {
@@ -262,6 +263,11 @@ export const migrations = [
   {
     up: migration_20261021_220153.up,
     down: migration_20261021_220153.down,
-    name: '20261021_220153'
+    name: '20261021_220153',
+  },
+  {
+    up: migration_20261021_222524.up,
+    down: migration_20261021_222524.down,
+    name: '20261021_222524'
   },
 ];

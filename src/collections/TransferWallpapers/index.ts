@@ -27,23 +27,8 @@ export const TransferWallpapers: CollectionConfig = {
   access: transferWallpapersAccess,
   upload: {
     staticDir: path.resolve(dirname, '../../../../public/wallpapers'),
-    adminThumbnail: 'thumbnail',
     mimeTypes: ['image/*'],
     filesRequiredOnCreate: false,
-    imageSizes: [
-      {
-        name: 'thumbnail',
-        width: 320,
-        height: 180,
-        position: 'centre',
-      },
-      {
-        name: 'desktop',
-        width: 2560,
-        height: 1440,
-        position: 'centre',
-      },
-    ],
   },
   hooks: {
     beforeValidate: [validateDateRange],
