@@ -137,10 +137,13 @@ export const TransferWallpaperCanvas: React.FC<TransferWallpaperCanvasProps> = (
     >
       {/* Visual Canvas Layers */}
       {activeList.map((wallpaper, idx) => {
+        const assetUrl = wallpaper.assetUrl || wallpaper.url
+        if (!assetUrl) return null
+
         const isActive = idx === currentIndex
         const isNext = idx === (currentIndex + 1) % activeList.length
         // Only render active or preloaded/next image to conserve DOM & memory
-        if (!isActive && !isNext && !loadedUrls.has(wallpaper.assetUrl)) {
+        if (!isActive && !isNext && !loadedUrls.has(assetUrl)) {
           return null
         }
 
@@ -148,7 +151,7 @@ export const TransferWallpaperCanvas: React.FC<TransferWallpaperCanvasProps> = (
 
         return (
           <div
-            key={wallpaper.id || wallpaper.assetUrl || idx}
+            key={wallpaper.id || assetUrl || idx}
             className={cn(
               'absolute inset-0',
               prefersReducedMotion
@@ -162,7 +165,7 @@ export const TransferWallpaperCanvas: React.FC<TransferWallpaperCanvasProps> = (
             {/* Desktop / Default Asset */}
             <div className={cn('relative w-full h-full', wallpaper.mobileAssetUrl ? 'hidden md:block' : 'block')}>
               <Image
-                src={wallpaper.assetUrl}
+                src={assetUrl}
                 alt={wallpaper.title || 'Background artwork'}
                 fill
                 sizes="100vw"

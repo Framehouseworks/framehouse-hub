@@ -31,7 +31,7 @@ export const TransferWallpaperCreditBadge: React.FC<TransferWallpaperCreditBadge
         'bg-white/50 dark:bg-black/65 backdrop-blur-xl',
         'border border-white/10 dark:border-white/5',
         'shadow-[0px_8px_24px_rgba(0,0,0,0.15)]',
-        'transition-all duration-300 hover:bg-white/70 dark:hover:bg-black/70 hover:border-whiste/20',
+        'transition-all duration-300 hover:bg-white/70 dark:hover:bg-black/70 hover:border-white/20',
         className,
       )}
     >

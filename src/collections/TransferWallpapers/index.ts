@@ -26,7 +26,6 @@ export const TransferWallpapers: CollectionConfig = {
   access: transferWallpapersAccess,
   upload: {
     staticDir: path.resolve(dirname, '../../../../public/wallpapers'),
-    staticURL: '/wallpapers',
     adminThumbnail: 'thumbnail',
     mimeTypes: ['image/*'],
     filesRequiredOnCreate: false,
