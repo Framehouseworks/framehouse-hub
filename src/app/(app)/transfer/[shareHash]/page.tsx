@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { TransferDownloadView, type TransferStatus } from '@/components/Transfers/TransferDownloadView'
 import type { Transfer } from '@/payload-types'
+import { getActiveTransferWallpapers } from '@/lib/transfer-wallpapers'
 
 interface PageProps {
   params: Promise<{ shareHash: string }>
@@ -57,15 +58,18 @@ export default async function TransferRecipientPage({ params }: PageProps) {
   const { shareHash } = await params
   const payload = await getPayload({ config: configPromise })
 
-  const { docs } = await payload.find({
-    collection: 'transfers',
-    where: { shareHash: { equals: shareHash } },
-    depth: 1,
-    limit: 1,
-    overrideAccess: true,
-  })
+  const [wallpapersResult, transfersResult] = await Promise.all([
+    getActiveTransferWallpapers(payload),
+    payload.find({
+      collection: 'transfers',
+      where: { shareHash: { equals: shareHash } },
+      depth: 1,
+      limit: 1,
+      overrideAccess: true,
+    }),
+  ])
 
-  const transfer = docs[0] as Transfer | undefined
+  const transfer = transfersResult.docs[0] as Transfer | undefined
 
   let status: TransferStatus = 'not_found'
   if (transfer) {
@@ -78,6 +82,12 @@ export default async function TransferRecipientPage({ params }: PageProps) {
     }
   }
 
-  return <TransferDownloadView transfer={transfer || null} status={status} />
+  return (
+    <TransferDownloadView
+      transfer={transfer || null}
+      status={status}
+      wallpapers={wallpapersResult}
+    />
+  )
 }
 

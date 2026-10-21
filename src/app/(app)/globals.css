@@ -248,3 +248,12 @@ html[data-theme='light'] {
   50%  { transform: scaleX(0.7); transform-origin: left; opacity: 1; }
   100% { transform: scaleX(1);   transform-origin: left; opacity: 0.6; }
 }
+
+@utility bleed-header {
+  margin-top: -6rem;
+  padding-top: 6rem;
+  @variant sm {
+    margin-top: -8rem;
+    padding-top: 8rem;
+  }
+}
