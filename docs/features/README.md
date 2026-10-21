@@ -71,8 +71,9 @@ Implementation proceeds strictly phase-by-phase:
 | [Portfolio Viewer](FRH-58-portfolio-viewer.md) | FRH-58 | **IMPLEMENTED** | `(portfolio)` route group, `PortfolioRenderer`, `PortfolioLightbox`, `PortfolioThemeProvider` |
 | [Client Review Portal](FRH-62-client-review-portal.md) | FRH-62 | **IMPLEMENTED** | `Portfolio/review/**`, `PortfolioClientSessions`, `PortfolioClientReviews`, `/api/portfolio-review/**` |
 | [Unified Creative Profile](FRH-64-unified-profile-spec.md) | FRH-64 | **SPECCED — NOT STARTED** | `/account` overhaul, creative settings cockpit, admin UI security fix |
-| [Link Transfer Generation](FRH-67-link-transfer-generation.md) | FRH-67 | **SPECCED — NOT STARTED** | `LinkTransfers` collection, `/api/transfers/**`, download packaging |
-| [File Download Expiry & Purge](FRH-68-file-download-expiry-purge.md) | FRH-68 | **SPECCED — NOT STARTED** | Transfer lifecycle, GCS cleanup, storage state mirroring |
+| [Link Transfer Generation](FRH-67-link-transfer-generation.md) | FRH-67 | **IMPLEMENTED** | `LinkTransfers` collection, `/api/transfers/**`, download packaging |
+| [File Download Expiry & Purge](FRH-68-file-download-expiry-purge.md) | FRH-68 | **IMPLEMENTEDD** | Transfer lifecycle, GCS cleanup, storage state mirroring |
+| [Curated Background Artwork](FRH-83-curated-background-artwork.md) | FRH-83 | **SPECCED — NOT STARTED** | `TransferWallpapers` collection, `TransferWallpaperCanvas`, `/transfer/[shareHash]`, `/t/[slug]` |
 | [Admin Oversight Dashboard](FRH-admin-oversight.md) | FRH-Admin | **IMPLEMENTED** | `AdminDiagnosticSessions`, `DiagnosticBanner/`, `CreativeOversightView`, `/api/admin/**` |
 | [Portfolio Creation Engine](FRH-portfolio-creation-engine.md) | FRH-58+ | **IMPLEMENTED** | `Portfolios/wizard/**`, `PortfolioEditorPage`, `/dashboard/portfolios/new` |
 | [Section Layout Builder](FRH-section-layout-builder.md) | FRH-60 | **IMPLEMENTED** | Section fields on `Portfolios`, `WizardStepSectionLayout`, `SectionLane`, `ModernMasonryEditor` |
