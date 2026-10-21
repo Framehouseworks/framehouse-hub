@@ -40,6 +40,7 @@ import * as migration_20260602_230001_frh64_user_profile from './20260602_230001
 import * as migration_20261015_090323_add_transfers_collection from './20261015_090323_add_transfers_collection';
 import * as migration_20261021_145507_add_transfer_wallpapers_collection from './20261021_145507_add_transfer_wallpapers_collection';
 import * as migration_20261021_162847_add_media_upload_to_transfer_wallpapers from './20261021_162847_add_media_upload_to_transfer_wallpapers';
+import * as migration_20261021_174247_make_transfer_wallpapers_upload_collection from './20261021_174247_make_transfer_wallpapers_upload_collection';
 
 export const migrations = [
   {
@@ -250,6 +251,11 @@ export const migrations = [
   {
     up: migration_20261021_162847_add_media_upload_to_transfer_wallpapers.up,
     down: migration_20261021_162847_add_media_upload_to_transfer_wallpapers.down,
-    name: '20261021_162847_add_media_upload_to_transfer_wallpapers'
+    name: '20261021_162847_add_media_upload_to_transfer_wallpapers',
+  },
+  {
+    up: migration_20261021_174247_make_transfer_wallpapers_upload_collection.up,
+    down: migration_20261021_174247_make_transfer_wallpapers_upload_collection.down,
+    name: '20261021_174247_make_transfer_wallpapers_upload_collection',
   },
 ];
