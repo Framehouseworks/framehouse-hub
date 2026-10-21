@@ -51,6 +51,15 @@ export const TransferWallpapers: CollectionConfig = {
   },
   fields: [
     {
+      name: 'prefix',
+      type: 'text',
+      defaultValue: 'wallpapers',
+      admin: {
+        hidden: true,
+        readOnly: true,
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,

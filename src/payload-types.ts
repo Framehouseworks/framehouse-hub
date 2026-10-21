@@ -1827,6 +1827,7 @@ export interface Transfer {
  */
 export interface TransferWallpaper {
   id: number;
+  prefix?: string | null;
   /**
    * Artwork or campaign display title.
    */
@@ -2929,6 +2930,7 @@ export interface TransfersSelect<T extends boolean = true> {
  * via the `definition` "transfer-wallpapers_select".
  */
 export interface TransferWallpapersSelect<T extends boolean = true> {
+  prefix?: T;
   title?: T;
   assetUrl?: T;
   mobileAssetUrl?: T;
