@@ -38,6 +38,7 @@ import * as migration_20260602_210000_fix_admin_oversight_rels from './20260602_
 import * as migration_20260602_220000_fix_portfolios_title_nullable from './20260602_220000_fix_portfolios_title_nullable';
 import * as migration_20260602_230001_frh64_user_profile from './20260602_230001_frh64_user_profile';
 import * as migration_20261015_090323_add_transfers_collection from './20261015_090323_add_transfers_collection';
+import * as migration_20261021_145507_add_transfer_wallpapers_collection from './20261021_145507_add_transfer_wallpapers_collection';
 
 export const migrations = [
   {
@@ -238,6 +239,11 @@ export const migrations = [
   {
     up: migration_20261015_090323_add_transfers_collection.up,
     down: migration_20261015_090323_add_transfers_collection.down,
-    name: '20261015_090323_add_transfers_collection'
+    name: '20261015_090323_add_transfers_collection',
+  },
+  {
+    up: migration_20261021_145507_add_transfer_wallpapers_collection.up,
+    down: migration_20261021_145507_add_transfer_wallpapers_collection.down,
+    name: '20261021_145507_add_transfer_wallpapers_collection'
   },
 ];

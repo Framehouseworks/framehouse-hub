@@ -1,6 +1,6 @@
 # Specification: FRH-83 — Curated Full-Screen Background Artwork on Transfer Download Pages
 
-> **IMPLEMENTATION STATUS:** SPECCED — REVISED (SCOPED TO DOWNLOAD VIEWS & NAMESPACED)
+> **IMPLEMENTATION STATUS:** PARTIALLY IMPLEMENTED (Phase 1 Complete)
 
 **Spec Version:** 2.0  
 **Branch Convention:** `FRH-83-Transfer-Background-Canvas`  
