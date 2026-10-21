@@ -52,7 +52,25 @@ export async function getActiveTransferWallpapers(payload: Payload): Promise<Tra
     })
 
     if (docs && docs.length > 0) {
-      return docs as TransferWallpaper[]
+      return docs.map((doc: any) => {
+        // Prioritize explicit assetUrl, then uploaded image sizes, then canonical url
+        const resolvedAssetUrl =
+          doc.assetUrl ||
+          doc.sizes?.desktop?.url ||
+          doc.sizes?.thumbnail?.url ||
+          doc.url
+
+        const resolvedMobileAssetUrl =
+          doc.mobileAssetUrl ||
+          doc.sizes?.thumbnail?.url ||
+          undefined
+
+        return {
+          ...doc,
+          assetUrl: resolvedAssetUrl || doc.assetUrl,
+          mobileAssetUrl: resolvedMobileAssetUrl || doc.mobileAssetUrl,
+        } as TransferWallpaper
+      })
     }
   } catch (error) {
     // Graceful fallback on query failure or table absence

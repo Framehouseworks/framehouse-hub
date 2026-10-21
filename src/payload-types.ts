@@ -1832,11 +1832,11 @@ export interface TransferWallpaper {
    */
   title: string;
   /**
-   * Direct external HTTPS CDN or public storage URL for desktop artwork (never routed through Next.js compute).
+   * External CDN or public storage URL. If an image file is uploaded above, this is optional and will default to the uploaded file URL.
    */
-  assetUrl: string;
+  assetUrl?: string | null;
   /**
-   * Optional portrait aspect ratio HTTPS CDN URL for mobile viewports.
+   * Optional HTTPS URL or crop for mobile viewports.
    */
   mobileAssetUrl?: string | null;
   /**
@@ -1877,6 +1877,33 @@ export interface TransferWallpaper {
   focalPoint?: ('center' | 'top' | 'bottom' | 'left' | 'right') | null;
   updatedAt: string;
   createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    desktop?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2916,6 +2943,39 @@ export interface TransferWallpapersSelect<T extends boolean = true> {
   focalPoint?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        desktop?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -1,6 +1,11 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
 import type { CollectionConfig } from 'payload'
 import { transferWallpapersAccess } from './access'
 import { validateDateRange } from './hooks/validateDateRange'
+
+const filename = fileURLToPath(import.meta.url)
+const dirname = path.dirname(filename)
 
 export const TransferWallpapers: CollectionConfig = {
   slug: 'transfer-wallpapers',
@@ -19,6 +24,27 @@ export const TransferWallpapers: CollectionConfig = {
     description: 'Curated and sponsored full-screen background artwork for transfer download pages.',
   },
   access: transferWallpapersAccess,
+  upload: {
+    staticDir: path.resolve(dirname, '../../../../public/wallpapers'),
+    staticURL: '/wallpapers',
+    adminThumbnail: 'thumbnail',
+    mimeTypes: ['image/*'],
+    filesRequiredOnCreate: false,
+    imageSizes: [
+      {
+        name: 'thumbnail',
+        width: 320,
+        height: 180,
+        position: 'centre',
+      },
+      {
+        name: 'desktop',
+        width: 2560,
+        height: 1440,
+        position: 'centre',
+      },
+    ],
+  },
   hooks: {
     beforeValidate: [validateDateRange],
   },
@@ -34,16 +60,15 @@ export const TransferWallpapers: CollectionConfig = {
     {
       name: 'assetUrl',
       type: 'text',
-      required: true,
       admin: {
-        description: 'Direct external HTTPS CDN or public storage URL for desktop artwork (never routed through Next.js compute).',
+        description: 'External CDN or public storage URL. If an image file is uploaded above, this is optional and will default to the uploaded file URL.',
       },
     },
     {
       name: 'mobileAssetUrl',
       type: 'text',
       admin: {
-        description: 'Optional portrait aspect ratio HTTPS CDN URL for mobile viewports.',
+        description: 'Optional HTTPS URL or crop for mobile viewports.',
       },
     },
     {

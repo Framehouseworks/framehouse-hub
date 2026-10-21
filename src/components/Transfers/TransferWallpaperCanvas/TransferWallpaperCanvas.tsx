@@ -130,7 +130,7 @@ export const TransferWallpaperCanvas: React.FC<TransferWallpaperCanvasProps> = (
   return (
     <div
       className={cn(
-        'fixed inset-0 pointer-events-none -z-10 overflow-hidden bg-gallery-surface',
+        'absolute inset-0 pointer-events-none -z-10 overflow-hidden bg-gallery-surface',
         className,
       )}
       aria-hidden="true"
