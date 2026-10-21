@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "transfer_wallpapers" DROP CONSTRAINT IF EXISTS "transfer_wallpapers_media_id_media_id_fk";
    ALTER TABLE "transfer_wallpapers" DROP CONSTRAINT IF EXISTS "transfer_wallpapers_mobile_media_id_media_id_fk";
@@ -35,7 +35,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 `)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    DROP INDEX IF EXISTS "transfer_wallpapers_sizes_desktop_filename_idx";
    DROP INDEX IF EXISTS "transfer_wallpapers_sizes_thumbnail_filename_idx";

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { cn } from '@/utilities/cn'
 import type { TransferWallpaperCanvasProps, TransferWallpaper } from './types'
@@ -22,8 +22,10 @@ export const TransferWallpaperCanvas: React.FC<TransferWallpaperCanvasProps> = (
   className,
   onWallpaperChange,
 }) => {
-  const activeList: TransferWallpaper[] =
-    wallpapers.length > 0 ? wallpapers : [FALLBACK_TRANSFER_WALLPAPER]
+  const activeList: TransferWallpaper[] = useMemo(
+    () => (wallpapers.length > 0 ? wallpapers : [FALLBACK_TRANSFER_WALLPAPER]),
+    [wallpapers],
+  )
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)

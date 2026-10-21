@@ -52,7 +52,7 @@ export async function getActiveTransferWallpapers(payload: Payload): Promise<Tra
     })
 
     if (docs && docs.length > 0) {
-      return docs.map((doc: any) => {
+      return (docs as unknown as TransferWallpaper[]).map((doc) => {
         // Prioritize explicit assetUrl, then uploaded image sizes, then canonical url
         const resolvedAssetUrl =
           doc.assetUrl ||

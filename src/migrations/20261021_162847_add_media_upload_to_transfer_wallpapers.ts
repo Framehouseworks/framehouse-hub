@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "transfer_wallpapers" ALTER COLUMN "asset_url" DROP NOT NULL;
   ALTER TABLE "transfer_wallpapers" ADD COLUMN "media_id" integer;
@@ -11,7 +11,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "transfer_wallpapers_mobile_media_idx" ON "transfer_wallpapers" USING btree ("mobile_media_id");`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "transfer_wallpapers" DROP CONSTRAINT "transfer_wallpapers_media_id_media_id_fk";
   
