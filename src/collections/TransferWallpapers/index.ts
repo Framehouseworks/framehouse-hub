@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url'
 import type { CollectionConfig } from 'payload'
 import { transferWallpapersAccess } from './access'
 import { validateDateRange } from './hooks/validateDateRange'
+import { signWallpaperUrls } from './hooks/signWallpaperUrls'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -46,6 +47,7 @@ export const TransferWallpapers: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [validateDateRange],
+    afterRead: [signWallpaperUrls],
   },
   fields: [
     {
