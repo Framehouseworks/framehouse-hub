@@ -114,6 +114,7 @@ export default buildConfig({
   ],
   db: postgresAdapter({
     push: false,
+    idType: 'uuid',
     pool: {
       connectionString: process.env.DATABASE_URI || '',
       max: process.env.DATABASE_URI?.includes('neon.tech') ? 4 : 10,
