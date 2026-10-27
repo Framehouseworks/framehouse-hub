@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         { status: 400 },
       )
     }
-    if (parsedPath.userId !== String(user.id)) {
+    if (parsedPath.userId !== user.id) {
       return NextResponse.json(
         { error: 'storagePath owner does not match authenticated user' },
         { status: 403 },
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
         owner: user.id,
         originalUrl,
         storagePath,
-        ...(sessionId ? { session: Number(sessionId) } : {}),
+        ...(sessionId ? { session: sessionId } : {}),
         shootName: shootName || '',
         manualTags: manualTags || [],
         location: {
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
           ...(location?.latitude != null ? { latitude: location.latitude } : {}),
           ...(location?.longitude != null ? { longitude: location.longitude } : {}),
         },
-        ...(uploadBatchId ? { uploadBatchId: Number(uploadBatchId) } : {}),
+        ...(uploadBatchId ? { uploadBatchId } : {}),
       },
       req,
     })

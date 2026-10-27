@@ -245,7 +245,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
 
     const missingFixtures = fixtureFiles.filter((f) => !presentFixtureFilenames.has(f))
 
-    const allCreativeIds: Record<string, string | number> = {
+    const allCreativeIds: Record<string, string> = {
       [creativeEmail]: creativeOwnerId,
       ...creativeUserIds,
     }
@@ -298,11 +298,11 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
       )
 
       // One UploadBatch per creative user so each user's fixtures share a batch
-      const seedBatches: Record<string, { id: string | number }> = {}
+      const seedBatches: Record<string, { id: string }> = {}
       for (const [email, id] of Object.entries(allCreativeIds)) {
         seedBatches[email] = await payload.create({
           collection: 'upload-batches',
-          data: { owner: id as number, source: 'seed', notes: 'Fixture seed' },
+          data: { owner: id, source: 'seed', notes: 'Fixture seed' },
         })
       }
 
@@ -353,12 +353,12 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                   title,
                   alt: title,
                   mediaType,
-                  owner: fixtureOwnerId as number,
+                  owner: fixtureOwnerId,
                   ingestionStatus: 'ready',
                   processingStep: 'ready',
                   processedAt: new Date().toISOString(),
                   shootName: ownership.shootName,
-                  uploadBatchId: fixtureBatch.id as number,
+                  uploadBatchId: fixtureBatch.id,
                   storagePath,
                   originalUrl: `https://storage.googleapis.com/${gcsBucket}/${storagePath}`,
                   filename,
@@ -387,10 +387,10 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                   title,
                   alt: title,
                   mediaType,
-                  owner: fixtureOwnerId as number,
+                  owner: fixtureOwnerId,
                   ingestionStatus: 'active',
                   shootName: ownership.shootName,
-                  uploadBatchId: fixtureBatch.id as number,
+                  uploadBatchId: fixtureBatch.id,
                 },
                 file: {
                   data,
@@ -495,8 +495,8 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
         mediaDocs = { docs: [newMedia] } as unknown as PaginatedDocs<Media>
       }
 
-      // Re-fetch after seeding
-      mediaDocs = await payload.find({ collection: 'media', limit: 100 })
+      // Re-fetch after seeding with depth: 0 so owner is string ID
+      mediaDocs = await payload.find({ collection: 'media', limit: 100, depth: 0 })
     }
 
     // Build filename → doc map for the new seeding sections
@@ -559,7 +559,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           data: {
             name: def.name,
             shootDate: def.shootDate,
-            owner: Number(ownerId),
+            owner: ownerId,
             ...(coverDoc ? { coverAsset: coverDoc.id } : {}),
           },
           context: { disableRevalidate: true },
@@ -731,7 +731,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             collection: 'smart-collections',
             data: {
               name: col.name,
-              owner: Number(ownerId),
+              owner: ownerId,
               filterQuery: col.filterQuery,
               icon: col.icon,
               isSystemGenerated: col.isSystemGenerated,
@@ -828,7 +828,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           data: {
             name: def.name,
             title: seedTitle as Portfolio['title'],
-            owner: Number(ownerId),
+            owner: ownerId,
             visibility: 'private',
             layoutBlocks: (items.length > 0 ? [{ blockType: 'grid' as const, items }] : []) as Portfolio['layoutBlocks'],
           },
@@ -849,7 +849,10 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
           })
           if (multiExisting.docs.length === 0) {
             // Grab any available images for the 3 sections
-            const allSeededMedia = [...mediaByFilename.values()].filter((m) => m.owner === multiOwnerId)
+            const allSeededMedia = [...mediaByFilename.values()].filter((m) => {
+              const o = typeof m.owner === 'object' && m.owner !== null ? (m.owner as { id: string }).id : m.owner
+              return o === multiOwnerId
+            })
             const section1Items = allSeededMedia.slice(0, 2).map((m) => ({ media: m.id, size: 'medium' as const }))
             const section2Items = allSeededMedia.slice(2, 5).map((m) => ({ media: m.id, size: 'medium' as const }))
             const section3Items = allSeededMedia.slice(0, 3).map((m) => ({ media: m.id, size: 'medium' as const }))
@@ -893,7 +896,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
               collection: 'portfolios',
               data: {
                 name: multiName,
-                owner: Number(multiOwnerId),
+                owner: multiOwnerId,
                 visibility: 'private',
                 layoutBlocks: multiBlocks as Portfolio['layoutBlocks'],
               },
@@ -917,7 +920,10 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
             limit: 1,
           })
           if (reviewDemoExisting.docs.length === 0) {
-            const demoMedia = [...mediaByFilename.values()].filter((m) => m.owner === reviewDemoOwnerId).slice(0, 4)
+            const demoMedia = [...mediaByFilename.values()].filter((m) => {
+              const o = typeof m.owner === 'object' && m.owner !== null ? (m.owner as { id: string }).id : m.owner
+              return o === reviewDemoOwnerId
+            }).slice(0, 4)
             const demoItems = demoMedia.map((m) => ({ media: m.id, size: 'medium' as const }))
             if (demoItems.length > 0) {
               await payload.create({
@@ -925,7 +931,7 @@ export const seedHubContent = async (payload: Payload): Promise<void> => {
                 data: {
                   name: reviewDemoName,
                   _status: 'published',
-                  owner: Number(reviewDemoOwnerId),
+                  owner: reviewDemoOwnerId,
                   visibility: 'public',
                   layoutBlocks: [{ blockType: 'grid' as const, items: demoItems, spacing: 'medium' as const }] as Portfolio['layoutBlocks'],
                   clientReviewSettings: {

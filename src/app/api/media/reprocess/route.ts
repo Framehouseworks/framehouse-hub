@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     const ownerId = typeof mediaDoc.owner === 'object' ? mediaDoc.owner?.id : mediaDoc.owner
-    if (String(ownerId) !== String(user.id)) {
+    if (ownerId !== user.id) {
       return NextResponse.json({ error: 'Not authorized to reprocess this asset' }, { status: 403 })
     }
 
@@ -51,11 +51,11 @@ export async function POST(req: Request) {
     const storagePath =
       mediaDoc.storagePath ||
       buildStoragePath({
-        userId: String(ownerId),
+        userId: ownerId ?? user.id,
         domainCategory,
         year,
         month,
-        assetId: String(mediaId),
+        assetId: mediaId,
         filename,
       })
 

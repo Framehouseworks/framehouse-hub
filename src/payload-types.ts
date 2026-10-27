@@ -1492,7 +1492,7 @@ export interface PortfolioClientSession {
    */
   savedSelectionIds?:
     | {
-        mediaId: number;
+        mediaId: string;
         /**
          * Portfolio grid item instanceId for disambiguation when same media appears multiple times.
          */

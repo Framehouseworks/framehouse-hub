@@ -39,7 +39,7 @@ export async function DELETE(
   }
 
   const sessionAdminId = typeof session.admin === 'object' ? session.admin?.id : session.admin
-  if (String(sessionAdminId) !== String(user.id)) {
+  if (sessionAdminId !== user.id) {
     return Response.json({ error: 'You can only terminate your own diagnostic sessions' }, { status: 403 })
   }
 

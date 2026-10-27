@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'targetUserId is required' }, { status: 400 })
   }
 
-  if (String(targetUserId) === String(user.id)) {
+  if (targetUserId === user.id) {
     return Response.json({ error: 'Cannot create a diagnostic session for your own account' }, { status: 422 })
   }
 
@@ -55,14 +55,11 @@ export async function POST(req: Request) {
     req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? null
   const userAgent = req.headers.get('user-agent') ?? null
 
-  // Payload relationship fields expect number IDs when using the Postgres adapter
-  const targetIdNum = Number(targetUserId)
-
   const session = await payload.create({
     collection: 'admin-diagnostic-sessions',
     data: {
       admin: user.id,
-      targetCreative: targetIdNum,
+      targetCreative: targetUserId,
       tokenHash,
       expiresAt: expiresAt.toISOString(),
       isActive: true,
@@ -76,7 +73,7 @@ export async function POST(req: Request) {
     collection: 'admin-activity-logs',
     data: {
       adminUser: user.id,
-      targetUser: targetIdNum,
+      targetUser: targetUserId,
       actionType: 'launch_diagnostic',
       actionDescription: `Admin '${user.name ?? user.email}' launched a diagnostic session for creative '${target.name ?? target.email}'`,
       metadata: {

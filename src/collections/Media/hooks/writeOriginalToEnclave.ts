@@ -42,7 +42,7 @@ export const writeOriginalToEnclave: CollectionBeforeChangeHook = async ({
   const mimeType = incoming.mimetype || data?.mimeType || 'application/octet-stream'
   const ownerId =
     typeof data?.owner === 'object' && data?.owner && 'id' in data.owner
-      ? String((data.owner as { id: number | string }).id)
+      ? String((data.owner as { id: string }).id)
       : data?.owner !== undefined
         ? String(data.owner)
         : req.user?.id !== undefined

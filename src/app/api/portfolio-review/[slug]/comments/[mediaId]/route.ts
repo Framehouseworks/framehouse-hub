@@ -31,8 +31,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ comments: [] })
   }
 
-  const mediaIdNum = Number(mediaId)
-  if (isNaN(mediaIdNum)) {
+  if (!mediaId) {
     return NextResponse.json({ error: 'INVALID_MEDIA_ID' }, { status: 400 })
   }
 
@@ -41,7 +40,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     where: {
       and: [
         { portfolio: { equals: portfolio.id } },
-        { media: { equals: mediaIdNum } },
+        { media: { equals: mediaId } },
         { status: { equals: 'visible' } },
       ],
     },
@@ -96,8 +95,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'IDENTIFICATION_REQUIRED' }, { status: 403 })
   }
 
-  const mediaIdNum = Number(mediaId)
-  if (isNaN(mediaIdNum)) {
+  if (!mediaId) {
     return NextResponse.json({ error: 'INVALID_MEDIA_ID' }, { status: 400 })
   }
 
@@ -131,7 +129,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     collection: 'portfolio-asset-comments',
     data: {
       portfolio: portfolio.id,
-      media: mediaIdNum,
+      media: mediaId,
       clientSession: session.id,
       clientName: session.clientName || 'Anonymous',
       clientEmail: session.clientEmail || null,

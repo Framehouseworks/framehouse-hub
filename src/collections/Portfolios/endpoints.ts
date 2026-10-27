@@ -25,7 +25,7 @@ if (typeof globalThis !== 'undefined' && typeof setInterval !== 'undefined') {
   }, RATE_LIMIT_CLEANUP_INTERVAL_MS)
 }
 
-function checkRateLimit(userId: number | string, portfolioId: string): boolean {
+function checkRateLimit(userId: string, portfolioId: string): boolean {
   const key = `${userId}:${portfolioId}`
   const lastSave = rateLimitMap.get(key) ?? 0
   const now = Date.now()

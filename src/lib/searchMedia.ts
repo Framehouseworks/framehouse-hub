@@ -25,7 +25,7 @@ export function buildPrefixTsquery(q: string): string {
 
 export async function searchMediaByQuery(
   payload: Payload,
-  ownerId: number,
+  ownerId: string,
   q: string,
   limit = 100,
 ): Promise<Media[]> {
@@ -45,7 +45,7 @@ export async function searchMediaByQuery(
        LEFT JOIN portfolios_blocks_grid_items pbgi ON pbgi.media_id = m.id
        LEFT JOIN portfolios_blocks_grid pbg ON pbg.id = pbgi._parent_id
        LEFT JOIN portfolios p ON p.id = pbg._parent_id
-       WHERE m.owner_id = $2::int
+       WHERE m.owner_id = $2::uuid
          AND (
            ${FULL_TSVECTOR} @@ to_tsquery('english', $1)
            OR to_tsvector('english', COALESCE(mmt.tag, '')) @@ to_tsquery('english', $1)
@@ -56,10 +56,10 @@ export async function searchMediaByQuery(
      ) sub
      ORDER BY rank DESC
      LIMIT $3`,
-    [tsquery, String(ownerId), limit],
+    [tsquery, ownerId, limit],
   )
 
-  const ids = result.rows.map((r) => Number(r.id)).filter((n) => Number.isFinite(n))
+  const ids = result.rows.map((r) => String(r.id)).filter(Boolean)
   if (ids.length === 0) return []
 
   const hydrated = await payload.find({
@@ -70,6 +70,6 @@ export async function searchMediaByQuery(
     overrideAccess: true,
   })
 
-  const byId = new Map(hydrated.docs.map((d) => [Number(d.id), d]))
+  const byId = new Map(hydrated.docs.map((d) => [d.id, d]))
   return ids.map((id) => byId.get(id)).filter(Boolean) as Media[]
 }

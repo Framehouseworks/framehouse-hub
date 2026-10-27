@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const domainCategory = classifyDomainCategory(effectiveMimeType, filename)
 
     const storagePath = buildStoragePath({
-      userId: String(user.id),
+      userId: user.id,
       domainCategory,
       year,
       month,

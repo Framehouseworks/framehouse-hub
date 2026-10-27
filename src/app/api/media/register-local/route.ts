@@ -105,7 +105,7 @@ export async function POST(req: Request) {
         alt: meta.title || filename,
         mediaType: domainCategoryToMediaType(domainCategory),
         owner: user.id,
-        ...(meta.sessionId ? { session: Number(meta.sessionId) } : {}),
+        ...(meta.sessionId ? { session: meta.sessionId } : {}),
         shootName: meta.shootName || '',
         manualTags: meta.manualTags || [],
         location: {
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
           ...(meta.location?.latitude != null ? { latitude: meta.location.latitude } : {}),
           ...(meta.location?.longitude != null ? { longitude: meta.location.longitude } : {}),
         },
-        ...(meta.uploadBatchId ? { uploadBatchId: Number(meta.uploadBatchId) } : {}),
+        ...(meta.uploadBatchId ? { uploadBatchId: meta.uploadBatchId } : {}),
       },
       file: {
         data: buffer,

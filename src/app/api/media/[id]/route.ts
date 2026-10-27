@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     // Enforce ownership — only the owning user may fetch via this route.
     const ownerId = typeof doc.owner === 'object' ? doc.owner?.id : doc.owner
-    if (String(ownerId) !== String(user.id)) {
+    if (ownerId !== user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
