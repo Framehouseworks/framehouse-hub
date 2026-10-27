@@ -7,7 +7,7 @@ import React, { useState } from 'react'
 import { toast } from 'sonner'
 
 interface AdminSupportOverlayProps {
-  portfolioId: number
+  portfolioId: string
   portfolioName: string
   portfolioSlug: string
   ownerEmail: string

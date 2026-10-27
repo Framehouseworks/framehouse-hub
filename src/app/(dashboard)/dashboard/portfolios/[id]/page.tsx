@@ -16,17 +16,14 @@ type Props = {
 
 export default async function EditPortfolioPage({ params }: Props) {
   const { id } = await params
-  const portfolioId = Number(id)
 
-  if (isNaN(portfolioId)) return notFound()
-
-  const result = await fetchPortfolioByIdAction(portfolioId)
+  const result = await fetchPortfolioByIdAction(id)
   if (!result.success || !result.data) return notFound()
 
   // Draft portfolios resume in the wizard for a guided editing experience
   const portfolio = result.data as Portfolio & { _status?: string }
   if (portfolio._status === 'draft') {
-    redirect(`/dashboard/portfolios/new?resumeId=${portfolioId}`)
+    redirect(`/dashboard/portfolios/new?resumeId=${id}`)
   }
 
   return <PortfolioEditorPage portfolio={result.data} />

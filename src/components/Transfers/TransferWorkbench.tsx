@@ -180,7 +180,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
       // Prepend to local transfers list for immediate feedback
       setTransfers((prev) => [
         {
-          id: uploadRes.transferId,
+          id: uploadRes.transferId as unknown as string,
           shareHash: uploadRes.shareHash,
           filename: uploadRes.filename,
           filesize: uploadRes.filesize,
@@ -193,8 +193,8 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
           downloadCount: 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          sender: 0,
-        } as Transfer,
+          sender: '' as unknown as string,
+        } as unknown as Transfer,
         ...prev,
       ])
 
@@ -249,7 +249,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
     setState('IDLE')
   }
 
-  const handleDeleteTransfer = async (id: number) => {
+  const handleDeleteTransfer = async (id: string) => {
     try {
       const res = await fetch(`/api/transfers/${id}`, {
         method: 'DELETE',

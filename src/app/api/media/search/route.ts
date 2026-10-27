@@ -47,25 +47,25 @@ export async function GET(req: Request) {
       const result = await pool.query(
         `SELECT match_value FROM (
           (SELECT title AS match_value FROM media
-            WHERE owner_id = $2::int
+            WHERE owner_id = $2::uuid
               AND to_tsvector('english', COALESCE(title,'')) @@ to_tsquery('english', $1)
               AND title IS NOT NULL AND title <> ''
             LIMIT 4)
           UNION ALL
           (SELECT DISTINCT technical_camera_model FROM media
-            WHERE owner_id = $2::int
+            WHERE owner_id = $2::uuid
               AND to_tsvector('english', COALESCE(technical_camera_model,'')) @@ to_tsquery('english', $1)
               AND technical_camera_model IS NOT NULL AND technical_camera_model <> ''
             LIMIT 3)
           UNION ALL
           (SELECT DISTINCT mmt.tag FROM media_manual_tags mmt
             JOIN media m ON m.id = mmt._parent_id
-            WHERE m.owner_id = $2::int
+            WHERE m.owner_id = $2::uuid
               AND to_tsvector('english', COALESCE(mmt.tag,'')) @@ to_tsquery('english', $1)
               AND mmt.tag IS NOT NULL AND mmt.tag <> ''
             LIMIT 3)
         ) AS matches LIMIT 10`,
-        [tsquery, String(user.id)],
+        [tsquery, user.id],
       )
       const suggestions = result.rows.map((r) => String(r.match_value)).filter(Boolean)
       return NextResponse.json({ suggestions })

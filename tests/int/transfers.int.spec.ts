@@ -7,7 +7,7 @@ import { transferEndpoints } from '@/collections/Transfers/endpoints'
 import { uploadTransfer, TransferUploadError, MAX_TRANSFER_BYTES } from '@/lib/transfer-upload'
 
 let payload: Payload
-let testUserId: number
+let testUserId: string
 
 describe('Transfers Collection (Phase 1 Integration)', () => {
   beforeAll(async () => {
@@ -50,7 +50,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // Verify sender was auto-assigned via hook
       const senderId =
-        typeof transfer.sender === 'object' ? (transfer.sender as { id: number }).id : transfer.sender
+        typeof transfer.sender === 'object' ? (transfer.sender as { id: string }).id : transfer.sender
       expect(senderId).toBe(testUserId)
 
       // Verify 3-day (72 hours) expiration calculation

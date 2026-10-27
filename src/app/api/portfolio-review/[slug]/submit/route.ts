@@ -49,18 +49,18 @@ export async function POST(req: NextRequest, { params }: Params) {
   const clientNote = typeof body?.clientNote === 'string' ? body.clientNote.trim().slice(0, 1000) : null
 
   // Use session's saved selections
-  const savedSelections = (session.savedSelectionIds ?? []) as Array<{ mediaId: number; instanceId?: string }>
+  const savedSelections = (session.savedSelectionIds ?? []) as Array<{ mediaId: string; instanceId?: string }>
   if (savedSelections.length === 0) {
     return NextResponse.json({ error: 'SELECTION_EMPTY' }, { status: 422 })
   }
 
   // Build valid mediaId → item map from portfolio
-  const portfolioItemMap = new Map<number, { instanceTitle?: string | null; instanceId?: string | null }>()
+  const portfolioItemMap = new Map<string, { instanceTitle?: string | null; instanceId?: string | null }>()
   for (const block of portfolio.layoutBlocks ?? []) {
     if (block.blockType !== 'grid') continue
     for (const item of block.items ?? []) {
       if (item.media && typeof item.media === 'object') {
-        const mediaId = (item.media as { id: number }).id
+        const mediaId = (item.media as { id: string }).id
         portfolioItemMap.set(mediaId, {
           instanceTitle: (item as Record<string, unknown>).instanceTitle as string | null | undefined,
           instanceId: (item as Record<string, unknown>).instanceId as string | null | undefined,

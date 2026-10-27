@@ -100,4 +100,7 @@ export async function setup() {
 
 export async function teardown() {
   if (ownedContainer) cleanupContainer()
+
+  // Remove any tenant media directories written to public/ during tests.
+  spawnSync('rm', ['-rf', 'public/media/tenants'], { stdio: 'ignore' })
 }

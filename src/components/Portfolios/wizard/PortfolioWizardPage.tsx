@@ -42,8 +42,8 @@ const STEPS = [
 const AUTOSAVE_DELAY = 3000
 
 interface Props {
-  preloadedAssetIds?: number[]
-  resumePortfolioId?: number
+  preloadedAssetIds?: string[]
+  resumePortfolioId?: string
 }
 
 function slugifyPreview(text: string): string {
@@ -209,7 +209,7 @@ export function PortfolioWizardPage({ preloadedAssetIds = [], resumePortfolioId 
     } as Partial<Portfolio>
   }
 
-  async function ensurePortfolioCreated(s: WizardState): Promise<number | null> {
+  async function ensurePortfolioCreated(s: WizardState): Promise<string | null> {
     if (s.portfolioId) return s.portfolioId
     const name = s.title || s.name || 'Untitled Portfolio'
     const result = await createDraftPortfolioAction(name)

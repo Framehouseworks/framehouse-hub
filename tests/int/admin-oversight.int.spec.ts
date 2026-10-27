@@ -4,9 +4,9 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { getTestPayload } from '../helpers/payload'
 
 let payload: Payload
-let adminId: number
-let creativeId: number
-let viewerId: number
+let adminId: string
+let creativeId: string
+let viewerId: string
 
 async function createUser(
   p: Payload,
@@ -30,9 +30,9 @@ describe('Admin Oversight — AdminActivityLogs', () => {
     const admin = await createUser(payload, 'admin', ['admin'])
     const creative = await createUser(payload, 'creative', ['creative'])
     const viewer = await createUser(payload, 'viewer', ['viewer'])
-    adminId = admin.id as number
-    creativeId = creative.id as number
-    viewerId = viewer.id as number
+    adminId = admin.id
+    creativeId = creative.id
+    viewerId = viewer.id
   })
 
   it('creates a log entry via overrideAccess', async () => {

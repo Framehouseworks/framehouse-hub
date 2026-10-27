@@ -51,6 +51,10 @@ test.describe('Client Review Portal', () => {
         return
       }
 
+      // The SelectionModePill is mobile-only (md:hidden). Switch to a mobile
+      // viewport so the pill is visible before interacting with it.
+      await page.setViewportSize({ width: 390, height: 844 })
+
       // Mobile: tap selection mode pill to enable
       await selectionPill.first().click()
 
@@ -83,6 +87,8 @@ test.describe('Client Review Portal', () => {
       const selectionPill = page.locator('button[aria-label*="selection mode" i]')
       if (await selectionPill.count() === 0) test.skip()
 
+      // SelectionModePill is mobile-only (md:hidden) — switch to mobile viewport.
+      await page.setViewportSize({ width: 390, height: 844 })
       await selectionPill.first().click()
       const checkbox = page.locator('[role="checkbox"][aria-label*="Select"]').first()
       if (await checkbox.count() === 0) test.skip()

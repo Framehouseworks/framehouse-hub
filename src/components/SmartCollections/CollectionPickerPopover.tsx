@@ -9,12 +9,12 @@ import { cn } from '@/utilities/cn'
 import { useRouter } from 'next/navigation'
 
 interface ManualCollection {
-  id: number
+  id: string
   name: string
 }
 
 interface CollectionPickerPopoverProps {
-  mediaId: number
+  mediaId: string
   trigger: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -34,11 +34,11 @@ function useIsMobile() {
 function PickerContent({
   mediaId,
 }: {
-  mediaId: number
+  mediaId: string
 }) {
   const router = useRouter()
   const [collections, setCollections] = useState<ManualCollection[]>([])
-  const [membership, setMembership] = useState<Set<number>>(new Set())
+  const [membership, setMembership] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
@@ -54,17 +54,17 @@ function PickerContent({
       .then((r) => r.json())
       .then((data) => {
         const docs: Array<{
-          id: number
+          id: string
           name: string
           generatedFrom?: string
-          manualIncludes?: Array<number | { id: number }>
+          manualIncludes?: Array<string | { id: string }>
         }> = data?.docs ?? []
         const manual = docs.filter((c) => (c.generatedFrom ?? 'manual') === 'manual')
         setCollections(manual.map((c) => ({ id: c.id, name: c.name })))
-        const inSet = new Set<number>()
+        const inSet = new Set<string>()
         manual.forEach((col) => {
           const ids = (col.manualIncludes ?? []).map((i) =>
-            typeof i === 'object' ? i.id : i,
+            typeof i === 'object' ? String(i.id) : String(i),
           )
           if (ids.includes(mediaId)) inSet.add(col.id)
         })
@@ -74,7 +74,7 @@ function PickerContent({
       .finally(() => setIsLoading(false))
   }, [mediaId])
 
-  const toggle = async (colId: number, colName: string) => {
+  const toggle = async (colId: string, colName: string) => {
     const isMember = membership.has(colId)
     setMembership((prev) => {
       const next = new Set(prev)
@@ -84,8 +84,8 @@ function PickerContent({
     try {
       const r = await fetch(`/api/smart-collections/${colId}?depth=0`, { credentials: 'include' })
       const data = await r.json()
-      const current: number[] = (data.manualIncludes ?? []).map((i: number | { id: number }) =>
-        typeof i === 'object' ? i.id : i,
+      const current: string[] = (data.manualIncludes ?? []).map((i: string | { id: string }) =>
+        typeof i === 'object' ? String(i.id) : String(i),
       )
       const updated = isMember ? current.filter((id) => id !== mediaId) : [...current, mediaId]
       const res = await fetch(`/api/smart-collections/${colId}`, {

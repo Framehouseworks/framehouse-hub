@@ -45,7 +45,7 @@ export async function fetchMyPortfoliosAction(): Promise<
 
 /** Fetch a single portfolio by ID (owner + admin only) */
 export async function fetchPortfolioByIdAction(
-  id: number,
+  id: string,
 ): Promise<PortfolioActionResult<Portfolio>> {
   try {
     const { payload, user } = await getAuth()
@@ -140,7 +140,7 @@ function validateLayoutBlocks(blocks: unknown): string | null {
 
 /** Save (autosave) a portfolio draft — with optional optimistic concurrency check */
 export async function savePortfolioDraftAction(
-  id: number,
+  id: string,
   data: Partial<Portfolio>,
   ifUnmodifiedSince?: string,
 ): Promise<PortfolioActionResult<Portfolio>> {
@@ -184,7 +184,7 @@ export async function savePortfolioDraftAction(
 
 /** Publish a portfolio (set _status: published) */
 export async function publishPortfolioAction(
-  id: number,
+  id: string,
   data: Partial<Portfolio>,
 ): Promise<PortfolioActionResult<Portfolio>> {
   try {
@@ -215,7 +215,7 @@ export async function publishPortfolioAction(
 }
 
 /** Delete a portfolio */
-export async function deletePortfolioAction(id: number): Promise<PortfolioActionResult> {
+export async function deletePortfolioAction(id: string): Promise<PortfolioActionResult> {
   try {
     const { payload, user } = await getAuth()
     if (!user) return { success: false, message: 'Unauthorized' }
@@ -230,7 +230,7 @@ export async function deletePortfolioAction(id: number): Promise<PortfolioAction
 }
 
 /** Duplicate a portfolio */
-export async function duplicatePortfolioAction(id: number): Promise<PortfolioActionResult<Portfolio>> {
+export async function duplicatePortfolioAction(id: string): Promise<PortfolioActionResult<Portfolio>> {
   try {
     const { payload, user } = await getAuth()
     if (!user) return { success: false, message: 'Unauthorized' }
@@ -262,7 +262,7 @@ export async function duplicatePortfolioAction(id: number): Promise<PortfolioAct
 
 /** Fetch specific media documents by IDs (for preloading wizard) */
 export async function fetchMediaByIdsAction(
-  ids: number[],
+  ids: string[],
 ): Promise<PortfolioActionResult<import('@/payload-types').Media[]>> {
   if (!ids.length) return { success: true, message: 'OK', data: [] }
   try {
@@ -343,7 +343,7 @@ export async function fetchMediaForPickerAction(opts: {
  * re-publishes. Used by AdminSupportOverlay for copyright / escalation support.
  */
 export async function forceUnpublishPortfolioAction(
-  id: number,
+  id: string,
 ): Promise<PortfolioActionResult> {
   try {
     const { payload, user } = await getAuth()
@@ -374,7 +374,7 @@ export async function forceUnpublishPortfolioAction(
  *                     Pass 48 * 60 * 60 * 1000 for a 48-hour review link.
  */
 export async function generatePreviewTokenAction(
-  portfolioId: number,
+  portfolioId: string,
   durationMs: number = 5 * 60 * 1000,
 ): Promise<PortfolioActionResult<{ token: string }>> {
   try {
@@ -389,7 +389,7 @@ export async function generatePreviewTokenAction(
       user,
     })
     const ownerId = typeof portfolio.owner === 'object'
-      ? (portfolio.owner as { id: number }).id
+      ? (portfolio.owner as { id: string }).id
       : portfolio.owner
     const isAdmin = user.roles?.includes('admin')
     if (ownerId !== user.id && !isAdmin) {

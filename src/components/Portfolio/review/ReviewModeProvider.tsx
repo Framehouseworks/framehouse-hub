@@ -26,29 +26,29 @@ export interface ReviewConfig {
 }
 
 export interface SelectionEntry {
-  mediaId: number
+  mediaId: string
   instanceId: string
 }
 
 interface ReviewState {
   config: ReviewConfig
-  selections: Map<number, SelectionEntry>
+  selections: Map<string, SelectionEntry>
   isSelectionMode: boolean
   isIdentified: boolean
   clientName: string | null
   clientEmail: string | null
-  submittedIds: Set<number>
+  submittedIds: Set<string>
   identModalPending: 'submit' | 'comment' | null
   submissionSuccessMessage: string | null
 }
 
 type ReviewAction =
-  | { type: 'TOGGLE'; mediaId: number; instanceId: string }
+  | { type: 'TOGGLE'; mediaId: string; instanceId: string }
   | { type: 'CLEAR_SELECTIONS' }
   | { type: 'SET_SELECTION_MODE'; on: boolean }
   | { type: 'SET_IDENTIFIED'; name: string; email?: string }
   | { type: 'HYDRATE_SELECTIONS'; entries: SelectionEntry[] }
-  | { type: 'MARK_SUBMITTED'; ids: number[]; message: string }
+  | { type: 'MARK_SUBMITTED'; ids: string[]; message: string }
   | { type: 'CLEAR_SUBMISSION_MESSAGE' }
   | { type: 'REQUEST_IDENTIFICATION'; action: 'submit' | 'comment' }
   | { type: 'DISMISS_IDENT_MODAL' }
@@ -84,7 +84,7 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         identModalPending: null,
       }
     case 'HYDRATE_SELECTIONS': {
-      const next = new Map<number, SelectionEntry>()
+      const next = new Map<string, SelectionEntry>()
       action.entries.forEach((e) => next.set(e.mediaId, e))
       return { ...state, selections: next }
     }
@@ -105,11 +105,11 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
 }
 
 interface ReviewContextValue extends ReviewState {
-  toggleSelection: (mediaId: number, instanceId: string) => void
+  toggleSelection: (mediaId: string, instanceId: string) => void
   clearSelections: () => void
   setSelectionMode: (on: boolean) => void
   setIdentified: (name: string, email?: string) => void
-  markSubmitted: (ids: number[], message: string) => void
+  markSubmitted: (ids: string[], message: string) => void
   requestIdentification: (action: 'submit' | 'comment') => void
   dismissIdentModal: () => void
 }
@@ -136,7 +136,7 @@ export function ReviewModeProvider({ config, children }: ReviewModeProviderProps
     isIdentified: false,
     clientName: null,
     clientEmail: null,
-    submittedIds: new Set<number>(),
+    submittedIds: new Set<string>(),
     identModalPending: null,
     submissionSuccessMessage: null,
   })
@@ -270,14 +270,14 @@ export function ReviewModeProvider({ config, children }: ReviewModeProviderProps
     return () => { root.style.removeProperty('--review-bar-height') }
   }, [state.selections.size])
 
-  const toggleSelection = useCallback((mediaId: number, instanceId: string) => {
+  const toggleSelection = useCallback((mediaId: string, instanceId: string) => {
     dispatch({ type: 'TOGGLE', mediaId, instanceId })
   }, [])
 
   const clearSelections = useCallback(() => dispatch({ type: 'CLEAR_SELECTIONS' }), [])
   const setSelectionMode = useCallback((on: boolean) => dispatch({ type: 'SET_SELECTION_MODE', on }), [])
   const setIdentified = useCallback((name: string, email?: string) => dispatch({ type: 'SET_IDENTIFIED', name, email }), [])
-  const markSubmitted = useCallback((ids: number[], message: string) => {
+  const markSubmitted = useCallback((ids: string[], message: string) => {
     dispatch({ type: 'MARK_SUBMITTED', ids, message })
     setTimeout(() => dispatch({ type: 'CLEAR_SUBMISSION_MESSAGE' }), 4000)
   }, [])

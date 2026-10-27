@@ -8,14 +8,14 @@ import { cn } from '@/utilities/cn'
 import { useReviewMode } from './ReviewModeProvider'
 
 interface Comment {
-  id: number
+  id: string
   clientName: string
   body: string
   createdAt: string
 }
 
 interface CommentPanelProps {
-  mediaId: number | null
+  mediaId: string | null
   isMobile: boolean
   isOpen: boolean
   onClose?: () => void
@@ -77,7 +77,7 @@ export function CommentPanel({ mediaId, isMobile, isOpen, onClose }: CommentPane
 
     setPosting(true)
     const optimisticComment: Comment = {
-      id: Date.now(),
+      id: String(Date.now()),
       clientName: review.clientName || 'You',
       body: trimmed,
       createdAt: new Date().toISOString(),

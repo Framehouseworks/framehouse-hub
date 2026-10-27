@@ -11,8 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const { id } = await params
     const headers = await getHeaders()
     const payload = await getPayload({ config: configPromise })
     const { user } = await payload.auth({ headers })
@@ -26,7 +25,7 @@ export async function POST(
 
     const ownerId =
       typeof original.owner === 'object'
-        ? (original.owner as { id: number }).id
+        ? (original.owner as { id: string }).id
         : original.owner
     if (ownerId !== user.id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

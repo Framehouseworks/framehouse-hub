@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { MediaPickerModal } from './MediaPickerModal'
 
 interface AssetThumb {
-  id: number
+  id: string
   url: string
   title?: string
 }
@@ -19,7 +19,7 @@ interface ManualOverridesPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Collection ID whose manualIncludes/manualExcludes we're editing */
-  collectionId: number
+  collectionId: string
 }
 
 // ── Asset chip ────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ function AssetChip({
   variant,
 }: {
   asset: AssetThumb
-  onRemove: (id: number) => void
+  onRemove: (id: string) => void
   variant: 'include' | 'exclude'
 }) {
   return (
@@ -91,7 +91,7 @@ function AddChipButton({ onClick, label }: { onClick: () => void; label: string 
 }
 
 // ── Panel content ─────────────────────────────────────────────────────────────
-function PanelContent({ collectionId }: { collectionId: number }) {
+function PanelContent({ collectionId }: { collectionId: string }) {
   const [includes, setIncludes] = useState<AssetThumb[]>([])
   const [excludes, setExcludes] = useState<AssetThumb[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,7 +107,7 @@ function PanelContent({ collectionId }: { collectionId: number }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data) return
-        const mapAsset = (m: { id: number; thumbnailUrl?: string; proxyUrl?: string; originalUrl?: string; url?: string; title?: string }) => ({
+        const mapAsset = (m: { id: string; thumbnailUrl?: string; proxyUrl?: string; originalUrl?: string; url?: string; title?: string }) => ({
           id: m.id,
           url: m.thumbnailUrl || m.proxyUrl || m.originalUrl || m.url || '',
           title: m.title,
@@ -143,7 +143,7 @@ function PanelContent({ collectionId }: { collectionId: number }) {
   )
 
   const handleRemoveInclude = useCallback(
-    (id: number) => {
+    (id: string) => {
       setIncludes((prev) => {
         const next = prev.filter((a) => a.id !== id)
         saveToApi(next, excludes)
@@ -154,7 +154,7 @@ function PanelContent({ collectionId }: { collectionId: number }) {
   )
 
   const handleRemoveExclude = useCallback(
-    (id: number) => {
+    (id: string) => {
       setExcludes((prev) => {
         const next = prev.filter((a) => a.id !== id)
         saveToApi(includes, next)
@@ -170,7 +170,7 @@ function PanelContent({ collectionId }: { collectionId: number }) {
   }
 
   const handlePickerConfirm = useCallback(
-    async (selectedIds: number[]) => {
+    async (selectedIds: string[]) => {
       // Fetch thumb data for newly selected assets
       const newAssets: AssetThumb[] = await Promise.all(
         selectedIds.map(async (id) => {

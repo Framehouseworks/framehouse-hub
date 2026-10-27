@@ -12,8 +12,7 @@ type Props = { params: Promise<{ id: string }> }
 
 export default async function ReviewsPage({ params }: Props) {
   const { id } = await params
-  const portfolioId = Number(id)
-  if (isNaN(portfolioId)) return notFound()
+  if (!id) return notFound()
 
   const headersList = await getHeaders()
   const payload = await getPayload({ config: configPromise })
@@ -22,7 +21,7 @@ export default async function ReviewsPage({ params }: Props) {
 
   const portfolio = await payload.findByID({
     collection: 'portfolios',
-    id: portfolioId,
+    id,
     depth: 0,
     user,
   }).catch(() => null)
@@ -31,14 +30,14 @@ export default async function ReviewsPage({ params }: Props) {
 
   // Only owner or admin
   const isAdmin = user.roles?.includes('admin')
-  const ownerId = typeof portfolio.owner === 'object' ? (portfolio.owner as { id: number }).id : portfolio.owner
+  const ownerId = typeof portfolio.owner === 'object' ? (portfolio.owner as { id: string }).id : portfolio.owner
   if (!isAdmin && ownerId !== user.id) return notFound()
 
   const { docs: reviews, totalDocs } = await payload.find({
     collection: 'portfolio-client-reviews',
     where: {
       and: [
-        { portfolio: { equals: portfolioId } },
+        { portfolio: { equals: id } },
         { status: { equals: 'submitted' } },
       ],
     },
@@ -50,7 +49,7 @@ export default async function ReviewsPage({ params }: Props) {
 
   return (
     <PortfolioReviewsPage
-      portfolioId={portfolioId}
+      portfolioId={id}
       portfolioName={portfolio.name}
       initialReviews={reviews}
       totalDocs={totalDocs}

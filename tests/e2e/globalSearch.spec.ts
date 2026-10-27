@@ -24,10 +24,9 @@ test.describe('Global Search (FRH-44)', () => {
 
   test('/ key focuses the search input', async ({ page }) => {
     // CI headless Chromium does not give the document focus after navigation.
-    // window.addEventListener('keydown') only fires if the document is the active
-    // focus target. Clicking body engages focus; evaluate() forces it synchronously
-    // so the '/' shortcut guard (tag !== INPUT) still fires reliably in CI.
-    await page.locator('body').click()
+    // Click 'main' (the page content area) rather than 'body' to avoid
+    // accidentally clicking header interactive elements like the UserDropdown.
+    await page.locator('main').click()
     await page.evaluate(() => document.body.focus())
     await page.keyboard.press('/')
     const input = page.locator('header input[type="text"]')
@@ -38,7 +37,7 @@ test.describe('Global Search (FRH-44)', () => {
   // Cmd on macOS) and requires Playwright ≥ 1.43 (project uses 1.56.1).
   test('Cmd+K / Ctrl+K focuses the search input', async ({ page }) => {
     // Same focus requirement as '/' shortcut — see comment above.
-    await page.locator('body').click()
+    await page.locator('main').click()
     await page.evaluate(() => document.body.focus())
     await page.keyboard.press('ControlOrMeta+k')
     const input = page.locator('header input[type="text"]')

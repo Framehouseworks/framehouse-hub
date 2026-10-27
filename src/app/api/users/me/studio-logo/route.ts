@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 //   X-Filename: logo.png
 //   Body: raw file bytes
 //
-// Returns: { mediaId: number }
+// Returns: { mediaId: string }
 //
 // Cloud-mode note: when GCS_BUCKET is set the writeOriginalToEnclave hook
 // is a no-op and the file won't land in GCS. The full cloud logo flow

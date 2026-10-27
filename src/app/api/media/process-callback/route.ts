@@ -19,7 +19,7 @@ function scheduleGenerate(payload: Awaited<ReturnType<typeof import('payload').g
     generateDebounce.delete(key)
     try {
       const { generateSmartCollections } = await import('@/lib/autoGenerateCollections')
-      await generateSmartCollections(payload, ownerId)
+      await generateSmartCollections(payload, String(ownerId))
     } catch (err) {
       console.error('[process-callback] generateSmartCollections error:', err)
     }

@@ -235,7 +235,7 @@ const MediaCardComponent: React.FC<Props> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <CollectionPickerPopover
-            mediaId={media.id as number}
+            mediaId={media.id}
             trigger={
               <button
                 className="w-7 h-7 rounded-[10px] bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold/50"

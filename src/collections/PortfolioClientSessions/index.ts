@@ -71,7 +71,7 @@ export const PortfolioClientSessions: CollectionConfig = {
       fields: [
         {
           name: 'mediaId',
-          type: 'number',
+          type: 'text',
           required: true,
         },
         {

@@ -38,7 +38,7 @@ import { cn } from '@/utilities/cn'
 import { toast } from 'sonner'
 
 export interface CollectionCardData {
-  id: number
+  id: string
   name: string
   isSystemGenerated?: boolean
   isHidden?: boolean
@@ -107,15 +107,15 @@ function CollectionTypeIcon({ col }: { col: CollectionCardData }) {
 
 interface CollectionCardProps {
   collection: CollectionCardData
-  onHide?: (id: number, hidden: boolean) => Promise<void>
-  onDelete?: (id: number) => Promise<void>
-  onDuplicate?: (id: number) => Promise<void>
-  onEditRules?: (id: number) => void
-  onManageAssets?: (id: number) => void
+  onHide?: (id: string, hidden: boolean) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
+  onDuplicate?: (id: string) => Promise<void>
+  onEditRules?: (id: string) => void
+  onManageAssets?: (id: string) => void
   /** Multi-select mode */
   selectionMode?: boolean
   selected?: boolean
-  onToggleSelect?: (id: number) => void
+  onToggleSelect?: (id: string) => void
 }
 
 export function CollectionCard({

@@ -14,9 +14,9 @@ type Props = {
 export default async function NewPortfolioPage({ searchParams }: Props) {
   const params = await searchParams
   const preloadedAssetIds = params.assets
-    ? params.assets.split(',').map(Number).filter(Boolean)
+    ? params.assets.split(',').filter(Boolean)
     : []
-  const resumePortfolioId = params.resumeId ? Number(params.resumeId) : undefined
+  const resumePortfolioId = params.resumeId ?? undefined
 
   return <PortfolioWizardPage preloadedAssetIds={preloadedAssetIds} resumePortfolioId={resumePortfolioId} />
 }

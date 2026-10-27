@@ -170,14 +170,14 @@ describe('Media pipeline (integration)', () => {
 
       const portfolio = (
         await db().execute(
-          `INSERT INTO portfolios (name, title, owner_id, visibility) VALUES ('int-portfolio', '{}'::jsonb, ${owner.id}, 'private') RETURNING id`,
+          `INSERT INTO portfolios (name, title, owner_id, visibility) VALUES ('int-portfolio', '{}'::jsonb, '${owner.id}', 'private') RETURNING id`,
         )
-      ).rows[0] as { id: number }
+      ).rows[0] as { id: string }
       await db().execute(
-        `INSERT INTO portfolios_blocks_grid (_order, _parent_id, _path, id) VALUES (1, ${portfolio.id}, 'layoutBlocks', '${blockId}')`,
+        `INSERT INTO portfolios_blocks_grid (_order, _parent_id, _path, id) VALUES (1, '${portfolio.id}', 'layoutBlocks', '${blockId}')`,
       )
       await db().execute(
-        `INSERT INTO portfolios_blocks_grid_items (_order, _parent_id, id, media_id) VALUES (1, '${blockId}', '${itemId}', ${media.id})`,
+        `INSERT INTO portfolios_blocks_grid_items (_order, _parent_id, id, media_id) VALUES (1, '${blockId}', '${itemId}', '${media.id}')`,
       )
 
       await expect(
@@ -203,9 +203,9 @@ describe('Media pipeline (integration)', () => {
         await db().execute(
           `INSERT INTO pricing (updated_at, created_at) VALUES (NOW(), NOW()) RETURNING id`,
         )
-      ).rows[0] as { id: number }
+      ).rows[0] as { id: string }
       await db().execute(
-        `INSERT INTO pricing_partner_logos (_order, _parent_id, id, logo_id) VALUES (1, ${pricing.id}, '${logoId}', ${media.id})`,
+        `INSERT INTO pricing_partner_logos (_order, _parent_id, id, logo_id) VALUES (1, '${pricing.id}', '${logoId}', '${media.id}')`,
       )
 
       await expect(
@@ -263,7 +263,7 @@ describe('Media pipeline (integration)', () => {
 
       const pool = (
         payload.db as unknown as {
-          pool: { query: (t: string, v: unknown[]) => Promise<{ rows: { id: number }[] }> }
+          pool: { query: (t: string, v: unknown[]) => Promise<{ rows: { id: string }[] }> }
         }
       ).pool
       const res = await pool.query(
@@ -280,7 +280,7 @@ describe('Media pipeline (integration)', () => {
             plainto_tsquery('english', $1)
           ) AS rank
           FROM media
-          WHERE owner_id = $2::int
+          WHERE owner_id = $2::uuid
             AND to_tsvector('english',
               COALESCE(title, '') || ' ' ||
               COALESCE(filename, '') || ' ' ||
@@ -294,9 +294,9 @@ describe('Media pipeline (integration)', () => {
         `,
         ['alpine', String(ownerA.id)],
       )
-      const ids = res.rows.map((r) => Number(r.id))
-      expect(ids).toContain(alpine.id)
-      expect(ids).not.toContain(desert.id) // 'alpine' doesn't appear in desert's fields
+      const ids = res.rows.map((r) => String(r.id))
+      expect(ids).toContain(String(alpine.id))
+      expect(ids).not.toContain(String(desert.id))
       expect(ids.length).toBe(1) // owner B's 'alpine' filtered out by owner_id scope
     })
 
@@ -328,13 +328,13 @@ describe('Media pipeline (integration)', () => {
 
       const pool = (
         payload.db as unknown as {
-          pool: { query: (t: string, v: unknown[]) => Promise<{ rows: { id: number }[] }> }
+          pool: { query: (t: string, v: unknown[]) => Promise<{ rows: { id: string }[] }> }
         }
       ).pool
       const res = await pool.query(
         `
           SELECT id FROM media
-          WHERE owner_id = $2::int
+          WHERE owner_id = $2::uuid
             AND to_tsvector('english',
               COALESCE(title, '') || ' ' ||
               COALESCE(filename, '') || ' ' ||
@@ -346,8 +346,8 @@ describe('Media pipeline (integration)', () => {
         `,
         ['sony', String(owner.id)],
       )
-      const ids = res.rows.map((r) => Number(r.id))
-      expect(ids).toContain(sony.id)
+      const ids = res.rows.map((r) => String(r.id))
+      expect(ids).toContain(String(sony.id))
       expect(ids.length).toBe(1)
     })
   })

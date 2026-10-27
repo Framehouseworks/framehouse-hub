@@ -17,7 +17,7 @@ export interface TransferWallpaperCreditBadgeProps {
 }
 
 export const FALLBACK_TRANSFER_WALLPAPER: TransferWallpaper = {
-  id: 0,
+  id: '',
   title: 'Framehouse Curated Gallery',
   assetUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=2560&q=85',
   artistCredit: 'Framehouse Works',

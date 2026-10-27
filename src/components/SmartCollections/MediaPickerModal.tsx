@@ -22,7 +22,7 @@ import { cn } from '@/utilities/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 interface PickerMedia {
-  id: number
+  id: string
   thumbnailUrl?: string | null
   proxyUrl?: string | null
   originalUrl?: string | null
@@ -33,8 +33,8 @@ interface MediaPickerModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   mode: 'include' | 'exclude'
-  alreadySelected?: (number | string)[]
-  onConfirm: (selectedIds: number[]) => void
+  alreadySelected?: string[]
+  onConfirm: (selectedIds: string[]) => void
 }
 
 const MAX_SELECTION = 500
@@ -54,11 +54,11 @@ function MediaGrid({
   onToggle,
 }: {
   items: PickerMedia[]
-  selected: Set<number>
-  onToggle: (id: number) => void
+  selected: Set<string>
+  onToggle: (id: string) => void
 }) {
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>, id: number) => {
+    (e: React.KeyboardEvent<HTMLDivElement>, id: string) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         onToggle(id)
@@ -123,17 +123,17 @@ function PickerContent({
   onClose,
 }: {
   mode: 'include' | 'exclude'
-  alreadySelected?: (number | string)[]
-  onConfirm: (ids: number[]) => void
+  alreadySelected?: string[]
+  onConfirm: (ids: string[]) => void
   onClose: () => void
 }) {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<PickerMedia[]>([])
   const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const debouncedQuery = useDebounce(query, 200)
   const alreadySet = useRef(
-    new Set((alreadySelected ?? []).map((id) => Number(id))),
+    new Set((alreadySelected ?? []).map((id) => String(id))),
   )
 
   const fetchMedia = useCallback(async (q: string) => {
@@ -156,7 +156,7 @@ function PickerContent({
     fetchMedia(debouncedQuery)
   }, [debouncedQuery, fetchMedia])
 
-  const toggle = useCallback((id: number) => {
+  const toggle = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {

@@ -136,15 +136,15 @@ function RecentStrip({
 }: {
   allCollections: CollectionCardData[]
   selectionMode: boolean
-  selectedIds: Set<number>
+  selectedIds: Set<string>
   cardProps: Omit<React.ComponentProps<typeof CollectionCard>, 'collection' | 'selectionMode' | 'selected'>
 }) {
-  const [recentIds, setRecentIds] = useState<number[]>([])
+  const [recentIds, setRecentIds] = useState<string[]>([])
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(RECENT_KEY)
-      if (raw) setRecentIds(JSON.parse(raw) as number[])
+      if (raw) setRecentIds(JSON.parse(raw) as string[])
     } catch {
       // ignore
     }
@@ -200,8 +200,8 @@ export function CollectionsGrid({
 }: CollectionsGridProps) {
   const router = useRouter()
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editorCollectionId, setEditorCollectionId] = useState<number | undefined>()
-  const [overridesPanelId, setOverridesPanelId] = useState<number | null>(null)
+  const [editorCollectionId, setEditorCollectionId] = useState<string | undefined>()
+  const [overridesPanelId, setOverridesPanelId] = useState<string | null>(null)
   const [overridesPanelOpen, setOverridesPanelOpen] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -209,10 +209,10 @@ export function CollectionsGrid({
 
   // ── Multi-select ───────────────────────────────────────────────────────────
   const [selectionMode, setSelectionMode] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isBulkWorking, setIsBulkWorking] = useState(false)
 
-  const toggleSelect = useCallback((id: number) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectionMode(true) // enter selection mode on first circle tap — matches MediaGrid behaviour
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -309,12 +309,12 @@ export function CollectionsGrid({
     }
   }
 
-  const handleEditRules = useCallback((id: number) => {
+  const handleEditRules = useCallback((id: string) => {
     setEditorCollectionId(id)
     setEditorOpen(true)
   }, [])
 
-  const handleManageAssets = useCallback((id: number) => {
+  const handleManageAssets = useCallback((id: string) => {
     setOverridesPanelId(id)
     setOverridesPanelOpen(true)
   }, [])
@@ -335,7 +335,7 @@ export function CollectionsGrid({
     router.refresh()
   }, [router])
 
-  const handleHide = async (id: number, hidden: boolean) => {
+  const handleHide = async (id: string, hidden: boolean) => {
     const res = await fetch(`/api/smart-collections/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -346,13 +346,13 @@ export function CollectionsGrid({
     router.refresh()
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     const res = await fetch(`/api/smart-collections/${id}`, { method: 'DELETE' })
     if (!res.ok) throw new Error('Delete failed')
     router.refresh()
   }
 
-  const handleDuplicate = async (id: number) => {
+  const handleDuplicate = async (id: string) => {
     const res = await fetch(`/api/smart-collections/${id}/duplicate`, { method: 'POST' })
     if (!res.ok) throw new Error('Duplicate failed')
     toast.success('View duplicated')

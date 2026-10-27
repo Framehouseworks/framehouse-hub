@@ -10,7 +10,7 @@ import { getMediaPreviewUrl, isVideoMedia } from '../types'
 interface AssetPickerSheetProps {
   open: boolean
   onClose: () => void
-  selectedIds: Set<number>
+  selectedIds: Set<string>
   onToggle: (media: Media) => void
   /** When true, renders as a plain inline panel (no bottom-sheet chrome, no backdrop) */
   inline?: boolean

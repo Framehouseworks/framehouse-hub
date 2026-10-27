@@ -130,7 +130,7 @@ export interface Config {
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: number;
+    defaultIDType: string;
   };
   globals: {
     header: Header;
@@ -174,7 +174,7 @@ export interface UserAuthOperations {
  * via the `definition` "users".
  */
 export interface User {
-  id: number;
+  id: string;
   name?: string | null;
   /**
    * Studio or agency display name
@@ -187,7 +187,7 @@ export interface User {
   /**
    * Studio logo shown in profile and portfolio header
    */
-  studioLogo?: (number | null) | Media;
+  studioLogo?: (string | null) | Media;
   /**
    * Default settings applied to newly created portfolios only
    */
@@ -220,7 +220,7 @@ export interface User {
  * via the `definition` "media".
  */
 export interface Media {
-  id: number;
+  id: string;
   title: string;
   alt: string;
   caption?: {
@@ -257,11 +257,11 @@ export interface Media {
    * Archival Shoot Identity (e.g. Wildlife Expedition 2024).
    */
   shootName?: string | null;
-  uploadBatchId?: (number | null) | UploadBatch;
+  uploadBatchId?: (string | null) | UploadBatch;
   /**
    * Creative session this asset belongs to.
    */
-  session?: (number | null) | Session;
+  session?: (string | null) | Session;
   mediaType: 'image' | 'raw' | 'video' | 'audio' | 'document' | 'unclassified';
   ingestionStatus?: ('active' | 'processing' | 'stale' | 'ready' | 'failed') | null;
   processingStep?:
@@ -312,7 +312,7 @@ export interface Media {
   aspectRatio?: string | null;
   errorMessage?: string | null;
   processedAt?: string | null;
-  owner: number | User;
+  owner: string | User;
   /**
    * Original filename as uploaded (pre-slugify).
    */
@@ -339,8 +339,8 @@ export interface Media {
  * via the `definition` "upload-batches".
  */
 export interface UploadBatch {
-  id: number;
-  owner: number | User;
+  id: string;
+  owner: string | User;
   source: 'dashboard' | 'admin' | 'seed' | 'api';
   /**
    * Free-form admin note about this ingest session.
@@ -354,7 +354,7 @@ export interface UploadBatch {
  * via the `definition` "sessions".
  */
 export interface Session {
-  id: number;
+  id: string;
   /**
    * Creative session name (e.g. "Golden Hour Beach Portraits").
    */
@@ -384,8 +384,8 @@ export interface Session {
   /**
    * Hero image shown on the Sessions grid.
    */
-  coverAsset?: (number | null) | Media;
-  owner: number | User;
+  coverAsset?: (string | null) | Media;
+  owner: string | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -394,7 +394,7 @@ export interface Session {
  * via the `definition` "pages".
  */
 export interface Page {
-  id: number;
+  id: string;
   title: string;
   publishedOn?: string | null;
   hero: {
@@ -421,7 +421,7 @@ export interface Page {
             newTab?: boolean | null;
             reference?: {
               relationTo: 'pages';
-              value: number | Page;
+              value: string | Page;
             } | null;
             url?: string | null;
             label: string;
@@ -433,7 +433,7 @@ export interface Page {
           id?: string | null;
         }[]
       | null;
-    media?: (number | null) | Media;
+    media?: (string | null) | Media;
   };
   layout: (
     | CallToActionBlock
@@ -456,7 +456,7 @@ export interface Page {
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (number | null) | Media;
+    image?: (string | null) | Media;
     description?: string | null;
   };
   slug: string;
@@ -496,7 +496,7 @@ export interface CallToActionBlock {
           newTab?: boolean | null;
           reference?: {
             relationTo: 'pages';
-            value: number | Page;
+            value: string | Page;
           } | null;
           url?: string | null;
           label: string;
@@ -526,7 +526,7 @@ export interface ContentBlock {
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;
-        media?: (number | null) | Media;
+        media?: (string | null) | Media;
         richText?: {
           root: {
             type: string;
@@ -548,7 +548,7 @@ export interface ContentBlock {
           newTab?: boolean | null;
           reference?: {
             relationTo: 'pages';
-            value: number | Page;
+            value: string | Page;
           } | null;
           url?: string | null;
           label: string;
@@ -569,7 +569,7 @@ export interface ContentBlock {
  * via the `definition` "MediaBlock".
  */
 export interface MediaBlock {
-  media: number | Media;
+  media: string | Media;
   id?: string | null;
   blockName?: string | null;
   blockType: 'mediaBlock';
@@ -596,12 +596,12 @@ export interface ArchiveBlock {
   } | null;
   populateBy?: ('collection' | 'selection') | null;
   relationTo?: 'media' | null;
-  categories?: (number | Category)[] | null;
+  categories?: (string | Category)[] | null;
   limit?: number | null;
   selectedDocs?:
     | {
         relationTo: 'media';
-        value: number | Media;
+        value: string | Media;
       }[]
     | null;
   id?: string | null;
@@ -613,7 +613,7 @@ export interface ArchiveBlock {
  * via the `definition` "categories".
  */
 export interface Category {
-  id: number;
+  id: string;
   title: string;
   slug: string;
   slugLock?: boolean | null;
@@ -628,12 +628,12 @@ export interface CarouselBlock {
   style?: ('default' | 'logoWall') | null;
   populateBy?: ('collection' | 'selection') | null;
   relationTo?: 'media' | null;
-  categories?: (number | Category)[] | null;
+  categories?: (string | Category)[] | null;
   limit?: number | null;
   selectedDocs?:
     | {
         relationTo: 'media';
-        value: number | Media;
+        value: string | Media;
       }[]
     | null;
   /**
@@ -642,7 +642,7 @@ export interface CarouselBlock {
   populatedDocs?:
     | {
         relationTo: 'media';
-        value: number | Media;
+        value: string | Media;
       }[]
     | null;
   /**
@@ -660,7 +660,7 @@ export interface CarouselBlock {
 export interface ThreeItemGridBlock {
   backgroundColor?: ('white' | 'surface_low') | null;
   style?: ('default' | 'pillars') | null;
-  media?: (number | Media)[] | null;
+  media?: (string | Media)[] | null;
   items?:
     | {
         title: string;
@@ -668,7 +668,7 @@ export interface ThreeItemGridBlock {
          * Provide an editorial takeaway for this pillar.
          */
         description: string;
-        media: number | Media;
+        media: string | Media;
         id?: string | null;
       }[]
     | null;
@@ -706,7 +706,7 @@ export interface BannerBlock {
  * via the `definition` "FormBlock".
  */
 export interface FormBlock {
-  form: number | Form;
+  form: string | Form;
   enableIntro?: boolean | null;
   introContent?: {
     root: {
@@ -732,7 +732,7 @@ export interface FormBlock {
  * via the `definition` "forms".
  */
 export interface Form {
-  id: number;
+  id: string;
   title: string;
   fields?:
     | (
@@ -937,7 +937,7 @@ export interface PricingBlock {
           newTab?: boolean | null;
           reference?: {
             relationTo: 'pages';
-            value: number | Page;
+            value: string | Page;
           } | null;
           url?: string | null;
           label: string;
@@ -971,10 +971,10 @@ export interface SprocketDividerBlock {
 export interface About3Block {
   title: string;
   description?: string | null;
-  mainImage: number | Media;
-  secondaryImage: number | Media;
+  mainImage: string | Media;
+  secondaryImage: string | Media;
   breakout: {
-    logo?: (number | null) | Media;
+    logo?: (string | null) | Media;
     title: string;
     description?: string | null;
     buttonText?: string | null;
@@ -982,7 +982,7 @@ export interface About3Block {
   };
   companies?:
     | {
-        logo: number | Media;
+        logo: string | Media;
         id?: string | null;
       }[]
     | null;
@@ -999,7 +999,7 @@ export interface About3Block {
     | {
         title: string;
         content: string;
-        media?: (number | null) | Media;
+        media?: (string | null) | Media;
         id?: string | null;
       }[]
     | null;
@@ -1017,7 +1017,7 @@ export interface ArticleGridBlock {
   /**
    * Select articles to feature. Leave empty to show latest published articles.
    */
-  articles?: (number | Article)[] | null;
+  articles?: (string | Article)[] | null;
   viewAllLabel?: string | null;
   backgroundColor?: ('white' | 'surface_low') | null;
   id?: string | null;
@@ -1029,7 +1029,7 @@ export interface ArticleGridBlock {
  * via the `definition` "articles".
  */
 export interface Article {
-  id: number;
+  id: string;
   title: string;
   /**
    * Short description shown in article listing cards.
@@ -1037,7 +1037,7 @@ export interface Article {
   excerpt?: string | null;
   category?: ('guide' | 'workflow' | 'news' | 'tips') | null;
   readTime?: number | null;
-  heroImage?: (number | null) | Media;
+  heroImage?: (string | null) | Media;
   publishedOn?: string | null;
   content: {
     root: {
@@ -1059,7 +1059,7 @@ export interface Article {
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (number | null) | Media;
+    image?: (string | null) | Media;
     description?: string | null;
   };
   slug: string;
@@ -1078,7 +1078,7 @@ export interface DownloadGridBlock {
   /**
    * Select downloads to feature.
    */
-  downloads?: (number | Download)[] | null;
+  downloads?: (string | Download)[] | null;
   backgroundColor?: ('white' | 'surface_low') | null;
   id?: string | null;
   blockName?: string | null;
@@ -1089,15 +1089,15 @@ export interface DownloadGridBlock {
  * via the `definition` "downloads".
  */
 export interface Download {
-  id: number;
+  id: string;
   title: string;
   description?: string | null;
   fileType: 'lut' | 'template' | 'preset' | 'other';
-  thumbnail?: (number | null) | Media;
+  thumbnail?: (string | null) | Media;
   /**
    * Upload the downloadable file here.
    */
-  downloadFile?: (number | null) | Media;
+  downloadFile?: (string | null) | Media;
   /**
    * Optional. Use instead of uploading a file directly.
    */
@@ -1126,7 +1126,7 @@ export interface TutorialGridBlock {
   /**
    * Select tutorials to feature. Leave empty to show all published tutorials.
    */
-  tutorials?: (number | Tutorial)[] | null;
+  tutorials?: (string | Tutorial)[] | null;
   backgroundColor?: ('white' | 'surface_low') | null;
   id?: string | null;
   blockName?: string | null;
@@ -1137,7 +1137,7 @@ export interface TutorialGridBlock {
  * via the `definition` "tutorials".
  */
 export interface Tutorial {
-  id: number;
+  id: string;
   title: string;
   /**
    * Short summary shown on the learn page card.
@@ -1150,7 +1150,7 @@ export interface Tutorial {
    * Lower numbers appear first.
    */
   order?: number | null;
-  heroImage?: (number | null) | Media;
+  heroImage?: (string | null) | Media;
   steps?:
     | {
         stepTitle: string;
@@ -1169,7 +1169,7 @@ export interface Tutorial {
           };
           [k: string]: unknown;
         };
-        stepImage?: (number | null) | Media;
+        stepImage?: (string | null) | Media;
         id?: string | null;
       }[]
     | null;
@@ -1178,7 +1178,7 @@ export interface Tutorial {
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (number | null) | Media;
+    image?: (string | null) | Media;
     description?: string | null;
   };
   slug: string;
@@ -1192,7 +1192,7 @@ export interface Tutorial {
  * via the `definition` "portfolios".
  */
 export interface Portfolio {
-  id: number;
+  id: string;
   name: string;
   /**
    * Portfolio Title (Rich Text supported for custom emphasis)
@@ -1234,7 +1234,7 @@ export interface Portfolio {
    * Automatically generated based on username and title.
    */
   slug?: string | null;
-  owner: number | User;
+  owner: string | User;
   visibility?: ('private' | 'public' | 'shared') | null;
   password?: string | null;
   /**
@@ -1321,7 +1321,7 @@ export interface Portfolio {
          * Add and reorder images for the grid.
          */
         items: {
-          media?: (number | null) | Media;
+          media?: (string | null) | Media;
           size?: ('small' | 'medium' | 'large' | 'full') | null;
           /**
            * Override alt text for this specific gallery item
@@ -1362,7 +1362,7 @@ export interface Portfolio {
             /**
              * Upload ID for the custom video cover image for this asset in this portfolio.
              */
-            customMedia?: (number | null) | Media;
+            customMedia?: (string | null) | Media;
           };
           id?: string | null;
         }[];
@@ -1394,7 +1394,7 @@ export interface Portfolio {
         blockType: 'text';
       }
     | {
-        media?: (number | null) | Media;
+        media?: (string | null) | Media;
         caption?: {
           root: {
             type: string;
@@ -1422,7 +1422,7 @@ export interface Portfolio {
         blockType: 'spacer';
       }
   )[];
-  folder?: (number | null) | FolderInterface;
+  folder?: (string | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -1432,18 +1432,18 @@ export interface Portfolio {
  * via the `definition` "payload-folders".
  */
 export interface FolderInterface {
-  id: number;
+  id: string;
   name: string;
-  folder?: (number | null) | FolderInterface;
+  folder?: (string | null) | FolderInterface;
   documentsAndFolders?: {
     docs?: (
       | {
           relationTo?: 'payload-folders';
-          value: number | FolderInterface;
+          value: string | FolderInterface;
         }
       | {
           relationTo?: 'portfolios';
-          value: number | Portfolio;
+          value: string | Portfolio;
         }
     )[];
     hasNextPage?: boolean;
@@ -1460,8 +1460,8 @@ export interface FolderInterface {
  * via the `definition` "portfolio-client-sessions".
  */
 export interface PortfolioClientSession {
-  id: number;
-  portfolio: number | Portfolio;
+  id: string;
+  portfolio: string | Portfolio;
   /**
    * HMAC-signed session identifier stored in httpOnly cookie.
    */
@@ -1492,7 +1492,7 @@ export interface PortfolioClientSession {
    */
   savedSelectionIds?:
     | {
-        mediaId: number;
+        mediaId: string;
         /**
          * Portfolio grid item instanceId for disambiguation when same media appears multiple times.
          */
@@ -1510,17 +1510,17 @@ export interface PortfolioClientSession {
  * via the `definition` "portfolio-client-reviews".
  */
 export interface PortfolioClientReview {
-  id: number;
-  portfolio: number | Portfolio;
+  id: string;
+  portfolio: string | Portfolio;
   /**
    * The session that originated this review.
    */
-  clientSession?: (number | null) | PortfolioClientSession;
+  clientSession?: (string | null) | PortfolioClientSession;
   clientName: string;
   clientEmail?: string | null;
   status?: ('submitted' | 'acknowledged' | 'approved' | 'archived') | null;
   selectedItems: {
-    media: number | Media;
+    media: string | Media;
     /**
      * Portfolio grid instanceId — disambiguates same media in multiple sections.
      */
@@ -1541,7 +1541,7 @@ export interface PortfolioClientReview {
   clientNote?: string | null;
   submittedAt: string;
   acknowledgedAt?: string | null;
-  acknowledgedBy?: (number | null) | User;
+  acknowledgedBy?: (string | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -1552,16 +1552,16 @@ export interface PortfolioClientReview {
  * via the `definition` "portfolio-asset-comments".
  */
 export interface PortfolioAssetComment {
-  id: number;
-  portfolio: number | Portfolio;
-  media: number | Media;
-  clientSession?: (number | null) | PortfolioClientSession;
+  id: string;
+  portfolio: string | Portfolio;
+  media: string | Media;
+  clientSession?: (string | null) | PortfolioClientSession;
   clientName: string;
   clientEmail?: string | null;
   body: string;
   status?: ('visible' | 'resolved' | 'archived') | null;
   resolvedAt?: string | null;
-  resolvedBy?: (number | null) | User;
+  resolvedBy?: (string | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -1572,13 +1572,13 @@ export interface PortfolioAssetComment {
  * via the `definition` "portfolio-download-logs".
  */
 export interface PortfolioDownloadLog {
-  id: number;
-  portfolio: number | Portfolio;
-  clientSession?: (number | null) | PortfolioClientSession;
+  id: string;
+  portfolio: string | Portfolio;
+  clientSession?: (string | null) | PortfolioClientSession;
   clientName?: string | null;
   downloadedItems?:
     | {
-        media?: (number | null) | Media;
+        media?: (string | null) | Media;
         id?: string | null;
       }[]
     | null;
@@ -1595,9 +1595,9 @@ export interface PortfolioDownloadLog {
  * via the `definition` "smart-collections".
  */
 export interface SmartCollection {
-  id: number;
+  id: string;
   name: string;
-  owner: number | User;
+  owner: string | User;
   /**
    * The Payload query object that defines this smart view.
    */
@@ -1628,15 +1628,15 @@ export interface SmartCollection {
   /**
    * Explicit cover image override. Falls back to 4-asset mosaic.
    */
-  coverAsset?: (number | null) | Media;
+  coverAsset?: (string | null) | Media;
   /**
    * Assets always included regardless of filterQuery. Cap: 500.
    */
-  manualIncludes?: (number | Media)[] | null;
+  manualIncludes?: (string | Media)[] | null;
   /**
    * Assets always excluded regardless of filterQuery. Exclusions take priority over inclusions.
    */
-  manualExcludes?: (number | Media)[] | null;
+  manualExcludes?: (string | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1647,7 +1647,7 @@ export interface SmartCollection {
  * via the `definition` "waitlist".
  */
 export interface Waitlist {
-  id: number;
+  id: string;
   email: string;
   /**
    * Optional subscriber name.
@@ -1663,19 +1663,19 @@ export interface Waitlist {
  * via the `definition` "admin-activity-logs".
  */
 export interface AdminActivityLog {
-  id: number;
+  id: string;
   /**
    * The admin who performed the action.
    */
-  adminUser: number | User;
+  adminUser: string | User;
   /**
    * The creative account that was acted upon.
    */
-  targetUser?: (number | null) | User;
+  targetUser?: (string | null) | User;
   /**
    * If the action targeted a specific portfolio.
    */
-  targetPortfolio?: (number | null) | Portfolio;
+  targetPortfolio?: (string | null) | Portfolio;
   actionType:
     | 'inspect_account'
     | 'launch_diagnostic'
@@ -1704,7 +1704,7 @@ export interface AdminActivityLog {
   /**
    * Link to the diagnostic session this action belongs to, if any.
    */
-  diagnosticSession?: (number | null) | AdminDiagnosticSession;
+  diagnosticSession?: (string | null) | AdminDiagnosticSession;
   /**
    * Client IP address at time of action.
    */
@@ -1723,15 +1723,15 @@ export interface AdminActivityLog {
  * via the `definition` "admin-diagnostic-sessions".
  */
 export interface AdminDiagnosticSession {
-  id: number;
+  id: string;
   /**
    * The admin who launched this session.
    */
-  admin: number | User;
+  admin: string | User;
   /**
    * The creative account being inspected.
    */
-  targetCreative: number | User;
+  targetCreative: string | User;
   /**
    * SHA-256 hash of the raw session token. Token is never stored in plaintext.
    */
@@ -1751,7 +1751,7 @@ export interface AdminDiagnosticSession {
   /**
    * Admin who explicitly terminated the session.
    */
-  terminatedBy?: (number | null) | User;
+  terminatedBy?: (string | null) | User;
   /**
    * IP address when session was created.
    */
@@ -1770,12 +1770,12 @@ export interface AdminDiagnosticSession {
  * via the `definition` "transfers".
  */
 export interface Transfer {
-  id: number;
+  id: string;
   /**
    * Unique public identifier for link generation.
    */
   shareHash: string;
-  sender: number | User;
+  sender: string | User;
   /**
    * Original name of the uploaded deliverable.
    */
@@ -1826,7 +1826,7 @@ export interface Transfer {
  * via the `definition` "transfer-wallpapers".
  */
 export interface TransferWallpaper {
-  id: number;
+  id: string;
   prefix?: string | null;
   /**
    * Artwork or campaign display title.
@@ -1893,8 +1893,8 @@ export interface TransferWallpaper {
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
-  id: number;
-  form: number | Form;
+  id: string;
+  form: string | Form;
   submissionData?:
     | {
         field: string;
@@ -1910,7 +1910,7 @@ export interface FormSubmission {
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: number;
+  id: string;
   key: string;
   data:
     | {
@@ -1927,104 +1927,104 @@ export interface PayloadKv {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: number;
+  id: string;
   document?:
     | ({
         relationTo: 'users';
-        value: number | User;
+        value: string | User;
       } | null)
     | ({
         relationTo: 'pages';
-        value: number | Page;
+        value: string | Page;
       } | null)
     | ({
         relationTo: 'categories';
-        value: number | Category;
+        value: string | Category;
       } | null)
     | ({
         relationTo: 'articles';
-        value: number | Article;
+        value: string | Article;
       } | null)
     | ({
         relationTo: 'downloads';
-        value: number | Download;
+        value: string | Download;
       } | null)
     | ({
         relationTo: 'tutorials';
-        value: number | Tutorial;
+        value: string | Tutorial;
       } | null)
     | ({
         relationTo: 'media';
-        value: number | Media;
+        value: string | Media;
       } | null)
     | ({
         relationTo: 'portfolios';
-        value: number | Portfolio;
+        value: string | Portfolio;
       } | null)
     | ({
         relationTo: 'portfolio-client-sessions';
-        value: number | PortfolioClientSession;
+        value: string | PortfolioClientSession;
       } | null)
     | ({
         relationTo: 'portfolio-client-reviews';
-        value: number | PortfolioClientReview;
+        value: string | PortfolioClientReview;
       } | null)
     | ({
         relationTo: 'portfolio-asset-comments';
-        value: number | PortfolioAssetComment;
+        value: string | PortfolioAssetComment;
       } | null)
     | ({
         relationTo: 'portfolio-download-logs';
-        value: number | PortfolioDownloadLog;
+        value: string | PortfolioDownloadLog;
       } | null)
     | ({
         relationTo: 'smart-collections';
-        value: number | SmartCollection;
+        value: string | SmartCollection;
       } | null)
     | ({
         relationTo: 'sessions';
-        value: number | Session;
+        value: string | Session;
       } | null)
     | ({
         relationTo: 'upload-batches';
-        value: number | UploadBatch;
+        value: string | UploadBatch;
       } | null)
     | ({
         relationTo: 'waitlist';
-        value: number | Waitlist;
+        value: string | Waitlist;
       } | null)
     | ({
         relationTo: 'admin-activity-logs';
-        value: number | AdminActivityLog;
+        value: string | AdminActivityLog;
       } | null)
     | ({
         relationTo: 'admin-diagnostic-sessions';
-        value: number | AdminDiagnosticSession;
+        value: string | AdminDiagnosticSession;
       } | null)
     | ({
         relationTo: 'transfers';
-        value: number | Transfer;
+        value: string | Transfer;
       } | null)
     | ({
         relationTo: 'transfer-wallpapers';
-        value: number | TransferWallpaper;
+        value: string | TransferWallpaper;
       } | null)
     | ({
         relationTo: 'forms';
-        value: number | Form;
+        value: string | Form;
       } | null)
     | ({
         relationTo: 'form-submissions';
-        value: number | FormSubmission;
+        value: string | FormSubmission;
       } | null)
     | ({
         relationTo: 'payload-folders';
-        value: number | FolderInterface;
+        value: string | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: number | User;
+    value: string | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -2034,10 +2034,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: number;
+  id: string;
   user: {
     relationTo: 'users';
-    value: number | User;
+    value: string | User;
   };
   key?: string | null;
   value?:
@@ -2057,7 +2057,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: number;
+  id: string;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -3143,7 +3143,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  * via the `definition` "header".
  */
 export interface Header {
-  id: number;
+  id: string;
   navItems?:
     | {
         /**
@@ -3156,7 +3156,7 @@ export interface Header {
           newTab?: boolean | null;
           reference?: {
             relationTo: 'pages';
-            value: number | Page;
+            value: string | Page;
           } | null;
           url?: string | null;
           label: string;
@@ -3183,7 +3183,7 @@ export interface Header {
  * via the `definition` "footer".
  */
 export interface Footer {
-  id: number;
+  id: string;
   navItems?:
     | {
         link: {
@@ -3191,7 +3191,7 @@ export interface Footer {
           newTab?: boolean | null;
           reference?: {
             relationTo: 'pages';
-            value: number | Page;
+            value: string | Page;
           } | null;
           url?: string | null;
           label: string;
@@ -3207,7 +3207,7 @@ export interface Footer {
  * via the `definition` "pricing".
  */
 export interface Pricing {
-  id: number;
+  id: string;
   plans: {
     name: string;
     /**
@@ -3247,7 +3247,7 @@ export interface Pricing {
     | null;
   partnerLogos?:
     | {
-        logo?: (number | null) | Media;
+        logo?: (string | null) | Media;
         id?: string | null;
       }[]
     | null;
@@ -3265,7 +3265,7 @@ export interface Pricing {
   /**
    * Social sharing image (OpenGraph).
    */
-  metaImage?: (number | null) | Media;
+  metaImage?: (string | null) | Media;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
