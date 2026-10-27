@@ -58,7 +58,7 @@ interface RefinementFormData {
   aperture: number | string
   shutterSpeed: string
   focalLength: number | string
-  sessionId?: number
+  sessionId?: string
 }
 
 interface MetadataPanelProps {
@@ -181,7 +181,7 @@ const PanelContent: React.FC<{
   reset: ReturnType<typeof useForm<RefinementFormData>>['reset']
   watch: ReturnType<typeof useForm<RefinementFormData>>['watch']
   setValue: ReturnType<typeof useForm<RefinementFormData>>['setValue']
-  onSave: (data: RefinementFormData, sessionId?: number) => void
+  onSave: (data: RefinementFormData, sessionId?: string) => void
 }> = ({
   media,
   mediaId,
@@ -197,10 +197,10 @@ const PanelContent: React.FC<{
 }) => {
   const currentTags = watch('tags') || []
   const [sessionOptions, setSessionOptions] = useState<ComboboxOption[]>([])
-  const [sessionId, setSessionId] = useState<number | undefined>(
+  const [sessionId, setSessionId] = useState<string | undefined>(
     typeof media.session === 'object' && media.session !== null
-      ? (media.session as { id: number }).id
-      : typeof media.session === 'number'
+      ? (media.session as { id: string }).id
+      : typeof media.session === 'string'
         ? media.session
         : undefined,
   )
@@ -318,7 +318,7 @@ const PanelContent: React.FC<{
                       } catch { /* non-fatal */ }
                     } else {
                       const opt = sessionOptions.find((o) => o.value === value)
-                      setSessionId(Number(value))
+                      setSessionId(value)
                       setSessionName(opt?.label ?? '')
                     }
                   }}
@@ -742,7 +742,7 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({ media, isDesktop }
     setIsEditing(false)
   }, [media.id, reset]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onSave = async (data: RefinementFormData, sessionId?: number) => {
+  const onSave = async (data: RefinementFormData, sessionId?: string) => {
     setIsSaving(true)
     try {
       const result = await updateMediaAction(media.id, {

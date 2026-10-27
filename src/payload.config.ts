@@ -36,6 +36,7 @@ import { Sessions } from '@/collections/Sessions'
 import { UploadBatches } from '@/collections/UploadBatches'
 import { Waitlist } from '@/collections/Waitlist'
 import { Transfers } from '@/collections/Transfers'
+import { TransferWallpapers } from '@/collections/TransferWallpapers'
 
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -109,9 +110,11 @@ export default buildConfig({
     AdminActivityLogs,
     AdminDiagnosticSessions,
     Transfers,
+    TransferWallpapers,
   ],
   db: postgresAdapter({
     push: false,
+    idType: 'uuid',
     pool: {
       connectionString: process.env.DATABASE_URI || '',
       max: process.env.DATABASE_URI?.includes('neon.tech') ? 4 : 10,

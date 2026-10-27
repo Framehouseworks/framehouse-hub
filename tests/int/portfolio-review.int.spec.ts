@@ -3,9 +3,9 @@ import { describe, it, beforeAll, expect } from 'vitest'
 import { getTestPayload } from '../helpers/payload'
 
 let payload: Payload
-let portfolioId: number
-let ownerId: number
-let mediaId: number
+let portfolioId: string
+let ownerId: string
+let mediaId: string
 
 describe('Portfolio Review Portal', () => {
   beforeAll(async () => {
@@ -127,7 +127,7 @@ describe('Portfolio Review Portal', () => {
   })
 
   describe('PortfolioClientReviews collection', () => {
-    let sessionId: number
+    let sessionId: string
 
     beforeAll(async () => {
       const session = await payload.create({

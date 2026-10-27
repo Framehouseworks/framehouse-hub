@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import { SessionEditPanel, type SessionEditData } from './SessionEditPanel'
 
 export interface SessionCardData {
-  id: number
+  id: string
   name: string
   shootDate?: string | null
   description?: string | null

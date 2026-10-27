@@ -21,7 +21,7 @@ type CollectionCandidate = {
 
 async function deduplicateName(
   payload: Payload,
-  userId: number | string,
+  userId: string,
   name: string,
   queryHash: string,
 ): Promise<string | null> {
@@ -48,7 +48,7 @@ async function deduplicateName(
 
 export async function generateSmartCollections(
   payload: Payload,
-  userId: number | string,
+  userId: string,
 ): Promise<void> {
   // Pull distinct metadata values from user's media
   const { docs: allMedia } = await payload.find({
@@ -230,7 +230,7 @@ export async function generateSmartCollections(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {
       name: resolvedName,
-      owner: userId as number,
+      owner: userId,
       filterQuery: candidate.filterQuery,
       isSystemGenerated: true,
       isHidden: false,

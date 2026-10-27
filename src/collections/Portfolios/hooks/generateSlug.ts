@@ -36,15 +36,14 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
         if (plainTitle && owner) {
 
             // Get user identifier
-            const rawUserId = typeof owner === 'object' && owner !== null ? ((owner as Record<string, unknown>).id || (owner as Record<string, unknown>)._id) : owner
-            const userId = typeof rawUserId === 'string' ? parseInt(rawUserId, 10) : rawUserId
+            const userId = typeof owner === 'object' && owner !== null ? ((owner as Record<string, unknown>).id || (owner as Record<string, unknown>)._id) : owner
 
-            if (!userId || isNaN(userId as number)) return data
+            if (!userId) return data
 
             try {
                 const user = await req.payload.findByID({
                     collection: 'users',
-                    id: userId as number | string,
+                    id: String(userId),
                 })
 
                 if (user && (user.name || user.email)) {
@@ -58,9 +57,8 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
                     const baseSlug = slugTitle ? `${identifier}-${slugTitle}` : identifier
                     let newSlug = baseSlug
 
-                    // Determine current document ID and cast to number (Postgres)
-                    const rawDocId = originalDoc?.id || data?.id
-                    const currentId = typeof rawDocId === 'string' ? parseInt(rawDocId, 10) : rawDocId
+                    // Determine current document ID
+                    const currentId = originalDoc?.id || data?.id
 
                     let isUnique = false
                     let count = 0
@@ -71,7 +69,7 @@ export const generateSlug: CollectionBeforeChangeHook = async ({ data, req, oper
                             },
                         }
 
-                        if (currentId && !isNaN(currentId as number)) {
+                        if (currentId) {
                             whereClause.id = {
                                 not_equals: currentId,
                             }

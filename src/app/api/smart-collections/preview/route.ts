@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { filterQuery, manualExcludes } = body as {
       filterQuery: Record<string, unknown>
-      manualExcludes?: (number | string)[]
+      manualExcludes?: string[]
     }
 
     if (!filterQuery || typeof filterQuery !== 'object') {

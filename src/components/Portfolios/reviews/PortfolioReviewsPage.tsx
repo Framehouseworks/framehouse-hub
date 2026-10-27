@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import type { PortfolioClientReview, Media } from '@/payload-types'
 
 interface Props {
-  portfolioId: number
+  portfolioId: string
   portfolioName: string
   initialReviews: PortfolioClientReview[]
   totalDocs: number
@@ -27,9 +27,9 @@ function formatDate(dateStr: string): string {
 
 export function PortfolioReviewsPage({ portfolioId, portfolioName, initialReviews, totalDocs }: Props) {
   const [reviews, setReviews] = useState<PortfolioClientReview[]>(initialReviews)
-  const [acknowledging, setAcknowledging] = useState<number | null>(null)
+  const [acknowledging, setAcknowledging] = useState<string | null>(null)
 
-  async function handleAcknowledge(reviewId: number) {
+  async function handleAcknowledge(reviewId: string) {
     setAcknowledging(reviewId)
     try {
       const res = await fetch(`/api/dashboard/reviews/${reviewId}/acknowledge`, { method: 'PATCH' })

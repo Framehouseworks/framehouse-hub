@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
 export interface SessionEditData {
-  id: number
+  id: string
   name: string
   shootDate?: string | null
   description?: string | null

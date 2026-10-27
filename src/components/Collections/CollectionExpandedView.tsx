@@ -80,16 +80,16 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 export interface CollectionExpandedViewProps {
-  collectionId: number
+  collectionId: string
   collectionName: string
   collectionIcon?: string
   isSystemGenerated?: boolean
   description?: string
   updatedAt?: string
   filterQuery: Record<string, unknown>
-  manualIncludeIds: number[]
+  manualIncludeIds: string[]
   manualIncludeDocs: Media[]
-  manualExcludeIds: number[]
+  manualExcludeIds: string[]
   hasFilterQuery: boolean
   initialMedia: Media[]
   initialTotalCount: number
@@ -277,7 +277,7 @@ export function CollectionExpandedView({
     router.refresh()
   }
 
-  const handleAddToCollection = async (pickedIds: number[]) => {
+  const handleAddToCollection = async (pickedIds: string[]) => {
     if (!pickedIds.length) return
     const merged = Array.from(new Set([...manualIncludeIds, ...pickedIds]))
     const res = await fetch(`/api/smart-collections/${collectionId}`, {
@@ -294,7 +294,7 @@ export function CollectionExpandedView({
   // Optimistic: remove items immediately, rollback if API fails
   const handleRemoveFromCollection = async () => {
     if (!selectedIds.size) return
-    const toExclude = Array.from(selectedIds).map(Number)
+    const toExclude = Array.from(selectedIds)
     const excludeSet = new Set(toExclude)
 
     // Snapshot for rollback
@@ -302,8 +302,8 @@ export function CollectionExpandedView({
     const prevManual = manualDocs
 
     // Optimistic update — remove from both lists immediately
-    setAutoMedia((prev) => prev.filter((m) => !excludeSet.has(m.id as number)))
-    setManualDocs((prev) => prev.filter((m) => !excludeSet.has(m.id as number)))
+    setAutoMedia((prev) => prev.filter((m) => !excludeSet.has(m.id as string)))
+    setManualDocs((prev) => prev.filter((m) => !excludeSet.has(m.id as string)))
     setTotalAutoCount((prev) => Math.max(0, prev - toExclude.filter((id) => autoMedia.some((m) => m.id === id)).length))
     clearSelection()
 
@@ -936,7 +936,7 @@ export function CollectionExpandedView({
       <BulkAddToCollectionModal
         open={isBulkCollectionOpen}
         onOpenChange={setIsBulkCollectionOpen}
-        mediaIds={Array.from(selectedIds) as number[]}
+        mediaIds={Array.from(selectedIds)}
         onSuccess={async () => { clearSelection(); await revalidateCollections(); router.refresh() }}
       />
 

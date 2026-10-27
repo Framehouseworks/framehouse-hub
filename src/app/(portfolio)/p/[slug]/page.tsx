@@ -39,25 +39,25 @@ type Props = {
 }
 
 // Extract portfolio ID from token without validating HMAC (used to unlock access-control bypass)
-function getPortfolioIdFromToken(token: string): number | null {
+function getPortfolioIdFromToken(token: string): string | null {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8')
     const parts = decoded.split(':')
     if (parts.length !== 3) return null
-    const id = Number(parts[0])
-    return isNaN(id) ? null : id
+    const id = parts[0]
+    return id || null
   } catch {
     return null
   }
 }
 
-function validatePreviewToken(token: string, portfolioId: number): boolean {
+function validatePreviewToken(token: string, portfolioId: string): boolean {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8')
     const parts = decoded.split(':')
     if (parts.length !== 3) return false
     const [idStr, expiresAtStr, hmac] = parts
-    if (Number(idStr) !== portfolioId) return false
+    if (idStr !== portfolioId) return false
     if (Date.now() > Number(expiresAtStr)) return false
     const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
     const payload = `${idStr}:${expiresAtStr}`
@@ -71,13 +71,13 @@ function validatePreviewToken(token: string, portfolioId: number): boolean {
   }
 }
 
-function validateUnlockCookie(token: string, portfolioId: number): boolean {
+function validateUnlockCookie(token: string, portfolioId: string): boolean {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8')
     const parts = decoded.split(':')
     if (parts.length !== 3) return false
     const [idStr, expiresAtStr, hmac] = parts
-    if (Number(idStr) !== portfolioId) return false
+    if (idStr !== portfolioId) return false
     if (Date.now() > Number(expiresAtStr)) return false
     const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
     const payload = `${idStr}:${expiresAtStr}`

@@ -51,9 +51,9 @@ export interface UploadItem {
     tags?: string[]
     title?: string
     location?: { address?: string; latitude?: number; longitude?: number }
-    sessionId?: number
+    sessionId?: string
     shootName?: string
-    uploadBatchId?: number
+    uploadBatchId?: string
   }
 }
 
@@ -68,16 +68,16 @@ interface UploadContextType {
       tags?: string[]
       title?: string
       location?: { address?: string; latitude?: number; longitude?: number }
-      sessionId?: number
+      sessionId?: string
       shootName?: string
-      uploadBatchId?: number
+      uploadBatchId?: string
     },
   ) => void
   commitStagedFiles: (metadata?: {
     title?: string
     location?: { address?: string; latitude?: number; longitude?: number }
     tags?: string[]
-    sessionId?: number
+    sessionId?: string
     shootName?: string
   }) => void
   clearQueue: () => void
@@ -166,9 +166,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         title?: string
         location?: { address?: string; latitude?: number; longitude?: number }
         tags?: string[]
-        sessionId?: number
+        sessionId?: string
         shootName?: string
-        uploadBatchId?: number
+        uploadBatchId?: string
       },
     ) => {
       // Client-side size pre-flight. Mirrors the server's
@@ -219,7 +219,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       title?: string
       location?: { address?: string; latitude?: number; longitude?: number }
       tags?: string[]
-      sessionId?: number
+      sessionId?: string
       shootName?: string
     }) => {
       if (stagedFiles.length === 0) return
@@ -228,7 +228,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // session shares a single uploadBatchId. Best-effort — if the
       // create fails we still proceed with the upload; the batch is
       // grouping metadata, not a correctness gate.
-      let uploadBatchId: number | undefined
+      let uploadBatchId: string | undefined
       try {
         const res = await fetch('/api/upload-batches', {
           method: 'POST',

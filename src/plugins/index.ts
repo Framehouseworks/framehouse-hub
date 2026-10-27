@@ -64,13 +64,24 @@ export const plugins: Plugin[] = [
         gcsStorage({
           collections: {
             media: true,
+            'transfer-wallpapers': {
+              prefix: 'wallpapers',
+            },
           },
           bucket: process.env.GCS_BUCKET,
           options: {
             projectId: process.env.GCS_PROJECT_ID,
-            credentials: process.env.GCS_CREDENTIALS
-              ? JSON.parse(process.env.GCS_CREDENTIALS)
-              : undefined,
+            credentials: (() => {
+              const rawKey = process.env.GCS_CREDENTIALS || process.env.GCP_SERVICE_ACCOUNT_KEY
+              if (rawKey) {
+                try {
+                  return JSON.parse(rawKey)
+                } catch {
+                  return undefined
+                }
+              }
+              return undefined
+            })(),
           },
         }),
       ]

@@ -116,7 +116,7 @@ test.describe('Media lifecycle (e2e)', () => {
             { cache: 'no-store' },
           )
           if (res.ok) {
-            const data = (await res.json()) as { docs?: { id: number; storagePath: string }[] }
+            const data = (await res.json()) as { docs?: { id: string; storagePath: string }[] }
             if (data.docs?.[0]?.storagePath) return data.docs[0]
           }
           await new Promise((r) => setTimeout(r, 500))
@@ -134,7 +134,7 @@ test.describe('Media lifecycle (e2e)', () => {
       // (We avoid asserting on the overlay's 'Archival Complete' header —
       // it requires every queue item to be done, and stale processing
       // docs from earlier failed runs hydrate into the queue.)
-      await page.evaluate(async (mediaId: number) => {
+      await page.evaluate(async (mediaId: string) => {
         for (let i = 0; i < 30; i++) {
           const res = await fetch(`/api/media/${mediaId}`, { cache: 'no-store' })
           if (res.ok) {
@@ -171,7 +171,7 @@ test.describe('Media lifecycle (e2e)', () => {
       // schedules a re-render — the gallery DOM keeps the stale card
       // until the client refetches. Reload forces the new server-rendered
       // state, so the assertion isn't racing the revalidation.
-      await page.evaluate(async (mediaId: number) => {
+      await page.evaluate(async (mediaId: string) => {
         for (let i = 0; i < 30; i++) {
           const res = await fetch(`/api/media/${mediaId}`, { cache: 'no-store' })
           if (res.status === 404) return

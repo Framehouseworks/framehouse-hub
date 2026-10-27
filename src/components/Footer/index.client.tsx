@@ -55,10 +55,10 @@ export function FooterClient({ footer }: Props) {
             {/* Column 4: Final CTA / Newsletter */}
             <div className="flex flex-col gap-6">
               <span className="font-rubik text-[10px] tracking-[0.2em] uppercase text-neutral-400">
-                Discovery Signal
+                Stay Connected
               </span>
               <div className="flex flex-col gap-4">
-                <h4 className="text-lg font-medium">Join the Curated List</h4>
+                <h4 className="text-lg font-medium">Grow with us</h4>
                 <p className="text-sm text-neutral-500">Weekly insights into asset management & design excellence.</p>
                 <div className="relative group mt-2">
                   <input

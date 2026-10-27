@@ -84,7 +84,7 @@ export function VideoThumbnailControls({ value, onChange, proxyVideoUrl, thumbna
       }
 
       const doc = await res.json()
-      onChange({ ...value, mode: 'custom', customMedia: doc.id as number })
+      onChange({ ...value, mode: 'custom', customMedia: doc.id as string })
       toast.success('Custom thumbnail uploaded')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Upload failed')
@@ -96,7 +96,7 @@ export function VideoThumbnailControls({ value, onChange, proxyVideoUrl, thumbna
 
   const customThumbnailId =
     value.customMedia && typeof value.customMedia === 'object'
-      ? (value.customMedia as { id: number }).id
+      ? (value.customMedia as { id: string }).id
       : value.customMedia
 
   return (

@@ -44,8 +44,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-public/media
+public/media/*
 !public/media/.gitkeep
+public/wallpapers/*
+!public/wallpapers/.gitkeep
 
 # compiled binaries
 scripts/worker/worker

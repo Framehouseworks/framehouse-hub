@@ -12,7 +12,7 @@ type SmartCollectionV2 = SmartCollection & {
   isHidden?: boolean
   sortOrder?: number
   generatedFrom?: string
-  coverAsset?: number | Media | null
+  coverAsset?: string | Media | null
 }
 
 async function enrichCollections(

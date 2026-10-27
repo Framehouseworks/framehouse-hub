@@ -11,7 +11,7 @@ import type { WizardState, ClientReviewSettings } from '../types'
 interface Props {
   state: WizardState
   onChange: (patch: Partial<WizardState>) => void
-  portfolioId: number | null
+  portfolioId: string | null
   slug: string
   onPublish: () => void
   onSaveDraft: () => void

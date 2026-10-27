@@ -56,24 +56,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 
   const body = await req.json().catch(() => null)
-  const selections: Array<{ mediaId: number; instanceId?: string }> = Array.isArray(body?.selections)
+  const selections: Array<{ mediaId: string; instanceId?: string }> = Array.isArray(body?.selections)
     ? body.selections
     : []
 
   // Build set of all valid mediaIds currently in this portfolio
-  const validMediaIds = new Set<number>()
+  const validMediaIds = new Set<string>()
   for (const block of portfolio.layoutBlocks ?? []) {
     if (block.blockType !== 'grid') continue
     for (const item of block.items ?? []) {
       if (item.media && typeof item.media === 'object') {
-        validMediaIds.add((item.media as { id: number }).id)
+        validMediaIds.add((item.media as { id: string }).id)
       }
     }
   }
 
   // Filter out any IDs not in the portfolio
   const valid = selections
-    .filter((s) => typeof s.mediaId === 'number' && validMediaIds.has(s.mediaId))
+    .filter((s) => typeof s.mediaId === 'string' && validMediaIds.has(s.mediaId))
     .slice(0, 200) // hard cap
 
   await payload.update({

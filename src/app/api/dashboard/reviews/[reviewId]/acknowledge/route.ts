@@ -9,8 +9,7 @@ type Params = { params: Promise<{ reviewId: string }> }
  *  Marks a client review as acknowledged. Only portfolio owner or admin can do this. */
 export async function PATCH(_req: NextRequest, { params }: Params) {
   const { reviewId } = await params
-  const reviewIdNum = Number(reviewId)
-  if (isNaN(reviewIdNum)) {
+  if (!reviewId) {
     return NextResponse.json({ error: 'INVALID_ID' }, { status: 400 })
   }
 
@@ -25,7 +24,7 @@ export async function PATCH(_req: NextRequest, { params }: Params) {
   // Verify the review exists and is accessible to this user
   const { docs } = await payload.find({
     collection: 'portfolio-client-reviews',
-    where: { id: { equals: reviewIdNum } },
+    where: { id: { equals: reviewId } },
     depth: 1,
     limit: 1,
     overrideAccess: true,
@@ -44,7 +43,7 @@ export async function PATCH(_req: NextRequest, { params }: Params) {
       ? (portfolio as unknown as Record<string, unknown>).owner
       : null
   const ownerId = typeof portfolioOwner === 'object' && portfolioOwner !== null
-    ? (portfolioOwner as { id: number }).id
+    ? (portfolioOwner as { id: string }).id
     : portfolioOwner
 
   if (!isAdmin && ownerId !== user.id) {
@@ -53,7 +52,7 @@ export async function PATCH(_req: NextRequest, { params }: Params) {
 
   await payload.update({
     collection: 'portfolio-client-reviews',
-    id: reviewIdNum,
+    id: reviewId,
     data: {
       status: 'acknowledged',
       acknowledgedAt: new Date().toISOString(),

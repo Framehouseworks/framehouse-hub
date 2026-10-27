@@ -14,7 +14,7 @@ type GridItem = NonNullable<
   videoThumbnail?: {
     mode?: ('auto' | 'timecode' | 'custom') | null
     timecodeSeconds?: number | null
-    customMedia?: (number | null) | MediaType
+    customMedia?: (string | null) | MediaType
   } | null
 }
 

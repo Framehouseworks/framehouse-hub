@@ -35,7 +35,14 @@ function PasswordStrength({ password }: { password: string }) {
 
   return (
     <div className="space-y-1.5 mt-2">
-      <div className="flex gap-1" role="meter" aria-label={`Password strength: ${label}`}>
+      <div
+        className="flex gap-1"
+        role="meter"
+        aria-valuenow={score}
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-label={`Password strength: ${label}`}
+      >
         {segments.map((color, i) => (
           <div key={i} className={cn('flex-1 h-1 rounded-full transition-colors duration-300', color)} />
         ))}

@@ -50,7 +50,7 @@ describe('Sessions collection (integration)', () => {
       expect(session.id).toBeDefined()
       expect(session.name).toBe('Golden Hour Rooftop')
       const ownerId =
-        typeof session.owner === 'object' ? (session.owner as { id: number }).id : session.owner
+        typeof session.owner === 'object' ? (session.owner as { id: string }).id : session.owner
       expect(ownerId).toBe(owner.id)
     })
 

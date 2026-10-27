@@ -28,10 +28,10 @@ import { MediaCard } from './MediaCard'
  *  - Selection toolbar includes Remove from Collection action
  */
 export interface CollectionContext {
-  id: number
+  id: string
   name: string
   isSystemGenerated?: boolean
-  manualIncludeIds: number[]
+  manualIncludeIds: string[]
   manualIncludeDocs?: Media[]
   hasFilterQuery?: boolean
   autoMatchedCount?: number
@@ -211,7 +211,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   }
 
   // Collection context: pin selected assets
-  const handleAddToCollection = async (pickedIds: number[]) => {
+  const handleAddToCollection = async (pickedIds: string[]) => {
     if (!collectionContext || pickedIds.length === 0) return
     const merged = Array.from(new Set([...collectionContext.manualIncludeIds, ...pickedIds]))
     const res = await fetch(`/api/smart-collections/${collectionContext.id}`, {
@@ -227,7 +227,7 @@ export const MediaGrid: React.FC<MediaGridProps> = ({ initialMedia, initialFilte
   // Collection context: exclude selected assets
   const handleRemoveFromCollection = async () => {
     if (!collectionContext || selectedIds.size === 0) return
-    const toExclude = Array.from(selectedIds).map(Number)
+    const toExclude = Array.from(selectedIds).map(String)
     const res = await fetch(`/api/smart-collections/${collectionContext.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

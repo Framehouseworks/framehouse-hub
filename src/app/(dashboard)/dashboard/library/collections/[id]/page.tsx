@@ -13,9 +13,9 @@ type SmartCollectionV2 = SmartCollection & {
   isHidden?: boolean
   sortOrder?: number
   generatedFrom?: string
-  coverAsset?: number | Media | null
-  manualIncludes?: (number | Media)[]
-  manualExcludes?: (number | Media)[]
+  coverAsset?: string | Media | null
+  manualIncludes?: (string | Media)[]
+  manualExcludes?: (string | Media)[]
   description?: string
 }
 
@@ -36,7 +36,7 @@ export default async function CollectionDetailPage({
   try {
     collection = (await payload.findByID({
       collection: 'smart-collections',
-      id: Number(id),
+      id,
       depth: 1,
     })) as unknown as SmartCollectionV2
   } catch {
@@ -45,22 +45,22 @@ export default async function CollectionDetailPage({
 
   const ownerId =
     typeof collection.owner === 'object'
-      ? (collection.owner as { id: number }).id
+      ? (collection.owner as { id: string }).id
       : collection.owner
   if (!collection || ownerId !== user.id) notFound()
 
   const filterQuery = (collection.filterQuery as Record<string, unknown>) || {}
   const hasFilterQuery = Object.keys(filterQuery).length > 0
 
-  const manualExcludeIds = ((collection.manualExcludes || []) as (Media | number)[])
+  const manualExcludeIds = ((collection.manualExcludes || []) as (Media | string)[])
     .map((m) => (typeof m === 'object' ? m.id : m))
-    .filter(Boolean) as number[]
+    .filter(Boolean) as string[]
 
-  const manualIncludeIds = ((collection.manualIncludes || []) as (Media | number)[])
+  const manualIncludeIds = ((collection.manualIncludes || []) as (Media | string)[])
     .map((m) => (typeof m === 'object' ? m.id : m))
-    .filter(Boolean) as number[]
+    .filter(Boolean) as string[]
 
-  const manualIncludeDocs = ((collection.manualIncludes || []) as (Media | number)[])
+  const manualIncludeDocs = ((collection.manualIncludes || []) as (Media | string)[])
     .map((m) => (typeof m === 'object' ? m : null))
     .filter(Boolean) as Media[]
 

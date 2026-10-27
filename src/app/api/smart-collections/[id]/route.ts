@@ -11,7 +11,7 @@ import { headers as getHeaders } from 'next/headers'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-async function getAuthedOwner(id: number) {
+async function getAuthedOwner(id: string) {
   const headers = await getHeaders()
   const payload = await getPayload({ config: configPromise })
   const { user } = await payload.auth({ headers })
@@ -25,7 +25,7 @@ async function getAuthedOwner(id: number) {
 
   const ownerId =
     typeof collection.owner === 'object'
-      ? (collection.owner as { id: number }).id
+      ? (collection.owner as { id: string }).id
       : collection.owner
 
   if (ownerId !== user.id) return { payload, user, collection: null }
@@ -37,8 +37,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const { id } = await params
     const { payload, collection } = await getAuthedOwner(id)
     if (!collection) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -60,8 +59,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const { id } = await params
     const { payload, collection } = await getAuthedOwner(id)
     if (!collection) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -84,8 +82,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id: idStr } = await params
-    const id = Number(idStr)
+    const { id } = await params
     const { payload, collection } = await getAuthedOwner(id)
     if (!collection) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

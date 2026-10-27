@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 interface CollectionRuleEditorProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  collectionId?: number
+  collectionId?: string
   collectionName?: string
   initialRules?: RuleData[]
   initialLogic?: 'and' | 'or'

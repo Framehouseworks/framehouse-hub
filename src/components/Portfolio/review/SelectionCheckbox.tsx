@@ -6,7 +6,7 @@ import { cn } from '@/utilities/cn'
 import { useReviewMode } from './ReviewModeProvider'
 
 interface SelectionCheckboxProps {
-  mediaId: number
+  mediaId: string
   instanceId: string
   itemTitle: string
   alwaysVisible?: boolean
