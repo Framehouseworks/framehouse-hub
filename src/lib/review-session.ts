@@ -7,7 +7,7 @@ import type { PortfolioClientSession } from '@/payload-types'
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const COOKIE_PREFIX = 'fh_review_'
 
-export function getSessionCookieName(portfolioId: number): string {
+export function getSessionCookieName(portfolioId: string): string {
   return `${COOKIE_PREFIX}${portfolioId}`
 }
 
@@ -16,7 +16,7 @@ export function generateSessionToken(): string {
 }
 
 /** Sign a session token with HMAC for tamper-proof cookies */
-export function signSessionCookie(sessionToken: string, portfolioId: number): string {
+export function signSessionCookie(sessionToken: string, portfolioId: string): string {
   const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
   const payload = `${sessionToken}:${portfolioId}`
   const hmac = createHmac('sha256', secret).update(payload).digest('hex')
@@ -26,14 +26,14 @@ export function signSessionCookie(sessionToken: string, portfolioId: number): st
 /** Validate the signed session cookie and extract the session token */
 export function validateSessionCookie(
   cookieValue: string,
-  portfolioId: number,
+  portfolioId: string,
 ): string | null {
   try {
     const decoded = Buffer.from(cookieValue, 'base64url').toString('utf-8')
     const parts = decoded.split(':')
     if (parts.length !== 3) return null
     const [token, pid, hmac] = parts
-    if (Number(pid) !== portfolioId) return null
+    if (pid !== portfolioId) return null
     const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
     const expected = createHmac('sha256', secret).update(`${token}:${pid}`).digest('hex')
     if (hmac.length !== expected.length) return null
@@ -73,7 +73,7 @@ export function buildSessionCookie(
  *  Returns null if no valid session exists. */
 export async function resolveSession(
   req: NextRequest,
-  portfolioId: number,
+  portfolioId: string,
 ): Promise<PortfolioClientSession | null> {
   const cookieValue = req.cookies.get(getSessionCookieName(portfolioId))?.value
   if (!cookieValue) return null
@@ -106,7 +106,7 @@ export async function resolveSession(
 
 /** Create a new session and return the cookie value to set */
 export async function createSession(
-  portfolioId: number,
+  portfolioId: string,
   ip: string | null,
   userAgent: string | null,
 ): Promise<{ session: PortfolioClientSession; cookieValue: string }> {
@@ -132,7 +132,7 @@ export async function createSession(
 }
 
 /** Extend a session's TTL by 7 days from now */
-export async function refreshSession(sessionId: number): Promise<void> {
+export async function refreshSession(sessionId: string): Promise<void> {
   const payload = await getPayload({ config: configPromise })
   await payload.update({
     collection: 'portfolio-client-sessions',

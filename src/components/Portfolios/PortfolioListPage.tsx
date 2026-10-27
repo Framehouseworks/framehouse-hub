@@ -124,8 +124,8 @@ const VISIBILITY_LABELS: Record<string, { label: string; cls: string }> = {
 interface PortfolioCardProps {
   portfolio: Portfolio
   isDraft: boolean
-  onDelete: (id: number) => void
-  onDuplicate: (id: number) => void
+  onDelete: (id: string) => void
+  onDuplicate: (id: string) => void
 }
 
 function PortfolioCard({ portfolio, isDraft, onDelete, onDuplicate }: PortfolioCardProps) {
@@ -308,7 +308,7 @@ export function PortfolioListPage({ initialPortfolios = [] }: PortfolioListPageP
     return status === 'draft'
   })
 
-  async function handleDuplicate(id: number) {
+  async function handleDuplicate(id: string) {
     const result = await duplicatePortfolioAction(id)
     if (result.success && result.data) {
       toast.success('Portfolio duplicated')

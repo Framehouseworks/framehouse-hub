@@ -9,15 +9,15 @@ import { cn } from '@/utilities/cn'
 import { useRouter } from 'next/navigation'
 
 interface ManualCollection {
-  id: number
+  id: string
   name: string
-  existingIncludes: number[]
+  existingIncludes: string[]
 }
 
 interface BulkAddToCollectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  mediaIds: number[]
+  mediaIds: (string | number)[]
   onSuccess?: () => void
 }
 
@@ -29,7 +29,7 @@ export function BulkAddToCollectionModal({
 }: BulkAddToCollectionModalProps) {
   const router = useRouter()
   const [collections, setCollections] = useState<ManualCollection[]>([])
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -49,10 +49,10 @@ export function BulkAddToCollectionModal({
       .then((r) => r.json())
       .then((data) => {
         const docs: Array<{
-          id: number
+          id: string
           name: string
           generatedFrom?: string
-          manualIncludes?: Array<number | { id: number }>
+          manualIncludes?: Array<string | { id: string }>
         }> = data?.docs ?? []
         setCollections(
           docs
@@ -61,7 +61,7 @@ export function BulkAddToCollectionModal({
               id: c.id,
               name: c.name,
               existingIncludes: (c.manualIncludes ?? []).map((i) =>
-                typeof i === 'object' ? i.id : i,
+                typeof i === 'object' ? String(i.id) : String(i),
               ),
             })),
         )
@@ -78,7 +78,8 @@ export function BulkAddToCollectionModal({
         Array.from(selected).map(async (colId) => {
           const col = collections.find((c) => c.id === colId)
           if (!col) return
-          const merged = Array.from(new Set([...col.existingIncludes, ...mediaIds]))
+          const stringIds = mediaIds.map(String)
+          const merged = Array.from(new Set([...col.existingIncludes, ...stringIds]))
           await fetch(`/api/smart-collections/${colId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -193,7 +194,7 @@ export function BulkAddToCollectionModal({
           ) : (
             filtered.map((col) => {
               const isSelected = selected.has(col.id)
-              const alreadyAdded = mediaIds.every((id) => col.existingIncludes.includes(id))
+              const alreadyAdded = mediaIds.length > 0 && mediaIds.every((id) => col.existingIncludes.includes(String(id)))
               return (
                 <button
                   key={col.id}

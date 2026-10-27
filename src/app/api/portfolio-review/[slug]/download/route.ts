@@ -54,8 +54,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const body = await req.json().catch(() => null)
-  const requestedIds: number[] = Array.isArray(body?.selections)
-    ? body.selections.filter((s: unknown) => typeof s === 'number')
+  const requestedIds: string[] = Array.isArray(body?.selections)
+    ? body.selections.map((s: unknown) => String(s)).filter((s: string) => s.length > 0)
     : []
 
   if (requestedIds.length === 0) {
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // Build valid mediaId map from portfolio
-  const portfolioMediaMap = new Map<number, { media: Media; instanceTitle?: string | null }>()
+  const portfolioMediaMap = new Map<string, { media: Media; instanceTitle?: string | null }>()
   for (const block of portfolio.layoutBlocks ?? []) {
     if (block.blockType !== 'grid') continue
     for (const item of block.items ?? []) {

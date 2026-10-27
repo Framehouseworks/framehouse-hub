@@ -5,7 +5,7 @@ import { getActiveTransferWallpapers } from '@/lib/transfer-wallpapers'
 import { FALLBACK_TRANSFER_WALLPAPER } from '@/components/Transfers/TransferWallpaperCanvas/types'
 
 let payload: Payload
-let adminUserId: number
+let adminUserId: string
 
 describe('TransferWallpapers Service & Active Query (Phase 2 Integration)', () => {
   beforeAll(async () => {

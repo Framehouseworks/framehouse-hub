@@ -34,10 +34,10 @@ function buildFilterClauses(filters: CollectionFilters): Where[] {
 }
 
 export async function fetchCollectionMediaPage(
-  collectionId: number,
+  collectionId: string,
   page: number,
   baseFilterQuery: Record<string, unknown>,
-  manualExcludeIds: number[],
+  manualExcludeIds: string[],
   filters: CollectionFilters,
 ): Promise<{ docs: Media[]; hasNextPage: boolean; totalDocs: number }> {
   const h = await getHeaders()
@@ -81,9 +81,9 @@ export interface ChipData {
 
 /** Derives filter chip suggestions from a collection's first-page assets. */
 export async function extractCollectionChips(
-  collectionId: number,
+  collectionId: string,
   filterQuery: Record<string, unknown>,
-  manualExcludeIds: number[],
+  manualExcludeIds: string[],
 ): Promise<ChipData> {
   const h = await getHeaders()
   const payload = await getPayload({ config: configPromise })

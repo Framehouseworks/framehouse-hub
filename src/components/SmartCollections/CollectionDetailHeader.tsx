@@ -32,7 +32,7 @@ export function CollectionDetailHeader({ collection }: CollectionDetailHeaderPro
   useEffect(() => {
     try {
       const raw = localStorage.getItem(RECENT_KEY)
-      const ids: number[] = raw ? (JSON.parse(raw) as number[]) : []
+      const ids: string[] = raw ? (JSON.parse(raw) as string[]) : []
       const updated = [collection.id, ...ids.filter((id) => id !== collection.id)].slice(0, 8)
       localStorage.setItem(RECENT_KEY, JSON.stringify(updated))
     } catch {

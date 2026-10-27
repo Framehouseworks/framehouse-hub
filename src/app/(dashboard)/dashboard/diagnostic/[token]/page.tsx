@@ -75,7 +75,7 @@ export default async function DiagnosticPage({
   // Security: ensure the authenticated admin owns this session
   const sessionAdminId =
     typeof session.admin === 'object' ? session.admin?.id : session.admin
-  if (String(sessionAdminId) !== String(user.id)) {
+  if (sessionAdminId !== user.id) {
     notFound()
   }
 
@@ -143,7 +143,7 @@ export default async function DiagnosticPage({
           totalPortfolios={portfolioResult.totalDocs}
           recentMedia={mediaResult.docs}
           totalMedia={mediaResult.totalDocs}
-          adminId={String(user.id)}
+          adminId={user.id}
         />
       </div>
     </DiagnosticModeProvider>

@@ -58,11 +58,11 @@ export async function POST(req: Request) {
 
     let meta: {
       title?: string
-      sessionId?: number | string
+      sessionId?: string
       shootName?: string
       manualTags?: { tag: string }[]
       location?: { address?: string; latitude?: number; longitude?: number }
-      uploadBatchId?: number | string
+      uploadBatchId?: string
     } = {}
     const metaRaw = req.headers.get('x-upload-meta')
     if (metaRaw) {

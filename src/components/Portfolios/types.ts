@@ -20,7 +20,7 @@ export interface FocalPoint {
 export interface VideoThumbnailOverride {
   mode: VideoThumbnailMode
   timecodeSeconds?: number
-  customMedia?: number | Media | null
+  customMedia?: string | Media | null
 }
 
 export interface WizardGridItem {
@@ -62,7 +62,7 @@ export interface ClientReviewSettings {
 }
 
 export interface WizardState {
-  portfolioId: number | null
+  portfolioId: string | null
   name: string
   title: string
   subtitle: string
@@ -162,7 +162,7 @@ export function plainTextToLexical(text: string) {
 type GridBlockItem = {
   id?: string
   instanceId?: string
-  media: number
+  media: string
   size: GridItemSize
   alt?: string | null
   caption?: string | null
@@ -172,7 +172,7 @@ type GridBlockItem = {
   videoThumbnail?: {
     mode: VideoThumbnailMode
     timecodeSeconds?: number | null
-    customMedia?: number | null
+    customMedia?: string | null
   }
 }
 
@@ -197,7 +197,7 @@ function wizardItemToGridItem(item: WizardGridItem): GridBlockItem {
             item.videoThumbnail.customMedia &&
             typeof item.videoThumbnail.customMedia === 'object'
               ? (item.videoThumbnail.customMedia as Media).id
-              : (item.videoThumbnail.customMedia as number | null | undefined) ?? null,
+              : (item.videoThumbnail.customMedia as string | null | undefined) ?? null,
         }
       : { mode: 'auto' as const },
   }

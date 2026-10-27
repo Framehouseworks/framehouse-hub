@@ -19,7 +19,7 @@ type PoolAdapter = {
   pool: { query: (text: string, values: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }
 }
 
-function searchSql(q: string, ownerId: number, limit = 10) {
+function searchSql(q: string, ownerId: string, limit = 10) {
   const db = (payload.db as unknown as PoolAdapter).pool
   const tsvec = `to_tsvector('english',
     COALESCE(m.title, '') || ' ' || COALESCE(m.filename, '') || ' ' ||
@@ -35,7 +35,7 @@ function searchSql(q: string, ownerId: number, limit = 10) {
      LEFT JOIN portfolios_blocks_grid_items pbgi ON pbgi.media_id = m.id
      LEFT JOIN portfolios_blocks_grid pbg ON pbg.id = pbgi._parent_id
      LEFT JOIN portfolios p ON p.id = pbg._parent_id
-     WHERE m.owner_id = $2::int
+     WHERE m.owner_id = $2::uuid
        AND (
          ${tsvec} @@ plainto_tsquery('english', $1)
          OR to_tsvector('english', COALESCE(mmt.tag, '')) @@ plainto_tsquery('english', $1)
@@ -66,8 +66,8 @@ describe('media full-text search (FRH-44)', () => {
     })
 
     const result = await searchSql('glacierexpedition2024', owner.id)
-    const ids = result.rows.map((r) => Number(r.id))
-    expect(ids).toContain(Number(doc.id))
+    const ids = result.rows.map((r) => String(r.id))
+    expect(ids).toContain(String(doc.id))
   })
 
   it('finds media by manual tag via JOIN', async () => {
@@ -84,8 +84,8 @@ describe('media full-text search (FRH-44)', () => {
     })
 
     const result = await searchSql('droneaerial', owner.id)
-    const ids = result.rows.map((r) => Number(r.id))
-    expect(ids).toContain(Number(doc.id))
+    const ids = result.rows.map((r) => String(r.id))
+    expect(ids).toContain(String(doc.id))
   })
 
   it("does not return another owner's media", async () => {
@@ -110,7 +110,7 @@ describe('media full-text search (FRH-44)', () => {
     const db = (payload.db as unknown as PoolAdapter).pool
     const result = await db.query(
       `SELECT title AS match_value FROM media
-       WHERE owner_id = $2::int
+       WHERE owner_id = $2::uuid
          AND to_tsvector('english', COALESCE(title,'')) @@ plainto_tsquery('english', $1)
          AND title IS NOT NULL AND title <> ''
        LIMIT 4`,

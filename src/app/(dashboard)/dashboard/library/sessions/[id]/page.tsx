@@ -34,7 +34,7 @@ export default async function SessionDetailPage({
   try {
     session = (await payload.findByID({
       collection: 'sessions',
-      id: Number(id),
+      id,
       depth: 0,
     })) as Session
   } catch {
@@ -42,7 +42,7 @@ export default async function SessionDetailPage({
   }
 
   const ownerId =
-    typeof session.owner === 'object' ? (session.owner as { id: number }).id : session.owner
+    typeof session.owner === 'object' ? (session.owner as { id: string }).id : session.owner
   if (ownerId !== user.id) notFound()
 
   const { docs: mediaItems, totalDocs } = await payload.find({
