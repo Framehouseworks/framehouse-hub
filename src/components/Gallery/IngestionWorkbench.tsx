@@ -43,7 +43,7 @@ export const IngestionWorkbench: React.FC = () => {
   // combobox display value — either an existing session id or the sentinel '__pending__'
   const [sessionComboValue, setSessionComboValue] = useState<string | undefined>()
   // resolved id for existing sessions; undefined until upload time for new ones
-  const [resolvedSessionId, setResolvedSessionId] = useState<number | undefined>()
+  const [resolvedSessionId, setResolvedSessionId] = useState<string | undefined>()
   // name typed for a brand-new session; null means an existing session was selected
   const [pendingNewName, setPendingNewName] = useState<string | null>(null)
   const [sessionName, setSessionName] = useState('')
@@ -108,7 +108,7 @@ export const IngestionWorkbench: React.FC = () => {
       } else {
         const opt = sessionOptions.find((o) => o.value === value)
         setSessionComboValue(value)
-        setResolvedSessionId(Number(value))
+        setResolvedSessionId(value)
         setPendingNewName(null)
         setSessionName(opt?.label ?? '')
       }
@@ -132,7 +132,7 @@ export const IngestionWorkbench: React.FC = () => {
     }
     setIsCreatingSession(true)
     try {
-      let finalSessionId = resolvedSessionId
+      let finalSessionId: string | undefined = resolvedSessionId
       if (pendingNewName) {
         const res = await fetch('/api/sessions', {
           method: 'POST',
