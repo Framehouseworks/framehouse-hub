@@ -44,6 +44,8 @@ import * as migration_20261021_174247_make_transfer_wallpapers_upload_collection
 import * as migration_20261021_220153 from './20261021_220153';
 import * as migration_20261021_222524 from './20261021_222524';
 import * as migration_20261026_223818_uuid_v4_primary_keys from './20261026_223818_uuid_v4_primary_keys';
+import * as migration_20261027_163640 from './20261027_163640';
+import * as migration_20261027_163939 from './20261027_163939';
 
 export const migrations = [
   {
@@ -274,6 +276,16 @@ export const migrations = [
   {
     up: migration_20261026_223818_uuid_v4_primary_keys.up,
     down: migration_20261026_223818_uuid_v4_primary_keys.down,
-    name: '20261026_223818_uuid_v4_primary_keys'
+    name: '20261026_223818_uuid_v4_primary_keys',
+  },
+  {
+    up: migration_20261027_163640.up,
+    down: migration_20261027_163640.down,
+    name: '20261027_163640',
+  },
+  {
+    up: migration_20261027_163939.up,
+    down: migration_20261027_163939.down,
+    name: '20261027_163939'
   },
 ];
