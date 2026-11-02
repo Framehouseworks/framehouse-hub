@@ -360,12 +360,37 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         return new Response('File missing from local storage', { status: 404 })
       }
 
+      const stat = fs.statSync(localFilePath)
+      const totalSize = stat.size
+      const rangeHeader = req.headers.get('range')
+
+      if (rangeHeader) {
+        // Parse HTTP Range header: e.g. "bytes=0-1024" or "bytes=1024-"
+        const parts = rangeHeader.replace(/bytes=/, '').split('-')
+        const start = parseInt(parts[0], 10) || 0
+        const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1
+        const chunkSize = end - start + 1
+
+        const stream = fs.createReadStream(localFilePath, { start, end })
+        return new Response(stream as unknown as ReadableStream, {
+          status: 206,
+          headers: {
+            'Content-Type': transfer.mimeType,
+            'Content-Disposition': 'inline',
+            'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': String(chunkSize),
+          },
+        })
+      }
+
       const stream = fs.createReadStream(localFilePath)
       return new Response(stream as unknown as ReadableStream, {
         headers: {
           'Content-Type': transfer.mimeType,
           'Content-Disposition': 'inline',
-          'Content-Length': String(transfer.filesize),
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(totalSize),
         },
       })
     },

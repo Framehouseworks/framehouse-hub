@@ -1,6 +1,6 @@
 # Specification: FRH-82 — Inline Browser Media Previews for Transfer Deliverables
 
-> **IMPLEMENTATION STATUS:** SPECCED — NOT STARTED
+> **IMPLEMENTATION STATUS:** IMPLEMENTED
 
 **Spec Version:** 1.0  
 **Branch Convention:** `FRH-82-inline-media-preview`  
