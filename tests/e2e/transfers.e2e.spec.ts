@@ -87,6 +87,22 @@ test.describe('FRH-67 Link Transfer Generation (E2E)', () => {
       const downloadButton = recipientPage.getByRole('button', { name: /download file/i })
       await expect(downloadButton).toBeVisible()
 
+      // ── FRH-82: Test Inline Preview Toggle on Recipient Page ───────────────
+      const previewButton = recipientPage.getByRole('button', { name: /preview/i })
+      await expect(previewButton).toBeVisible()
+      await previewButton.click()
+
+      // For .zip format, verify fallback card renders with download rationale
+      await expect(recipientPage.getByText(/not supported for inline browser preview|download to fetch/i)).toBeVisible({
+        timeout: 10_000,
+      })
+
+      // Click "Hide" to verify collapse
+      const hideButton = recipientPage.getByRole('button', { name: /hide/i })
+      await expect(hideButton).toBeVisible()
+      await hideButton.click()
+      await expect(recipientPage.getByRole('button', { name: /preview/i })).toBeVisible()
+
       const [download] = await Promise.all([
         recipientPage.waitForEvent('download', { timeout: 15_000 }),
         downloadButton.click(),
