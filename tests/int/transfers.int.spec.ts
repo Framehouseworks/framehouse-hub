@@ -586,6 +586,171 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
       expect(docs[0].status).toBe('revoked')
     })
   })
+
+  describe('FRH-82: Recipient Inline Preview Endpoint (Integration)', () => {
+    const previewEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/:shareHash/preview')
+    const previewStreamEndpoint = (transferEndpoints as any)?.find((e: any) => e.path === '/:shareHash/preview-stream')
+
+    it('returns preview URL for eligible active image transfer', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Approved_Hero.jpg',
+          filesize: 2 * 1024 * 1024,
+          mimeType: 'image/jpeg',
+          storagePath: `transfers/${testUserId}/tr_pvw_img/original/Approved_Hero.jpg`,
+          status: 'active',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        payload,
+      }
+
+      const res = await previewEndpoint!.handler(req)
+      expect(res.status).toBe(200)
+
+      const body = await res.json()
+      expect(body.eligible).toBe(true)
+      expect(body.mediaType).toBe('image')
+      expect(body.previewUrl).toBeDefined()
+      expect(body.mimeType).toBe('image/jpeg')
+    })
+
+    it('returns fallback response without error for unsupported format (.zip)', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Raw_Stems.zip',
+          filesize: 15 * 1024 * 1024,
+          mimeType: 'application/zip',
+          storagePath: `transfers/${testUserId}/tr_pvw_zip/original/Raw_Stems.zip`,
+          status: 'active',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        payload,
+      }
+
+      const res = await previewEndpoint!.handler(req)
+      expect(res.status).toBe(200)
+
+      const body = await res.json()
+      expect(body.eligible).toBe(false)
+      expect(body.mediaType).toBe('unsupported')
+      expect(body.reason).toBe('unsupported')
+      expect(body.message).toBeDefined()
+    })
+
+    it('returns size_exceeded response when file exceeds preview threshold', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Heavy_Photo.png',
+          filesize: 12 * 1024 * 1024, // > 10MB
+          mimeType: 'image/png',
+          storagePath: `transfers/${testUserId}/tr_pvw_heavy/original/Heavy_Photo.png`,
+          status: 'active',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        payload,
+      }
+
+      const res = await previewEndpoint!.handler(req)
+      expect(res.status).toBe(200)
+
+      const body = await res.json()
+      expect(body.eligible).toBe(false)
+      expect(body.mediaType).toBe('image')
+      expect(body.reason).toBe('size_exceeded')
+      expect(body.message).toContain('10MB')
+    })
+
+    it('returns 410 Gone for revoked or expired transfer preview', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Revoked_Preview.mp4',
+          filesize: 5 * 1024 * 1024,
+          mimeType: 'video/mp4',
+          storagePath: `transfers/${testUserId}/tr_pvw_rev/original/Revoked_Preview.mp4`,
+          status: 'revoked',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        payload,
+      }
+
+      const res = await previewEndpoint!.handler(req)
+      expect(res.status).toBe(410)
+    })
+
+    it('handles HTTP Range requests with 206 Partial Content in local preview streaming', async () => {
+      const shareHash = `tr_stream_${Date.now()}`
+      const filename = 'audio_track.mp3'
+      const relativePath = `transfers/${testUserId}/${shareHash}/original/${filename}`
+      const diskPath = path.resolve(process.cwd(), 'public/media', relativePath)
+
+      fs.mkdirSync(path.dirname(diskPath), { recursive: true })
+      // Write 100 bytes sample content
+      const dummyBuffer = Buffer.alloc(100, 1)
+      fs.writeFileSync(diskPath, new Uint8Array(dummyBuffer))
+
+      await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          shareHash,
+          filename,
+          filesize: 100,
+          mimeType: 'audio/mpeg',
+          storagePath: relativePath,
+          status: 'active',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash },
+        headers: new Headers({
+          range: 'bytes=0-49',
+        }),
+        payload,
+      }
+
+      const res = await previewStreamEndpoint!.handler(req)
+      expect(res.status).toBe(206)
+      expect(res.headers.get('Content-Range')).toBe('bytes 0-49/100')
+      expect(res.headers.get('Accept-Ranges')).toBe('bytes')
+      expect(res.headers.get('Content-Length')).toBe('50')
+      expect(res.headers.get('Content-Disposition')).toBe('inline')
+
+      // Drain response body stream before unlinking file to prevent async ENOENT
+      const buffer = await res.arrayBuffer()
+      expect(buffer.byteLength).toBe(50)
+
+      // Clean up file
+      if (fs.existsSync(diskPath)) {
+        fs.unlinkSync(diskPath)
+      }
+    })
+  })
 })
 
 
