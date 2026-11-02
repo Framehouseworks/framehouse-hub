@@ -7,6 +7,7 @@ import { checkRole } from '@/access/utilities'
 
 import { getStorageClient } from '@/lib/gcs-client'
 import { MAX_TRANSFER_BYTES } from './constants'
+import { evaluatePreviewEligibility, type TransferPreviewResponse } from '@/components/Transfers/Preview/types'
 
 function slugifyFilename(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || ''
@@ -221,6 +222,152 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         const message = err instanceof Error ? err.message : 'Local upload failed'
         return Response.json({ error: message }, { status: 500 })
       }
+    },
+  },
+
+  // ── 4. Recipient inline media preview (FRH-82) ───────────────────────────
+  {
+    path: '/:shareHash/preview',
+    method: 'get',
+    handler: async (req) => {
+      const { shareHash } = req.routeParams as { shareHash: string }
+      if (!shareHash) {
+        return Response.json({ error: 'Share hash required' }, { status: 400 })
+      }
+
+      const { docs } = await req.payload.find({
+        collection: 'transfers',
+        where: {
+          and: [
+            { shareHash: { equals: shareHash } },
+            { status: { equals: 'active' } },
+            { expiresAt: { greater_than: new Date().toISOString() } },
+          ],
+        },
+        limit: 1,
+        overrideAccess: true,
+      })
+
+      const transfer = docs[0]
+      if (!transfer) {
+        return Response.json(
+          { error: 'Transfer not found, revoked, or expired' },
+          { status: 410 },
+        )
+      }
+
+      // Check format and size eligibility against free-tier thresholds
+      const eligibility = evaluatePreviewEligibility(
+        transfer.filename,
+        transfer.mimeType,
+        transfer.filesize,
+      )
+
+      if (!eligibility.eligible) {
+        const payload: TransferPreviewResponse = {
+          eligible: false,
+          mediaType: eligibility.mediaType,
+          reason: eligibility.reason,
+          message: eligibility.message,
+          filename: transfer.filename,
+          filesize: transfer.filesize,
+          mimeType: transfer.mimeType,
+        }
+        return Response.json(payload, { status: 200 })
+      }
+
+      const bucketName = process.env.GCS_BUCKET
+      if (bucketName) {
+        try {
+          const storage = await getStorageClient()
+          const file = storage.bucket(bucketName).file(transfer.storagePath)
+          const [signedPreviewUrl] = await file.getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000, // 1 hour validity (FRH-82)
+            responseDisposition: 'inline',
+            responseType: transfer.mimeType,
+          })
+
+          const payload: TransferPreviewResponse = {
+            eligible: true,
+            mediaType: eligibility.mediaType,
+            previewUrl: signedPreviewUrl,
+            mimeType: transfer.mimeType,
+            filename: transfer.filename,
+            filesize: transfer.filesize,
+          }
+          return Response.json(payload, { status: 200 })
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Failed to generate preview URL'
+          return Response.json({ error: message }, { status: 500 })
+        }
+      }
+
+      // Local mode: Provide local preview streaming endpoint
+      const payload: TransferPreviewResponse = {
+        eligible: true,
+        mediaType: eligibility.mediaType,
+        previewUrl: `/api/transfers/${transfer.shareHash}/preview-stream`,
+        mimeType: transfer.mimeType,
+        filename: transfer.filename,
+        filesize: transfer.filesize,
+      }
+      return Response.json(payload, { status: 200 })
+    },
+  },
+
+  // ── 5. Local mode inline preview binary streaming (FRH-82) ───────────────
+  {
+    path: '/:shareHash/preview-stream',
+    method: 'get',
+    handler: async (req) => {
+      const { shareHash } = req.routeParams as { shareHash: string }
+      if (!shareHash) {
+        return new Response('Share hash required', { status: 400 })
+      }
+
+      const { docs } = await req.payload.find({
+        collection: 'transfers',
+        where: {
+          and: [
+            { shareHash: { equals: shareHash } },
+            { status: { equals: 'active' } },
+            { expiresAt: { greater_than: new Date().toISOString() } },
+          ],
+        },
+        limit: 1,
+        overrideAccess: true,
+      })
+
+      const transfer = docs[0]
+      if (!transfer) {
+        return new Response('Transfer not found, revoked, or expired', { status: 410 })
+      }
+
+      const eligibility = evaluatePreviewEligibility(
+        transfer.filename,
+        transfer.mimeType,
+        transfer.filesize,
+      )
+
+      if (!eligibility.eligible) {
+        return new Response('File is not eligible for inline preview', { status: 400 })
+      }
+
+      const localFilePath = path.resolve(process.cwd(), 'public/media', transfer.storagePath)
+      if (!fs.existsSync(localFilePath)) {
+        return new Response('File missing from local storage', { status: 404 })
+      }
+
+      const stream = fs.createReadStream(localFilePath)
+      return new Response(stream as unknown as ReadableStream, {
+        headers: {
+          'Content-Type': transfer.mimeType,
+          'Content-Disposition': 'inline',
+          'Content-Length': String(transfer.filesize),
+        },
+      })
     },
   },
 ]
