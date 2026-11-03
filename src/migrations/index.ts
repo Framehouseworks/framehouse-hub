@@ -46,6 +46,7 @@ import * as migration_20261021_222524 from './20261021_222524';
 import * as migration_20261026_223818_uuid_v4_primary_keys from './20261026_223818_uuid_v4_primary_keys';
 import * as migration_20261027_163640 from './20261027_163640';
 import * as migration_20261027_163939 from './20261027_163939';
+import * as migration_20261103_182315 from './20261103_182315';
 
 export const migrations = [
   {
@@ -286,6 +287,11 @@ export const migrations = [
   {
     up: migration_20261027_163939.up,
     down: migration_20261027_163939.down,
-    name: '20261027_163939'
+    name: '20261027_163939',
+  },
+  {
+    up: migration_20261103_182315.up,
+    down: migration_20261103_182315.down,
+    name: '20261103_182315'
   },
 ];

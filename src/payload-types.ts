@@ -1683,6 +1683,8 @@ export interface AdminActivityLog {
     | 'diagnostic_expired'
     | 'portfolio_password_reset'
     | 'portfolio_visibility_change'
+    | 'transfer_password_set'
+    | 'transfer_password_cleared'
     | 'field_override'
     | 'account_role_change';
   /**
@@ -1816,6 +1818,26 @@ export interface Transfer {
    * Timestamp of the most recent download.
    */
   lastDownloadedAt?: string | null;
+  /**
+   * Require password to view and download transfer.
+   */
+  passwordEnabled?: boolean | null;
+  /**
+   * Derived scrypt password hash.
+   */
+  passwordHash?: string | null;
+  /**
+   * Salt for scrypt password hashing.
+   */
+  passwordSalt?: string | null;
+  /**
+   * Incremented on password change to invalidate outstanding tokens.
+   */
+  passwordVersion?: number | null;
+  /**
+   * Transient input field for password setting/updating.
+   */
+  _password?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2904,6 +2926,11 @@ export interface TransfersSelect<T extends boolean = true> {
   expiresAt?: T;
   downloadCount?: T;
   lastDownloadedAt?: T;
+  passwordEnabled?: T;
+  passwordHash?: T;
+  passwordSalt?: T;
+  passwordVersion?: T;
+  _password?: T;
   updatedAt?: T;
   createdAt?: T;
 }
