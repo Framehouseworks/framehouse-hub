@@ -31,9 +31,13 @@ import {
   File as GenericFile,
   ShieldCheck,
   Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { TransferMediaPreview, type TransferPreviewResponse } from '@/components/Transfers/Preview'
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return '0 B'
@@ -95,6 +99,36 @@ export function TransferDownloadView({
   const [activeWallpaper, setActiveWallpaper] = useState<TransferWallpaper>(
     wallpapers[0] || FALLBACK_TRANSFER_WALLPAPER,
   )
+
+  // Preview state management (FRH-82)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const [previewData, setPreviewData] = useState<TransferPreviewResponse | null>(null)
+
+  const fetchPreview = useCallback(async () => {
+    if (!transfer) return
+    setIsPreviewLoading(true)
+    try {
+      const res = await fetch(`/api/transfers/${transfer.shareHash}/preview`)
+      if (!res.ok) {
+        setPreviewData(null)
+      } else {
+        const data: TransferPreviewResponse = await res.json()
+        setPreviewData(data)
+      }
+    } catch {
+      setPreviewData(null)
+    } finally {
+      setIsPreviewLoading(false)
+    }
+  }, [transfer])
+
+  const togglePreview = useCallback(() => {
+    if (!isPreviewOpen && !previewData && !isPreviewLoading) {
+      fetchPreview()
+    }
+    setIsPreviewOpen((prev) => !prev)
+  }, [isPreviewOpen, previewData, isPreviewLoading, fetchPreview])
 
   // Resolve fine-grained status
   const effectiveStatus: TransferStatus =
@@ -260,24 +294,89 @@ export function TransferDownloadView({
             </div>
           </div>
 
-          {/* Download Action & Interactive Dispatch Notice */}
-          <div className="space-y-3">
-            <a
-              href={downloadUrl}
-              download={transfer.filename}
-              rel="noopener noreferrer"
-              onClick={() => setHasClickedDownload(true)}
-              className="block"
-            >
-              <Button
-                variant="gallery"
-                size="lg"
-                className="w-full h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
+          {/* Expandable Media Preview Stage with Symmetrical Reveal & Hide Transitions (FRH-82) */}
+          <AnimatePresence initial={false}>
+            {isPreviewOpen && (
+              <motion.div
+                key="transfer-preview-stage"
+                initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                animate={{
+                  opacity: 1,
+                  height: 'auto',
+                  scale: 1,
+                  transition: {
+                    height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.25, delay: 0.05 },
+                    scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  height: 0,
+                  scale: 0.98,
+                  transition: {
+                    height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                    opacity: { duration: 0.2 },
+                    scale: { duration: 0.2 },
+                  },
+                }}
+                className="overflow-hidden"
               >
-                <Download size={20} />
-                {hasClickedDownload ? 'Download again' : 'Download file'}
+                <div className="pb-3">
+                  <TransferMediaPreview
+                    previewData={previewData}
+                    isLoading={isPreviewLoading}
+                    filename={transfer.filename}
+                    filesize={transfer.filesize}
+                    mimeType={transfer.mimeType}
+                    onRetry={fetchPreview}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Dual Action Cluster: Download + Preview Toggle */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <a
+                href={downloadUrl}
+                download={transfer.filename}
+                rel="noopener noreferrer"
+                onClick={() => setHasClickedDownload(true)}
+                className="flex-1"
+              >
+                <Button
+                  variant="gallery"
+                  size="lg"
+                  className="w-full h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
+                >
+                  <Download size={20} />
+                  {hasClickedDownload ? 'Download again' : 'Download file'}
+                </Button>
+              </a>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={togglePreview}
+                aria-expanded={isPreviewOpen}
+                className="h-14 px-5 gap-2 text-sm font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+              >
+                {isPreviewOpen ? (
+                  <>
+                    <EyeOff size={18} />
+                    <span>Hide</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye size={18} />
+                    <span>Preview</span>
+                  </>
+                )}
               </Button>
-            </a>
+            </div>
 
             <p className="text-center text-[11px] text-on-surface/40 flex items-center justify-center gap-1.5">
               <Sparkles size={12} className="text-gallery-gold" />
