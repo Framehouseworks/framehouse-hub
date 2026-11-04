@@ -9,20 +9,20 @@ import { getStorageClient } from '@/lib/gcs-client'
 import { MAX_TRANSFER_BYTES, PASSWORD_TOKEN_TTL_MS } from './constants'
 import { evaluatePreviewEligibility, type TransferPreviewResponse } from '@/components/Transfers/Preview/types'
 
-// In-memory rate limiting map for password verification attempts (5 attempts / 5 mins per IP)
+// In-memory rate limiting map for password verification attempts (5 attempts / 5 mins per IP + shareHash)
 const passwordAttemptMap = new Map<string, { count: number; resetAt: number }>()
 
-function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now()
 
   // Lazy eviction of expired entries across requests
-  for (const [key, val] of passwordAttemptMap.entries()) {
+  for (const [k, val] of passwordAttemptMap.entries()) {
     if (now > val.resetAt) {
-      passwordAttemptMap.delete(key)
+      passwordAttemptMap.delete(k)
     }
   }
 
-  const record = passwordAttemptMap.get(ip)
+  const record = passwordAttemptMap.get(key)
   if (!record) {
     return { allowed: true }
   }
@@ -35,18 +35,18 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
   return { allowed: true }
 }
 
-function recordFailedAttempt(ip: string) {
+function recordFailedAttempt(key: string) {
   const now = Date.now()
-  const record = passwordAttemptMap.get(ip)
+  const record = passwordAttemptMap.get(key)
   if (!record || now > record.resetAt) {
-    passwordAttemptMap.set(ip, { count: 1, resetAt: now + 5 * 60 * 1000 })
+    passwordAttemptMap.set(key, { count: 1, resetAt: now + 5 * 60 * 1000 })
   } else {
     record.count += 1
   }
 }
 
-function clearRateLimit(ip: string) {
-  passwordAttemptMap.delete(ip)
+function clearRateLimit(key: string) {
+  passwordAttemptMap.delete(key)
 }
 
 function hashPasswordScrypt(password: string, salt: string): Promise<string> {
@@ -217,7 +217,8 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       }
 
       const clientIp = getClientIp(req)
-      const rateLimit = checkRateLimit(clientIp)
+      const rateLimitKey = `${clientIp}:${shareHash}`
+      const rateLimit = checkRateLimit(rateLimitKey)
       if (!rateLimit.allowed) {
         return new Response(JSON.stringify({ error: 'Too many failed attempts. Please try again later.' }), {
           status: 429,
@@ -276,12 +277,12 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
           crypto.timingSafeEqual(computedBuffer, storedBuffer)
 
         if (!isMatch) {
-          recordFailedAttempt(clientIp)
+          recordFailedAttempt(rateLimitKey)
           return Response.json({ error: 'Incorrect password' }, { status: 401 })
         }
 
-        // On successful authentication, reset client rate limit
-        clearRateLimit(clientIp)
+        // On successful authentication, reset client rate limit for this transfer
+        clearRateLimit(rateLimitKey)
 
         const expiresAt = Date.now() + PASSWORD_TOKEN_TTL_MS
         const token = createTransferToken(transfer.shareHash, transfer.passwordVersion || 0, expiresAt)
