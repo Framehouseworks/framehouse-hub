@@ -32,11 +32,13 @@ import {
   FileText,
   FileVideo,
   File as GenericFile,
+  Lock,
   RotateCcw,
   SendHorizontal,
   Sparkles,
   Trash2,
   X,
+  KeyRound,
 } from 'lucide-react'
 import React, { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -94,11 +96,18 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
   const [file, setFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
+  const [passwordEnabled, setPasswordEnabled] = useState(false)
+  const [password, setPassword] = useState('')
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<TransferUploadResult | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [copied, setCopied] = useState(false)
   const [transfers, setTransfers] = useState<Transfer[]>(initialTransfers)
+
+  // Edit password state for existing transfers
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(null)
+  const [editPasswordInput, setEditPasswordInput] = useState('')
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -125,6 +134,8 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
     setFile(selectedFile)
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
     setMessage('')
+    setPasswordEnabled(false)
+    setPassword('')
     setState('STAGED')
   }, [])
 
@@ -159,6 +170,17 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
   const handleStartUpload = async () => {
     if (!file) return
 
+    if (passwordEnabled) {
+      if (!password.trim()) {
+        toast.error('Please enter a password or disable password protection.')
+        return
+      }
+      if (password.trim().length < 6) {
+        toast.error('Password must be at least 6 characters.')
+        return
+      }
+    }
+
     const controller = new AbortController()
     abortControllerRef.current = controller
 
@@ -170,6 +192,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
         file,
         title: title.trim() || undefined,
         message: message.trim() || undefined,
+        password: passwordEnabled ? password.trim() : undefined,
         onProgress: (pct) => setProgress(pct),
         signal: controller.signal,
       })
@@ -189,6 +212,7 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
           title: title.trim() || null,
           message: message.trim() || null,
           status: 'active',
+          passwordEnabled,
           expiresAt: uploadRes.expiresAt,
           downloadCount: 0,
           createdAt: new Date().toISOString(),
@@ -244,9 +268,60 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
     setFile(null)
     setTitle('')
     setMessage('')
+    setPasswordEnabled(false)
+    setPassword('')
     setProgress(0)
     setResult(null)
     setState('IDLE')
+  }
+
+  const handleTogglePasswordOnTransfer = async (transfer: Transfer) => {
+    if (editingTransferId === transfer.id) {
+      setEditingTransferId(null)
+      setEditPasswordInput('')
+      return
+    }
+
+    setEditingTransferId(transfer.id)
+    setEditPasswordInput('')
+  }
+
+  const handleSavePasswordChange = async (transfer: Transfer, remove = false) => {
+    if (!remove && (!editPasswordInput.trim() || editPasswordInput.trim().length < 6)) {
+      toast.error('Password must be at least 6 characters.')
+      return
+    }
+
+    setIsSavingPassword(true)
+    try {
+      const body = remove
+        ? { passwordEnabled: false }
+        : { passwordEnabled: true, _password: editPasswordInput.trim() }
+
+      const res = await fetch(`/api/transfers/${transfer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      })
+
+      if (res.ok) {
+        const updated = await res.json()
+        const doc = updated?.doc || updated
+        setTransfers((prev) =>
+          prev.map((t) => (t.id === transfer.id ? { ...t, passwordEnabled: doc.passwordEnabled } : t)),
+        )
+        toast.success(remove ? 'Password protection removed.' : 'Password updated successfully.')
+        setEditingTransferId(null)
+        setEditPasswordInput('')
+      } else {
+        toast.error('Failed to update password settings.')
+      }
+    } catch {
+      toast.error('Network error updating password.')
+    } finally {
+      setIsSavingPassword(false)
+    }
   }
 
   const handleDeleteTransfer = async (id: string) => {
@@ -417,6 +492,59 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                   className="w-full resize-none rounded-2xl bg-gallery-surface px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:outline-none focus:ring-2 focus:ring-gallery-gold"
                 />
               </div>
+
+              {/* Password Protection Toggle & Input (FRH-70) */}
+              <div className="p-4 rounded-2xl bg-gallery-surface space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-gallery-gold/10 text-gallery-gold flex items-center justify-center">
+                      <Lock size={15} />
+                    </div>
+                    <div>
+                      <p className="font-rubik text-[9.5px] tracking-[0.18em] text-primary uppercase font-medium">
+                        Password Protect
+                      </p>
+                      <p className="text-xs text-on-surface/50">
+                        Require recipients to enter a password to view and download files
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={passwordEnabled}
+                    onClick={() => {
+                      setPasswordEnabled((prev) => !prev)
+                      if (passwordEnabled) setPassword('')
+                    }}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold',
+                      passwordEnabled ? 'bg-gallery-gold' : 'bg-black/15 dark:bg-white/15',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
+                        passwordEnabled ? 'translate-x-5' : 'translate-x-0',
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {passwordEnabled && (
+                  <div className="pt-2">
+                    <Input
+                      type="password"
+                      placeholder="Set transfer password (min 6 characters)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 rounded-xl bg-white dark:bg-black/20 border-0 focus-visible:ring-2 focus-visible:ring-gallery-gold text-sm"
+                      autoFocus
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Call To Action */}
@@ -581,10 +709,35 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                           >
                             {countdown.label.toUpperCase()}
                           </span>
+                          {t.passwordEnabled && (
+                            <>
+                              <span>•</span>
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-rubik text-[9px] bg-gallery-gold/15 text-gallery-gold',
+                                  isInactive && 'opacity-50',
+                                )}
+                              >
+                                <Lock size={10} />
+                                <span>LOCKED</span>
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isInactive}
+                        onClick={() => handleTogglePasswordOnTransfer(t)}
+                        title={t.passwordEnabled ? 'Change or remove password' : 'Set password'}
+                        className="rounded-full gap-1.5 text-xs text-on-surface/60 hover:bg-gallery-gold/5 hover:text-gallery-gold"
+                      >
+                        <KeyRound size={13} />
+                        <span className="hidden sm:inline">{t.passwordEnabled ? 'Password' : 'Lock'}</span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -618,6 +771,53 @@ export function TransferWorkbench({ initialTransfers = [] }: TransferWorkbenchPr
                         <span className="hidden md:inline">Delete</span>
                       </Button>
                     </div>
+
+                    {/* Inline password editor for this transfer */}
+                    {editingTransferId === t.id && (
+                      <div className="w-full mt-2 pt-3 border-t border-black/5 dark:border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <Input
+                          type="password"
+                          placeholder="New password (min 6 chars)"
+                          value={editPasswordInput}
+                          onChange={(e) => setEditPasswordInput(e.target.value)}
+                          className="h-9 text-xs bg-white dark:bg-black/20 rounded-xl flex-1"
+                          autoFocus
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="gallery"
+                            size="sm"
+                            disabled={isSavingPassword || editPasswordInput.trim().length < 6}
+                            onClick={() => handleSavePasswordChange(t, false)}
+                            className="h-9 px-3 text-xs"
+                          >
+                            Save
+                          </Button>
+                          {t.passwordEnabled && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isSavingPassword}
+                              onClick={() => handleSavePasswordChange(t, true)}
+                              className="h-9 px-3 text-xs text-gallery-red hover:bg-gallery-red/10"
+                            >
+                              Remove lock
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTransferId(null)
+                              setEditPasswordInput('')
+                            }}
+                            className="h-9 px-2 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
