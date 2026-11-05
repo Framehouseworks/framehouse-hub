@@ -57,6 +57,8 @@ export const AdminActivityLogs: CollectionConfig = {
         { label: 'Diagnostic Session Expired', value: 'diagnostic_expired' },
         { label: 'Portfolio Password Reset', value: 'portfolio_password_reset' },
         { label: 'Portfolio Visibility Changed', value: 'portfolio_visibility_change' },
+        { label: 'Transfer Password Set', value: 'transfer_password_set' },
+        { label: 'Transfer Password Cleared', value: 'transfer_password_cleared' },
         { label: 'Field Override', value: 'field_override' },
         { label: 'Account Role Change', value: 'account_role_change' },
       ],

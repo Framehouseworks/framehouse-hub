@@ -10,3 +10,9 @@ export const TRANSFERS_PREFIX = 'transfers'
 
 // GCS Lifecycle rule age (includes 1-day safety buffer)
 export const GCS_LIFECYCLE_AGE_DAYS = 4
+
+// Minimum password length for protected transfers (FRH-70)
+export const PASSWORD_MIN_LENGTH = 6
+
+// Password auth token time-to-live in ms (15 minutes) (FRH-70)
+export const PASSWORD_TOKEN_TTL_MS = 15 * 60 * 1000
