@@ -753,15 +753,16 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
   })
 
   describe('FRH-70: Password Protection & Cross-Transfer Rate Limit Isolation', () => {
-    const verifyEndpoint = transferEndpoints?.find(
-      (ep) => ep.path === '/:shareHash/verify-password' && ep.method === 'post',
+    const verifyEndpoint = (transferEndpoints as any)?.find(
+      (ep: any) => ep.path === '/:shareHash/verify-password' && ep.method === 'post',
     )
-    const downloadEndpoint = transferEndpoints?.find(
-      (ep) => ep.path === '/:shareHash/download' && ep.method === 'get',
+    const downloadEndpoint = (transferEndpoints as any)?.find(
+      (ep: any) => ep.path === '/:shareHash/download' && ep.method === 'get',
     )
 
     it('requires password and returns 401 when verifying with incorrect password', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Confidential_Doc.pdf',
@@ -792,6 +793,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
     it('successfully verifies correct password and issues auth token', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Design_Kit.zip',
@@ -826,6 +828,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // Transfer A (will be locked out after 5 failed attempts)
       const transferA = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'File_A.zip',
@@ -841,6 +844,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
       // Transfer B (different file link)
       const transferB = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'File_B.zip',
@@ -898,6 +902,7 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
 
     it('rejects unauthenticated download on password protected transfer', async () => {
       const transfer = await payload.create({
+        draft: true,
         collection: 'transfers',
         data: {
           filename: 'Guarded.zip',
