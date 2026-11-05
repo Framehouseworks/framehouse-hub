@@ -6,8 +6,120 @@ import { sql } from '@payloadcms/db-postgres'
 import { checkRole } from '@/access/utilities'
 
 import { getStorageClient } from '@/lib/gcs-client'
-import { MAX_TRANSFER_BYTES } from './constants'
+import { MAX_TRANSFER_BYTES, PASSWORD_TOKEN_TTL_MS } from './constants'
 import { evaluatePreviewEligibility, type TransferPreviewResponse } from '@/components/Transfers/Preview/types'
+
+// In-memory rate limiting map for password verification attempts (5 attempts / 5 mins per IP + shareHash)
+const passwordAttemptMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now()
+
+  // Lazy eviction of expired entries across requests
+  for (const [k, val] of passwordAttemptMap.entries()) {
+    if (now > val.resetAt) {
+      passwordAttemptMap.delete(k)
+    }
+  }
+
+  const record = passwordAttemptMap.get(key)
+  if (!record) {
+    return { allowed: true }
+  }
+
+  if (record.count >= 5) {
+    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000))
+    return { allowed: false, retryAfter }
+  }
+
+  return { allowed: true }
+}
+
+function recordFailedAttempt(key: string) {
+  const now = Date.now()
+  const record = passwordAttemptMap.get(key)
+  if (!record || now > record.resetAt) {
+    passwordAttemptMap.set(key, { count: 1, resetAt: now + 5 * 60 * 1000 })
+  } else {
+    record.count += 1
+  }
+}
+
+function clearRateLimit(key: string) {
+  passwordAttemptMap.delete(key)
+}
+
+function hashPasswordScrypt(password: string, salt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(
+      password,
+      salt,
+      64,
+      { N: 16384, r: 8, p: 1, maxmem: 32 * 1024 * 1024 },
+      (err, derivedKey) => {
+        if (err) return reject(err)
+        resolve(derivedKey.toString('hex'))
+      },
+    )
+  })
+}
+
+export function createTransferToken(
+  shareHash: string,
+  passwordVersion: number,
+  expiresAt: number,
+): string {
+  const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
+  const payload = `${shareHash}:${passwordVersion}:${expiresAt}`
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+  return `${expiresAt}.${hmac}`
+}
+
+export function verifyTransferToken(
+  shareHash: string,
+  token: string | null | undefined,
+  passwordVersion: number,
+): boolean {
+  if (!token) return false
+
+  const parts = token.split('.')
+  if (parts.length !== 2) return false
+
+  const [expiresAtStr, signature] = parts
+  const expiresAt = parseInt(expiresAtStr, 10)
+  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+    return false
+  }
+
+  const secret = process.env.PAYLOAD_SECRET || 'fallback-secret'
+  const expectedPayload = `${shareHash}:${passwordVersion}:${expiresAt}`
+  const expectedHmac = crypto.createHmac('sha256', secret).update(expectedPayload).digest('hex')
+
+  const sigBuffer = new Uint8Array(Buffer.from(signature, 'hex'))
+  const expectedBuffer = new Uint8Array(Buffer.from(expectedHmac, 'hex'))
+
+  if (sigBuffer.length !== expectedBuffer.length) {
+    return false
+  }
+
+  return crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+}
+
+function extractBearerToken(req: any): string | null {
+  const authHeader = req.headers?.get?.('authorization') || req.headers?.get?.('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  return authHeader.slice(7).trim()
+}
+
+function getClientIp(req: any): string {
+  const xForwardedFor = req.headers?.get?.('x-forwarded-for')
+  if (xForwardedFor) {
+    return xForwardedFor.split(',')[0].trim()
+  }
+  return req.headers?.get?.('x-real-ip') || 'unknown'
+}
 
 function slugifyFilename(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || ''
@@ -94,7 +206,99 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     },
   },
 
-  // ── 2. Instant recipient download ─────────────────────────────────────────
+  // ── 2. Verify password & issue short-lived auth token (FRH-70) ───────────
+  {
+    path: '/:shareHash/verify-password',
+    method: 'post',
+    handler: async (req) => {
+      const { shareHash } = req.routeParams as { shareHash: string }
+      if (!shareHash) {
+        return Response.json({ error: 'Share hash required' }, { status: 400 })
+      }
+
+      const clientIp = getClientIp(req)
+      const rateLimitKey = `${clientIp}:${shareHash}`
+      const rateLimit = checkRateLimit(rateLimitKey)
+      if (!rateLimit.allowed) {
+        return new Response(JSON.stringify({ error: 'Too many failed attempts. Please try again later.' }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimit.retryAfter || 300),
+          },
+        })
+      }
+
+      let body: { password?: string } = {}
+      try {
+        body = (await req.json?.()) || {}
+      } catch {
+        return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+      }
+
+      const { password } = body
+      if (!password || typeof password !== 'string') {
+        return Response.json({ error: 'Password is required' }, { status: 400 })
+      }
+
+      const { docs } = await req.payload.find({
+        collection: 'transfers',
+        where: {
+          and: [
+            { shareHash: { equals: shareHash } },
+            { status: { equals: 'active' } },
+            { expiresAt: { greater_than: new Date().toISOString() } },
+          ],
+        },
+        limit: 1,
+        overrideAccess: true,
+      })
+
+      const transfer = docs[0]
+      if (!transfer) {
+        return Response.json({ error: 'Transfer not found, revoked, or expired' }, { status: 404 })
+      }
+
+      if (!transfer.passwordEnabled) {
+        return Response.json({ error: 'This transfer is not password protected' }, { status: 400 })
+      }
+
+      if (!transfer.passwordHash || !transfer.passwordSalt) {
+        return Response.json({ error: 'Transfer password configuration corrupted' }, { status: 500 })
+      }
+
+      try {
+        const computedHash = await hashPasswordScrypt(password.trim(), transfer.passwordSalt)
+        const computedBuffer = new Uint8Array(Buffer.from(computedHash, 'hex'))
+        const storedBuffer = new Uint8Array(Buffer.from(transfer.passwordHash, 'hex'))
+
+        const isMatch =
+          computedBuffer.length === storedBuffer.length &&
+          crypto.timingSafeEqual(computedBuffer, storedBuffer)
+
+        if (!isMatch) {
+          recordFailedAttempt(rateLimitKey)
+          return Response.json({ error: 'Incorrect password' }, { status: 401 })
+        }
+
+        // On successful authentication, reset client rate limit for this transfer
+        clearRateLimit(rateLimitKey)
+
+        const expiresAt = Date.now() + PASSWORD_TOKEN_TTL_MS
+        const token = createTransferToken(transfer.shareHash, transfer.passwordVersion || 0, expiresAt)
+
+        return Response.json({
+          token,
+          expiresAt: new Date(expiresAt).toISOString(),
+        })
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Password verification error'
+        return Response.json({ error: message }, { status: 500 })
+      }
+    },
+  },
+
+  // ── 3. Instant recipient download ─────────────────────────────────────────
   {
     path: '/:shareHash/download',
     method: 'get',
@@ -120,6 +324,15 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       const transfer = docs[0]
       if (!transfer) {
         return new Response('Transfer not found, revoked, or expired', { status: 410 })
+      }
+
+      // Password enforcement: require short-lived HMAC token if password protection is enabled
+      if (transfer.passwordEnabled) {
+        const token = extractBearerToken(req)
+        const isValid = verifyTransferToken(transfer.shareHash, token, transfer.passwordVersion || 0)
+        if (!isValid) {
+          return new Response('Unauthorized: password verification required', { status: 401 })
+        }
       }
 
       // Fire-and-forget atomic download counter increment
@@ -177,7 +390,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     },
   },
 
-  // ── 3. Local mode binary upload endpoint ──────────────────────────────────
+  // ── 4. Local mode binary upload endpoint ──────────────────────────────────
   {
     path: '/upload-local',
     method: 'post',
@@ -225,7 +438,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     },
   },
 
-  // ── 4. Recipient inline media preview (FRH-82) ───────────────────────────
+  // ── 5. Recipient inline media preview (FRH-82) ───────────────────────────
   {
     path: '/:shareHash/preview',
     method: 'get',
@@ -254,6 +467,15 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
           { error: 'Transfer not found, revoked, or expired' },
           { status: 410 },
         )
+      }
+
+      // Password enforcement: require short-lived HMAC token if password protection is enabled
+      if (transfer.passwordEnabled) {
+        const token = extractBearerToken(req)
+        const isValid = verifyTransferToken(transfer.shareHash, token, transfer.passwordVersion || 0)
+        if (!isValid) {
+          return Response.json({ error: 'Unauthorized: password verification required' }, { status: 401 })
+        }
       }
 
       // Check format and size eligibility against free-tier thresholds
@@ -317,7 +539,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     },
   },
 
-  // ── 5. Local mode inline preview binary streaming (FRH-82) ───────────────
+  // ── 6. Local mode inline preview binary streaming (FRH-82) ───────────────
   {
     path: '/:shareHash/preview-stream',
     method: 'get',
@@ -343,6 +565,15 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       const transfer = docs[0]
       if (!transfer) {
         return new Response('Transfer not found, revoked, or expired', { status: 410 })
+      }
+
+      // Password enforcement: require short-lived HMAC token if password protection is enabled
+      if (transfer.passwordEnabled) {
+        const token = extractBearerToken(req)
+        const isValid = verifyTransferToken(transfer.shareHash, token, transfer.passwordVersion || 0)
+        if (!isValid) {
+          return new Response('Unauthorized: password verification required', { status: 401 })
+        }
       }
 
       const eligibility = evaluatePreviewEligibility(

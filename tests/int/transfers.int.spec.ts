@@ -751,6 +751,181 @@ describe('Transfers Collection (Phase 1 Integration)', () => {
       }
     })
   })
+
+  describe('FRH-70: Password Protection & Cross-Transfer Rate Limit Isolation', () => {
+    const verifyEndpoint = (transferEndpoints as any)?.find(
+      (ep: any) => ep.path === '/:shareHash/verify-password' && ep.method === 'post',
+    )
+    const downloadEndpoint = (transferEndpoints as any)?.find(
+      (ep: any) => ep.path === '/:shareHash/download' && ep.method === 'get',
+    )
+
+    it('requires password and returns 401 when verifying with incorrect password', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Confidential_Doc.pdf',
+          filesize: 1024 * 1024,
+          mimeType: 'application/pdf',
+          storagePath: `transfers/${testUserId}/tr_pwd_1/original/Confidential_Doc.pdf`,
+          status: 'active',
+          passwordEnabled: true,
+          _password: 'CorrectPassword123!',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        json: async () => ({ password: 'WrongPassword999' }),
+        headers: new Headers({
+          'x-forwarded-for': '203.0.113.10',
+        }),
+        payload,
+      }
+
+      const res = await verifyEndpoint!.handler(req)
+      expect(res.status).toBe(401)
+      const data = await res.json()
+      expect(data.error).toBe('Incorrect password')
+    })
+
+    it('successfully verifies correct password and issues auth token', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Design_Kit.zip',
+          filesize: 2 * 1024 * 1024,
+          mimeType: 'application/zip',
+          storagePath: `transfers/${testUserId}/tr_pwd_2/original/Design_Kit.zip`,
+          status: 'active',
+          passwordEnabled: true,
+          _password: 'ValidPassword123!',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      const req: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        json: async () => ({ password: 'ValidPassword123!' }),
+        headers: new Headers({
+          'x-forwarded-for': '203.0.113.11',
+        }),
+        payload,
+      }
+
+      const res = await verifyEndpoint!.handler(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.token).toBeDefined()
+      expect(data.expiresAt).toBeDefined()
+    })
+
+    it('isolates 429 lockout so that locking out Transfer A does not lock out Transfer B for the same IP', async () => {
+      const clientIp = '198.51.100.42'
+
+      // Transfer A (will be locked out after 5 failed attempts)
+      const transferA = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'File_A.zip',
+          filesize: 1024 * 1024,
+          mimeType: 'application/zip',
+          storagePath: `transfers/${testUserId}/tr_pwd_a/original/File_A.zip`,
+          status: 'active',
+          passwordEnabled: true,
+          _password: 'PasswordA123!',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      // Transfer B (different file link)
+      const transferB = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'File_B.zip',
+          filesize: 1024 * 1024,
+          mimeType: 'application/zip',
+          storagePath: `transfers/${testUserId}/tr_pwd_b/original/File_B.zip`,
+          status: 'active',
+          passwordEnabled: true,
+          _password: 'PasswordB123!',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      // Send 5 incorrect attempts to Transfer A
+      for (let i = 0; i < 5; i++) {
+        const reqFail: any = {
+          routeParams: { shareHash: transferA.shareHash },
+          json: async () => ({ password: 'wrong' }),
+          headers: new Headers({
+            'x-forwarded-for': clientIp,
+          }),
+          payload,
+        }
+        const failRes = await verifyEndpoint!.handler(reqFail)
+        expect(failRes.status).toBe(401)
+      }
+
+      // 6th attempt to Transfer A must return 429 Too Many Attempts
+      const reqLocked: any = {
+        routeParams: { shareHash: transferA.shareHash },
+        json: async () => ({ password: 'wrong' }),
+        headers: new Headers({
+          'x-forwarded-for': clientIp,
+        }),
+        payload,
+      }
+      const lockedRes = await verifyEndpoint!.handler(reqLocked)
+      expect(lockedRes.status).toBe(429)
+      expect(lockedRes.headers.get('Retry-After')).toBeDefined()
+
+      // CRITICAL CHECK: Attempting to verify Transfer B from the SAME IP must NOT be locked (status 200)
+      const reqTransferB: any = {
+        routeParams: { shareHash: transferB.shareHash },
+        json: async () => ({ password: 'PasswordB123!' }),
+        headers: new Headers({
+          'x-forwarded-for': clientIp,
+        }),
+        payload,
+      }
+      const resB = await verifyEndpoint!.handler(reqTransferB)
+      expect(resB.status).toBe(200)
+      const dataB = await resB.json()
+      expect(dataB.token).toBeDefined()
+    })
+
+    it('rejects unauthenticated download on password protected transfer', async () => {
+      const transfer = await payload.create({
+        draft: true,
+        collection: 'transfers',
+        data: {
+          filename: 'Guarded.zip',
+          filesize: 1024 * 1024,
+          mimeType: 'application/zip',
+          storagePath: `transfers/${testUserId}/tr_pwd_guard/original/Guarded.zip`,
+          status: 'active',
+          passwordEnabled: true,
+          _password: 'SecureKey999!',
+        },
+        user: { id: testUserId } as any,
+      })
+
+      // Try download without Bearer token
+      const reqNoAuth: any = {
+        routeParams: { shareHash: transfer.shareHash },
+        headers: new Headers(),
+        payload,
+      }
+      const resNoAuth = await downloadEndpoint!.handler(reqNoAuth)
+      expect(resNoAuth.status).toBe(401)
+    })
+  })
 })
 
 

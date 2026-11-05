@@ -15,6 +15,7 @@ export interface TransferUploadOptions {
   file: File
   title?: string
   message?: string
+  password?: string
   onProgress?: (percent: number) => void
   signal?: AbortSignal
 }
@@ -41,7 +42,7 @@ export class TransferUploadError extends Error {
 export async function uploadTransfer(
   options: TransferUploadOptions,
 ): Promise<TransferUploadResult> {
-  const { file, title, message, onProgress, signal } = options
+  const { file, title, message, password, onProgress, signal } = options
 
   // 1. Client-side pre-flight size enforcement
   if (!file) {
@@ -156,6 +157,7 @@ export async function uploadTransfer(
   })
 
   // 4. Register transfer record via native Payload REST API
+  const hasPassword = Boolean(password && password.trim().length > 0)
   const createRes = await fetch('/api/transfers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -168,6 +170,7 @@ export async function uploadTransfer(
       storagePath,
       ...(title?.trim() ? { title: title.trim() } : {}),
       ...(message?.trim() ? { message: message.trim() } : {}),
+      ...(hasPassword ? { passwordEnabled: true, _password: password!.trim() } : {}),
       status: 'active',
     }),
     signal,
