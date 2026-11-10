@@ -6,7 +6,7 @@ import { sql } from '@payloadcms/db-postgres'
 import { checkRole } from '@/access/utilities'
 
 import { getStorageClient } from '@/lib/gcs-client'
-import { MAX_TRANSFER_BYTES, PASSWORD_TOKEN_TTL_MS } from './constants'
+import { MAX_TRANSFER_BYTES, MAX_TRANSFER_FILES, PASSWORD_TOKEN_TTL_MS } from './constants'
 import { evaluatePreviewEligibility, type TransferPreviewResponse } from '@/components/Transfers/Preview/types'
 
 // In-memory rate limiting map for password verification attempts (5 attempts / 5 mins per IP + shareHash)
@@ -132,7 +132,7 @@ function slugifyFilename(filename: string): string {
 }
 
 export const transferEndpoints: CollectionConfig['endpoints'] = [
-  // ── 1. Mint signed upload URL ─────────────────────────────────────────────
+  // ── 1. Mint signed upload URL (FRH-67 & FRH-79 Multi-File) ────────────────
   {
     path: '/signed-url',
     method: 'post',
@@ -141,63 +141,129 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         return Response.json({ error: 'Unauthorized — active creative account required' }, { status: 401 })
       }
 
-      let body: { filename?: string; filesize?: number; mimeType?: string } = {}
+      let body: {
+        filename?: string
+        filesize?: number
+        mimeType?: string
+        files?: Array<{ filename?: string; filesize?: number; mimeType?: string }>
+      } = {}
       try {
         body = (await req.json?.()) || {}
       } catch {
         return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
       }
 
-      const { filename, filesize, mimeType } = body
-      if (!filename || filesize == null) {
-        return Response.json({ error: 'Missing required filename or filesize' }, { status: 400 })
+      // Support either batch array `files` (FRH-79) or legacy single file
+      const rawFiles: Array<{ filename?: string; filesize?: number; mimeType?: string }> =
+        Array.isArray(body.files) && body.files.length > 0
+          ? body.files
+          : body.filename && body.filesize != null
+            ? [{ filename: body.filename, filesize: body.filesize, mimeType: body.mimeType }]
+            : []
+
+      if (rawFiles.length === 0) {
+        return Response.json({ error: 'Missing required files or file metadata' }, { status: 400 })
       }
 
-      const numericSize = Number(filesize)
-      if (numericSize <= 0) {
-        return Response.json({ error: 'Filesize must be greater than 0' }, { status: 400 })
-      }
-
-      if (numericSize > MAX_TRANSFER_BYTES) {
+      if (rawFiles.length > MAX_TRANSFER_FILES) {
         return Response.json(
-          { error: 'File exceeds 250MB transfer limit' },
+          { error: `Batch exceeds maximum limit of ${MAX_TRANSFER_FILES} files` },
+          { status: 400 },
+        )
+      }
+
+      let totalBatchBytes = 0
+      for (const f of rawFiles) {
+        if (!f.filename || f.filesize == null) {
+          return Response.json({ error: 'Each file must include filename and filesize' }, { status: 400 })
+        }
+        const numericSize = Number(f.filesize)
+        if (numericSize <= 0) {
+          return Response.json({ error: `File "${f.filename}" has invalid size (must be > 0 bytes)` }, { status: 400 })
+        }
+        totalBatchBytes += numericSize
+      }
+
+      const isSingle = !Array.isArray(body.files) && rawFiles.length === 1
+
+      if (totalBatchBytes > MAX_TRANSFER_BYTES) {
+        return Response.json(
+          { error: isSingle ? 'File exceeds 250MB transfer limit' : 'Total transfer batch exceeds 250MB limit' },
           { status: 413 },
         )
       }
 
-      const effectiveMimeType = mimeType || 'application/octet-stream'
+      const userId = req.user.id
       const shareHash = `tr_${crypto.randomBytes(6).toString('hex')}`
-      const slugified = slugifyFilename(filename)
-      const storagePath = `transfers/${req.user.id}/${shareHash}/original/${slugified}`
-
       const bucketName = process.env.GCS_BUCKET
-      if (!bucketName) {
-        return Response.json({
-          localMode: true,
-          shareHash,
-          storagePath,
-          mimeType: effectiveMimeType,
-        })
+      const localMode = !bucketName
+
+      let storage: any = null
+      let bucket: any = null
+      if (!localMode) {
+        try {
+          storage = await getStorageClient()
+          bucket = storage.bucket(bucketName)
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Storage client initialization failed'
+          return Response.json({ error: message }, { status: 500 })
+        }
       }
 
       try {
-        const storage = await getStorageClient()
-        const bucket = storage.bucket(bucketName)
-        const file = bucket.file(storagePath)
+        const isSingle = !Array.isArray(body.files) && rawFiles.length === 1
 
-        const [signedUrl] = await file.getSignedUrl({
-          version: 'v4',
-          action: 'write',
-          expires: Date.now() + 15 * 60 * 1000, // 15-minute validity
-          contentType: effectiveMimeType,
-        })
+        const fileUploadManifests = await Promise.all(
+          rawFiles.map(async (f, index) => {
+            const effectiveMimeType = f.mimeType || 'application/octet-stream'
+            const slugified = slugifyFilename(f.filename!)
+            // Single-file retains exact un-indexed path for backward compatibility; multi-file uses index prefix to prevent collision
+            const storagePath = isSingle
+              ? `transfers/${userId}/${shareHash}/original/${slugified}`
+              : `transfers/${userId}/${shareHash}/original/${index}-${slugified}`
+
+            if (localMode) {
+              return {
+                filename: f.filename!,
+                filesize: Number(f.filesize),
+                mimeType: effectiveMimeType,
+                storagePath,
+              }
+            }
+
+            const gcsFile = bucket.file(storagePath)
+            const [signedUrl] = await gcsFile.getSignedUrl({
+              version: 'v4',
+              action: 'write',
+              expires: Date.now() + 15 * 60 * 1000, // 15-minute validity
+              contentType: effectiveMimeType,
+            })
+
+            return {
+              filename: f.filename!,
+              filesize: Number(f.filesize),
+              mimeType: effectiveMimeType,
+              storagePath,
+              signedUrl,
+            }
+          }),
+        )
+
+        // If called by single-file client, return top-level backward-compatible fields as well
+        const primary = fileUploadManifests[0]
 
         return Response.json({
-          localMode: false,
-          signedUrl,
+          localMode,
           shareHash,
-          storagePath,
-          mimeType: effectiveMimeType,
+          files: fileUploadManifests,
+          // Legacy backward-compatibility fields:
+          ...(isSingle
+            ? {
+                signedUrl: (primary as any).signedUrl,
+                storagePath: primary.storagePath,
+                mimeType: primary.mimeType,
+              }
+            : {}),
         })
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Storage signing failed'
