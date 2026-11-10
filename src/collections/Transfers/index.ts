@@ -6,7 +6,7 @@ import { setTransferDefaults } from './hooks/setTransferDefaults'
 import { hashTransferPassword } from './hooks/hashTransferPassword'
 import { cleanupTransferFile } from './hooks/cleanupTransferFile'
 import { transferEndpoints } from './endpoints'
-import { TRANSFER_EXPIRY_MS, MAX_TRANSFER_BYTES } from './constants'
+import { TRANSFER_EXPIRY_MS, MAX_TRANSFER_BYTES, MAX_TRANSFER_FILES } from './constants'
 
 export const Transfers: CollectionConfig = {
   slug: 'transfers',
@@ -53,7 +53,7 @@ export const Transfers: CollectionConfig = {
       type: 'text',
       required: true,
       admin: {
-        description: 'Original name of the uploaded deliverable.',
+        description: 'Original name of the primary uploaded deliverable (or batch label).',
       },
     },
     {
@@ -62,11 +62,11 @@ export const Transfers: CollectionConfig = {
       required: true,
       validate: (val: any) => {
         if (typeof val !== 'number' || val <= 0) return 'Valid file size is required'
-        if (val > MAX_TRANSFER_BYTES) return 'File exceeds 250MB transfer limit'
+        if (val > MAX_TRANSFER_BYTES) return 'Batch exceeds 250MB transfer limit'
         return true
       },
       admin: {
-        description: 'File size in bytes (max 250MB).',
+        description: 'Total file size in bytes across all files (max 250MB).',
       },
     },
     {
@@ -75,7 +75,7 @@ export const Transfers: CollectionConfig = {
       required: true,
       defaultValue: 'application/octet-stream',
       admin: {
-        description: 'MIME type of the uploaded file.',
+        description: 'MIME type of primary deliverable.',
       },
     },
     {
@@ -84,8 +84,71 @@ export const Transfers: CollectionConfig = {
       required: true,
       admin: {
         readOnly: true,
-        description: 'Canonical storage path (transfers/{userId}/{shareHash}/original/{filename}).',
+        description: 'Canonical storage path of primary deliverable (transfers/{userId}/{shareHash}/original/{filename}).',
       },
+    },
+    {
+      name: 'files',
+      type: 'array',
+      minRows: 1,
+      maxRows: MAX_TRANSFER_FILES,
+      validate: (val: any) => {
+        if (!val || !Array.isArray(val) || val.length === 0) {
+          return true // Allow setTransferDefaults hook to backfill or validate sibling fields
+        }
+        if (val.length > MAX_TRANSFER_FILES) {
+          return `Transfer batches cannot exceed ${MAX_TRANSFER_FILES} files.`
+        }
+        const totalBytes = val.reduce((acc: number, item: any) => acc + (Number(item?.filesize) || 0), 0)
+        if (totalBytes > MAX_TRANSFER_BYTES) {
+          return 'Total batch size exceeds 250MB transfer limit.'
+        }
+        return true
+      },
+      admin: {
+        description: 'Itemized manifest of all constituent files within this transfer batch.',
+      },
+      fields: [
+        {
+          name: 'filename',
+          type: 'text',
+          required: true,
+          admin: {
+            description: 'Constituent original filename.',
+          },
+        },
+        {
+          name: 'filesize',
+          type: 'number',
+          required: true,
+          validate: (val: any) => {
+            if (typeof val !== 'number' || val <= 0) return 'Valid file size is required'
+            if (val > MAX_TRANSFER_BYTES) return 'File exceeds 250MB limit'
+            return true
+          },
+          admin: {
+            description: 'Constituent file size in bytes.',
+          },
+        },
+        {
+          name: 'mimeType',
+          type: 'text',
+          required: true,
+          defaultValue: 'application/octet-stream',
+          admin: {
+            description: 'Constituent MIME type.',
+          },
+        },
+        {
+          name: 'storagePath',
+          type: 'text',
+          required: true,
+          admin: {
+            readOnly: true,
+            description: 'Storage path for this file in GCS / local enclave.',
+          },
+        },
+      ],
     },
     {
       name: 'title',

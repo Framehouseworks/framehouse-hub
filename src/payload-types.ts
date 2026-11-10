@@ -1779,21 +1779,45 @@ export interface Transfer {
   shareHash: string;
   sender: string | User;
   /**
-   * Original name of the uploaded deliverable.
+   * Original name of the primary uploaded deliverable (or batch label).
    */
   filename: string;
   /**
-   * File size in bytes (max 250MB).
+   * Total file size in bytes across all files (max 250MB).
    */
   filesize: number;
   /**
-   * MIME type of the uploaded file.
+   * MIME type of primary deliverable.
    */
   mimeType: string;
   /**
-   * Canonical storage path (transfers/{userId}/{shareHash}/original/{filename}).
+   * Canonical storage path of primary deliverable (transfers/{userId}/{shareHash}/original/{filename}).
    */
   storagePath: string;
+  /**
+   * Itemized manifest of all constituent files within this transfer batch.
+   */
+  files?:
+    | {
+        /**
+         * Constituent original filename.
+         */
+        filename: string;
+        /**
+         * Constituent file size in bytes.
+         */
+        filesize: number;
+        /**
+         * Constituent MIME type.
+         */
+        mimeType: string;
+        /**
+         * Storage path for this file in GCS / local enclave.
+         */
+        storagePath: string;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Optional display title shown to recipient.
    */
@@ -2920,6 +2944,15 @@ export interface TransfersSelect<T extends boolean = true> {
   filesize?: T;
   mimeType?: T;
   storagePath?: T;
+  files?:
+    | T
+    | {
+        filename?: T;
+        filesize?: T;
+        mimeType?: T;
+        storagePath?: T;
+        id?: T;
+      };
   title?: T;
   message?: T;
   status?: T;

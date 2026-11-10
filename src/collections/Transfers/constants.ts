@@ -5,6 +5,9 @@ export const TRANSFER_EXPIRY_MS = TRANSFER_EXPIRY_DAYS * 24 * 60 * 60 * 1000 // 
 // Maximum transfer upload size: 250MB
 export const MAX_TRANSFER_BYTES = 250 * 1024 * 1024
 
+// Maximum number of files permitted in a single transfer session (FRH-79)
+export const MAX_TRANSFER_FILES = 5
+
 // Canonical storage path prefix
 export const TRANSFERS_PREFIX = 'transfers'
 
