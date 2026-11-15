@@ -39,8 +39,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         }
       }
 
-      const title = `${transfer.title || transfer.filename} | Framehouse Hub Transfer`
-      const description = `Download ${transfer.filename} (${(transfer.filesize / (1024 * 1024)).toFixed(1)}MB) securely via Framehouse Hub.`
+      const files = transfer.files || []
+      const isMultiFile = files.length > 1
+      const count = isMultiFile ? files.length : 1
+      const sizeMb = (transfer.filesize / (1024 * 1024)).toFixed(1)
+      const title = isMultiFile
+        ? `${transfer.title || `${count} files`} | Framehouse Hub Transfer`
+        : `${transfer.title || transfer.filename} | Framehouse Hub Transfer`
+      const description = isMultiFile
+        ? `Download ${count} files (${sizeMb}MB) securely via Framehouse Hub.`
+        : `Download ${transfer.filename} (${sizeMb}MB) securely via Framehouse Hub.`
       return {
         title,
         description,

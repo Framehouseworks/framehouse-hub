@@ -36,9 +36,13 @@ import {
   Lock,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { TransferMediaPreview, type TransferPreviewResponse } from '@/components/Transfers/Preview'
+import {
+  TransferMediaPreview,
+  TransferFallbackCard,
+  type TransferPreviewResponse,
+} from '@/components/Transfers/Preview'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
@@ -94,6 +98,149 @@ interface TransferDownloadViewProps {
   passwordProtected?: boolean
   /** Share hash used for verifying password and loading transfer */
   shareHash?: string
+}
+
+interface TransferGridCellProps {
+  file: {
+    filename: string
+    filesize: number
+    mimeType: string
+    storagePath: string
+  }
+  index: number
+  shareHash: string
+  authToken: string | null
+  onDownload: (index: number) => void
+  isDownloading: boolean
+}
+
+function TransferGridCell({
+  file,
+  index,
+  shareHash,
+  authToken,
+  onDownload,
+  isDownloading,
+}: TransferGridCellProps) {
+  const ext = file.filename.split('.').pop()?.toLowerCase() || ''
+  const isVisual =
+    file.mimeType.startsWith('image/') ||
+    ['jpg', 'jpeg', 'png', 'webp'].includes(ext)
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const cellRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isVisual) return
+
+    let isMounted = true
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          observer.disconnect()
+          setIsLoadingPreview(true)
+          const headers: Record<string, string> = {}
+          if (authToken) {
+            headers.Authorization = `Bearer ${authToken}`
+          }
+          fetch(`/api/transfers/${shareHash}/preview?fileIndex=${index}`, { headers })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data: TransferPreviewResponse | null) => {
+              if (isMounted && data?.previewUrl) {
+                setPreviewUrl(data.previewUrl)
+              }
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (isMounted) setIsLoadingPreview(false)
+            })
+        }
+      },
+      { rootMargin: '100px' },
+    )
+
+    if (cellRef.current) {
+      observer.observe(cellRef.current)
+    }
+
+    return () => {
+      isMounted = false
+      observer.disconnect()
+    }
+  }, [isVisual, shareHash, index, authToken])
+
+  const FileIcon = getFileIcon(file.filename, file.mimeType)
+
+  return (
+    <div
+      ref={cellRef}
+      className="flex flex-col justify-between rounded-3xl bg-gallery-surface p-4 sm:p-5 border border-black/[0.04] dark:border-white/[0.05] hover:border-gallery-gold/30 transition-all space-y-4 shadow-sm"
+    >
+      {/* Visual thumbnail or Fallback representation */}
+      {isVisual ? (
+        <div className="space-y-3">
+          <div className="relative w-full h-36 sm:h-40 rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden flex items-center justify-center">
+            {isLoadingPreview && (
+              <div className="absolute inset-0 flex items-center justify-center animate-pulse bg-gallery-gold/5">
+                <Sparkles size={18} className="text-gallery-gold animate-spin" />
+              </div>
+            )}
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt={file.filename}
+                className="w-full h-full object-cover transition-opacity duration-300"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-on-surface/40 space-y-1">
+                <FileIcon size={32} className="text-gallery-gold/70" />
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0 space-y-1 px-1">
+            <p className="text-sm font-semibold text-primary truncate" title={file.filename}>
+              {file.filename}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-rubik text-[10px] text-gallery-gold font-medium">
+                {formatBytes(file.filesize)}
+              </span>
+              <span className="text-on-surface/20 text-xs">•</span>
+              <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
+                {ext.toUpperCase() || 'FILE'}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <TransferFallbackCard
+            filename={file.filename}
+            filesize={file.filesize}
+            mimeType={file.mimeType}
+            message="Direct download to view."
+          />
+        </div>
+      )}
+
+      {/* Individual Download Action (min 44px tap target) */}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => onDownload(index)}
+        disabled={isDownloading}
+        className="w-full min-h-[44px] gap-2 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0"
+      >
+        <Download size={14} />
+        <span>{isDownloading ? 'Downloading...' : 'Download File'}</span>
+      </Button>
+    </div>
+  )
 }
 
 export function TransferDownloadView({
@@ -264,6 +411,91 @@ export function TransferDownloadView({
     }
   }
 
+  const [downloadingFileIndex, setDownloadingFileIndex] = useState<number | null>(null)
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false)
+
+  // Per-file individual download handler (FRH-80)
+  const handlePerFileDownload = async (fileIndex: number) => {
+    if (!transfer) return
+    const files = transfer.files || []
+    const targetFile = files[fileIndex] || transfer
+    const targetFilename = targetFile.filename || `file-${fileIndex + 1}`
+
+    if (!authToken) {
+      // Unprotected transfer: standard link navigation
+      const link = document.createElement('a')
+      link.href = `/api/transfers/${activeShareHash}/download/${fileIndex}`
+      link.download = targetFilename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+
+    setDownloadingFileIndex(fileIndex)
+    try {
+      const res = await fetch(`/api/transfers/${activeShareHash}/download/${fileIndex}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+
+      if (res.status === 401) {
+        toast.error('Session expired. Please re-authenticate.')
+        setIsUnlocked(false)
+        return
+      }
+
+      if (!res.ok) {
+        toast.error(`Download failed for ${targetFilename}`)
+        return
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = targetFilename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch {
+      toast.error(`Network error downloading ${targetFilename}`)
+    } finally {
+      setDownloadingFileIndex(null)
+    }
+  }
+
+  // Sequential batch download handler with staggered triggers (FRH-80)
+  const handleDownloadAll = async () => {
+    if (!transfer || !transfer.files || transfer.files.length === 0) return
+    setIsDownloadingAll(true)
+    setHasClickedDownload(true)
+
+    const isMobile =
+      typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    const totalFiles = transfer.files.length
+
+    try {
+      for (let i = 0; i < totalFiles; i++) {
+        toast.info(`Downloading ${i + 1} of ${totalFiles}...`, { id: 'download-all-progress' })
+        await handlePerFileDownload(i)
+
+        if (i < totalFiles - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
+      }
+      toast.success(`All ${totalFiles} downloads initiated.`, { id: 'download-all-progress' })
+    } catch {
+      if (isMobile) {
+        toast.error('Browser blocked automated batch download. Please tap individual download buttons below.')
+      } else {
+        toast.error('Error during batch download. Please use per-file download buttons.')
+      }
+    } finally {
+      setIsDownloadingAll(false)
+    }
+  }
+
   // Resolve fine-grained status
   const effectiveStatus: TransferStatus =
     status ||
@@ -276,8 +508,6 @@ export function TransferDownloadView({
           : 'active')
 
   const isAvailable = effectiveStatus === 'active' && Boolean(transfer)
-
-  const downloadUrl = transfer ? `/api/transfers/${transfer.shareHash}/download` : ''
 
   const sender = transfer?.sender as User | undefined
   const senderName =
@@ -444,6 +674,16 @@ export function TransferDownloadView({
   const FileIcon = getFileIcon(transfer.filename, transfer.mimeType)
   const countdown = formatCountdown(transfer.expiresAt)
   const ext = transfer.filename.split('.').pop()?.toUpperCase() || 'FILE'
+  const isMultiFile = Boolean(transfer.files && Array.isArray(transfer.files) && transfer.files.length > 1)
+  const transferFiles = (transfer.files || []) as Array<{
+    filename: string
+    filesize: number
+    mimeType: string
+    storagePath: string
+  }>
+  const totalBatchSize = isMultiFile
+    ? transferFiles.reduce((acc, f) => acc + (Number(f.filesize) || 0), 0)
+    : transfer.filesize
 
   return (
     <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
@@ -453,7 +693,11 @@ export function TransferDownloadView({
         onWallpaperChange={setActiveWallpaper}
       />
 
-      <div className="w-full max-w-xl mx-auto space-y-6 relative z-10">
+      <div
+        className={`w-full ${
+          isMultiFile ? 'max-w-3xl' : 'max-w-xl'
+        } mx-auto space-y-6 relative z-10 transition-all duration-300`}
+      >
         {/* Curator Header Mark */}
         <div className="flex items-center justify-center gap-3">
           <LogoIcon size={38} />
@@ -468,13 +712,14 @@ export function TransferDownloadView({
           <div className="space-y-3 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <span className="font-rubik text-[9.5px] tracking-[0.22em] text-gallery-gold uppercase px-2.5 py-0.5 rounded-full bg-gallery-gold/10">
-                File Transfers
+                {isMultiFile ? `${transferFiles.length} files` : 'File Transfers'}
               </span>
             </div>
 
             <div>
               <h1 className="font-varela text-2xl sm:text-3xl tracking-tight text-primary text-ellipsis">
-                {transfer.title || transfer.filename}
+                {transfer.title ||
+                  (isMultiFile ? `${transferFiles.length} Files Delivered` : transfer.filename)}
               </h1>
               <p className="text-xs text-on-surface/50 mt-1">
                 Sent by <span className="font-medium text-primary">{senderName}</span>
@@ -488,118 +733,200 @@ export function TransferDownloadView({
             )}
           </div>
 
-          {/* File Metadata Stage */}
-          <div className="flex items-center gap-4 p-5 rounded-2xl bg-gallery-surface">
-            <div className="w-14 h-14 shrink-0 rounded-2xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center">
-              <FileIcon size={28} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-primary truncate max-w-xs sm:max-w-sm">
-                {transfer.filename}
-              </p>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <span className="font-rubik text-[10px] text-gallery-gold">
-                  {formatBytes(transfer.filesize)}
-                </span>
-                <span className="text-on-surface/20 text-xs">•</span>
-                <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
-                  {ext}
-                </span>
+          {isMultiFile ? (
+            <div className="space-y-6">
+              {/* Batch Summary Header (FRH-80) */}
+              <div className="flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-gallery-surface flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center shrink-0">
+                    <FileArchive size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-rubik text-xs font-semibold text-primary uppercase">
+                        {transferFiles.length} Files
+                      </span>
+                      <span className="text-on-surface/20 text-xs">•</span>
+                      <span className="font-rubik text-[10px] text-gallery-gold font-medium">
+                        {formatBytes(totalBatchSize)} Total
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-on-surface/50 mt-0.5">
+                      Batch Deliverable
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 font-rubik text-[10px] text-gallery-gold bg-gallery-gold/10 px-3 py-1.5 rounded-full">
+                  <Clock size={12} />
+                  <span>{countdown.label.toUpperCase()}</span>
+                </div>
+              </div>
+
+              {/* Multi-File Grid (FRH-80) */}
+              <div
+                className={`grid ${
+                  transferFiles.length <= 3
+                    ? 'grid-cols-1 sm:grid-cols-2'
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                } gap-4`}
+              >
+                {transferFiles.map((file, idx) => (
+                  <TransferGridCell
+                    key={`${file.filename}-${idx}`}
+                    file={file}
+                    index={idx}
+                    shareHash={activeShareHash}
+                    authToken={authToken}
+                    onDownload={handlePerFileDownload}
+                    isDownloading={downloadingFileIndex === idx}
+                  />
+                ))}
+              </div>
+
+              {/* Primary Action Button: "Download All" */}
+              <div className="space-y-3 pt-2">
+                <Button
+                  variant="gallery"
+                  size="lg"
+                  onClick={handleDownloadAll}
+                  disabled={isDownloadingAll}
+                  className="w-full h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
+                >
+                  <Download size={20} />
+                  {isDownloadingAll
+                    ? 'Downloading files...'
+                    : hasClickedDownload
+                      ? 'Download all again'
+                      : 'Download All'}
+                </Button>
+
+                <p className="text-center text-[11px] text-on-surface/40 flex items-center justify-center gap-1.5">
+                  <Sparkles size={12} className="text-gallery-gold" />
+                  <span>
+                    {hasClickedDownload
+                      ? 'Downloads initiated. Click individual files above if you need another copy.'
+                      : 'Click above to download all files sequentially, or download files individually.'}
+                  </span>
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Expandable Media Preview Stage with Symmetrical Reveal & Hide Transitions (FRH-82) */}
-          <AnimatePresence initial={false}>
-            {isPreviewOpen && (
-              <motion.div
-                key="transfer-preview-stage"
-                initial={{ opacity: 0, height: 0, scale: 0.98 }}
-                animate={{
-                  opacity: 1,
-                  height: 'auto',
-                  scale: 1,
-                  transition: {
-                    height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-                    opacity: { duration: 0.25, delay: 0.05 },
-                    scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-                  },
-                }}
-                exit={{
-                  opacity: 0,
-                  height: 0,
-                  scale: 0.98,
-                  transition: {
-                    height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-                    opacity: { duration: 0.2 },
-                    scale: { duration: 0.2 },
-                  },
-                }}
-                className="overflow-hidden"
-              >
-                <div className="pb-3">
-                  <TransferMediaPreview
-                    previewData={previewData}
-                    isLoading={isPreviewLoading}
-                    filename={transfer.filename}
-                    filesize={transfer.filesize}
-                    mimeType={transfer.mimeType}
-                    onRetry={fetchPreview}
-                  />
+          ) : (
+            <>
+              {/* File Metadata Stage */}
+              <div className="flex items-center gap-4 p-5 rounded-2xl bg-gallery-surface">
+                <div className="w-14 h-14 shrink-0 rounded-2xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center">
+                  <FileIcon size={28} />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-primary truncate max-w-xs sm:max-w-sm">
+                    {transfer.filename}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="font-rubik text-[10px] text-gallery-gold">
+                      {formatBytes(transfer.filesize)}
+                    </span>
+                    <span className="text-on-surface/20 text-xs">•</span>
+                    <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
+                      {ext}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Dual Action Cluster: Download + Preview Toggle */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <Button
-                variant="gallery"
-                size="lg"
-                onClick={handleSecureDownload}
-                disabled={isDownloadingBlob}
-                className="flex-1 h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
-              >
-                <Download size={20} />
-                {isDownloadingBlob
-                  ? 'Preparing download...'
-                  : hasClickedDownload
-                    ? 'Download again'
-                    : 'Download file'}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={togglePreview}
-                aria-expanded={isPreviewOpen}
-                className="h-14 px-5 gap-2 text-sm font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
-              >
-                {isPreviewOpen ? (
-                  <>
-                    <EyeOff size={18} />
-                    <span>Hide</span>
-                  </>
-                ) : (
-                  <>
-                    <Eye size={18} />
-                    <span>Preview</span>
-                  </>
+              {/* Expandable Media Preview Stage with Symmetrical Reveal & Hide Transitions (FRH-82) */}
+              <AnimatePresence initial={false}>
+                {isPreviewOpen && (
+                  <motion.div
+                    key="transfer-preview-stage"
+                    initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                    animate={{
+                      opacity: 1,
+                      height: 'auto',
+                      scale: 1,
+                      transition: {
+                        height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.25, delay: 0.05 },
+                        scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                      },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      height: 0,
+                      scale: 0.98,
+                      transition: {
+                        height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.2 },
+                        scale: { duration: 0.2 },
+                      },
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pb-3">
+                      <TransferMediaPreview
+                        previewData={previewData}
+                        isLoading={isPreviewLoading}
+                        filename={transfer.filename}
+                        filesize={transfer.filesize}
+                        mimeType={transfer.mimeType}
+                        onRetry={fetchPreview}
+                      />
+                    </div>
+                  </motion.div>
                 )}
-              </Button>
-            </div>
+              </AnimatePresence>
 
-            <p className="text-center text-[11px] text-on-surface/40 flex items-center justify-center gap-1.5">
-              <Sparkles size={12} className="text-gallery-gold" />
-              <span>
-                {hasClickedDownload
-                  ? 'Your download has begun. Click again if you need another copy.'
-                  : 'Click above to download your deliverable in its original fidelity.'}
-              </span>
-            </p>
-          </div>
+              {/* Dual Action Cluster: Download + Preview Toggle */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Button
+                    variant="gallery"
+                    size="lg"
+                    onClick={handleSecureDownload}
+                    disabled={isDownloadingBlob}
+                    className="flex-1 h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
+                  >
+                    <Download size={20} />
+                    {isDownloadingBlob
+                      ? 'Preparing download...'
+                      : hasClickedDownload
+                        ? 'Download again'
+                        : 'Download file'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={togglePreview}
+                    aria-expanded={isPreviewOpen}
+                    className="h-14 px-5 gap-2 text-sm font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+                  >
+                    {isPreviewOpen ? (
+                      <>
+                        <EyeOff size={18} />
+                        <span>Hide</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye size={18} />
+                        <span>Preview</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <p className="text-center text-[11px] text-on-surface/40 flex items-center justify-center gap-1.5">
+                  <Sparkles size={12} className="text-gallery-gold" />
+                  <span>
+                    {hasClickedDownload
+                      ? 'Your download has begun. Click again if you need another copy.'
+                      : 'Click above to download your deliverable in its original fidelity.'}
+                  </span>
+                </p>
+              </div>
+            </>
+          )}
 
           {/* Retention & Security Footer */}
           <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs text-on-surface/50 border-t border-black/[0.03] dark:border-white/[0.03] pt-4">
