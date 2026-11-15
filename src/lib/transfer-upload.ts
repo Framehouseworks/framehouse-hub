@@ -1,22 +1,50 @@
 /**
- * Transfer Upload Service (FRH-67 Phase 2)
+ * Transfer Upload Service (FRH-67 & FRH-79 Multi-File Link Transfers)
  *
  * Unified client-side upload pipeline for Link Transfers.
- * - Enforces pre-flight 250MB limit check
- * - Requests signed PUT URL (or local mode flag)
- * - Streams binary bytes directly via XHR with progress tracking
+ * - Supports single-file and multi-file batch uploads (up to 5 files / 250MB total)
+ * - Requests signed PUT URLs (or local mode tokens) from /api/transfers/signed-url
+ * - Employs Screen Wake Lock API during mobile transfers to avoid sleep interruption
+ * - Streams binary bytes directly via XHR without in-memory buffering to satisfy Cloud Run 512Mi & mobile limits
+ * - Tracks per-file and aggregate transfer progress
  * - Registers final document via native Payload REST API
  */
 
-import { MAX_TRANSFER_BYTES } from '@/collections/Transfers/constants'
-export { MAX_TRANSFER_BYTES }
+import { MAX_TRANSFER_BYTES, MAX_TRANSFER_FILES } from '@/collections/Transfers/constants'
+export { MAX_TRANSFER_BYTES, MAX_TRANSFER_FILES }
+
+export interface TransferFileProgress {
+  filename: string
+  filesize: number
+  loaded: number
+  percent: number
+  status: 'pending' | 'uploading' | 'complete' | 'failed'
+  error?: string
+}
+
+export interface BatchTransferUploadOptions {
+  files: File[]
+  title?: string
+  message?: string
+  password?: string
+  onProgress?: (overallPercent: number, fileStatuses: TransferFileProgress[]) => void
+  signal?: AbortSignal
+}
 
 export interface TransferUploadOptions {
   file: File
   title?: string
   message?: string
+  password?: string
   onProgress?: (percent: number) => void
   signal?: AbortSignal
+}
+
+export interface TransferFileItem {
+  filename: string
+  filesize: number
+  mimeType: string
+  storagePath: string
 }
 
 export interface TransferUploadResult {
@@ -26,6 +54,7 @@ export interface TransferUploadResult {
   transferId: number
   filename: string
   filesize: number
+  files?: TransferFileItem[]
 }
 
 export class TransferUploadError extends Error {
@@ -38,136 +67,229 @@ export class TransferUploadError extends Error {
   }
 }
 
-export async function uploadTransfer(
-  options: TransferUploadOptions,
+/**
+ * Upload multiple files under a single transfer session (FRH-79).
+ */
+export async function uploadTransferBatch(
+  options: BatchTransferUploadOptions,
 ): Promise<TransferUploadResult> {
-  const { file, title, message, onProgress, signal } = options
+  const { files, title, message, password, onProgress, signal } = options
 
-  // 1. Client-side pre-flight size enforcement
-  if (!file) {
-    throw new TransferUploadError('No file provided')
+  // 1. Client-side pre-flight validations
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    throw new TransferUploadError('No files provided')
   }
 
-  if (file.size <= 0) {
+  if (files.length > MAX_TRANSFER_FILES) {
     throw new TransferUploadError(
-      'This file appears to be empty (0 bytes). Please select a file with content to transfer.',
+      `You can upload up to ${MAX_TRANSFER_FILES} files per transfer session. You selected ${files.length}.`,
+      400,
     )
   }
 
-  if (file.size > MAX_TRANSFER_BYTES) {
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
-    throw new TransferUploadError(
-      `This file is ${sizeMB}MB, which exceeds our 250MB transfer limit. Please choose a file under 250MB.`,
-      413,
-    )
+  let totalBatchBytes = 0
+  for (const file of files) {
+    if (file.size <= 0) {
+      throw new TransferUploadError(
+        `File "${file.name}" is empty (0 bytes). Please select files with content.`,
+      )
+    }
+    totalBatchBytes += file.size
   }
 
-  // 2. Request signed upload signature / local mode token
-  const signRes = await fetch('/api/transfers/signed-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      filename: file.name,
-      filesize: file.size,
-      mimeType: file.type || 'application/octet-stream',
-    }),
-    signal,
-  })
+  if (totalBatchBytes > MAX_TRANSFER_BYTES) {
+    const sizeMB = (totalBatchBytes / (1024 * 1024)).toFixed(1)
+    const message =
+      files.length === 1
+        ? `This file is ${sizeMB}MB, which exceeds our 250MB transfer limit. Please choose a file under 250MB.`
+        : `Total batch size is ${sizeMB}MB, which exceeds our 250MB transfer limit. Please reduce your selection.`
+    throw new TransferUploadError(message, 413)
+  }
 
-  if (!signRes.ok) {
-    let errorDetail = `Failed with status ${signRes.status}`
+  // Request Screen Wake Lock if available (mobile iOS/Android protection against sleep dropouts)
+  let wakeLockSentinel: any = null
+  if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
     try {
-      const errJson = await signRes.json()
-      if (errJson?.error) errorDetail = errJson.error
+      wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
     } catch {
-      /* ignore */
+      // Wake Lock optional / unsupported in insecure or background contexts
     }
-    throw new TransferUploadError(errorDetail, signRes.status)
   }
 
-  const signData = await signRes.json()
-  const { localMode, signedUrl, shareHash, storagePath, mimeType: effectiveMimeType } = signData
+  // 2. Request batch signed upload URLs
+  let signData: any
+  try {
+    const signRes = await fetch('/api/transfers/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        files: files.map((f) => ({
+          filename: f.name,
+          filesize: f.size,
+          mimeType: f.type || 'application/octet-stream',
+        })),
+      }),
+      signal,
+    })
 
-  // 3. Binary upload via XHR for real-time progress
-  await new Promise<void>((resolve, reject) => {
-    if (signal?.aborted) {
-      return reject(new TransferUploadError('Upload aborted by user'))
-    }
-
-    const xhr = new XMLHttpRequest()
-
-    const onAbort = () => {
-      xhr.abort()
-      reject(new TransferUploadError('Upload aborted by user'))
-    }
-
-    if (signal) {
-      signal.addEventListener('abort', onAbort)
-    }
-
-    const cleanup = () => {
-      if (signal) {
-        signal.removeEventListener('abort', onAbort)
+    if (!signRes.ok) {
+      let errorDetail = `Signed URL request failed with status ${signRes.status}`
+      try {
+        const errJson = await signRes.json()
+        if (errJson?.error) errorDetail = errJson.error
+      } catch {
+        /* ignore */
       }
+      throw new TransferUploadError(errorDetail, signRes.status)
     }
 
-    if (localMode) {
-      // Local dev mode: stream raw bytes to upload-local endpoint
-      xhr.open('POST', '/api/transfers/upload-local')
-      xhr.setRequestHeader('Content-Type', effectiveMimeType || 'application/octet-stream')
-      xhr.setRequestHeader('X-Storage-Path', storagePath)
-    } else {
-      // Cloud mode: direct HTTP PUT to GCS signed URL
-      xhr.open('PUT', signedUrl)
-      xhr.setRequestHeader('Content-Type', effectiveMimeType || 'application/octet-stream')
+    signData = await signRes.json()
+  } finally {
+    // If sign failed, release wake lock early
+    if (!signData && wakeLockSentinel) {
+      wakeLockSentinel.release?.().catch?.(() => {})
     }
+  }
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        const percent = Math.min(Math.round((event.loaded / event.total) * 100), 99)
-        onProgress(percent)
-      }
+  const { localMode, shareHash, files: signedManifests } = signData
+  if (!signedManifests || signedManifests.length !== files.length) {
+    wakeLockSentinel?.release?.().catch?.(() => {})
+    throw new TransferUploadError('Server returned an invalid file upload manifest', 500)
+  }
+
+  // Initialize progress trackers
+  const fileStatuses: TransferFileProgress[] = files.map((f) => ({
+    filename: f.name,
+    filesize: f.size,
+    loaded: 0,
+    percent: 0,
+    status: 'pending',
+  }))
+
+  const broadcastProgress = () => {
+    if (!onProgress) return
+    const totalLoaded = fileStatuses.reduce((acc, curr) => acc + curr.loaded, 0)
+    const overallPercent = Math.min(Math.round((totalLoaded / totalBatchBytes) * 100), 99)
+    onProgress(overallPercent, [...fileStatuses])
+  }
+
+  // 3. Binary uploads via direct XHR streams (zero Node server proxying)
+  try {
+    await Promise.all(
+      files.map(async (file, index) => {
+        const manifest = signedManifests[index]
+        const statusItem = fileStatuses[index]
+
+        statusItem.status = 'uploading'
+        broadcastProgress()
+
+        await new Promise<void>((resolve, reject) => {
+          if (signal?.aborted) {
+            statusItem.status = 'failed'
+            return reject(new TransferUploadError('Upload aborted by user'))
+          }
+
+          const xhr = new XMLHttpRequest()
+
+          const onAbort = () => {
+            xhr.abort()
+            statusItem.status = 'failed'
+            reject(new TransferUploadError('Upload aborted by user'))
+          }
+
+          if (signal) {
+            signal.addEventListener('abort', onAbort)
+          }
+
+          const cleanup = () => {
+            if (signal) {
+              signal.removeEventListener('abort', onAbort)
+            }
+          }
+
+          if (localMode) {
+            xhr.open('POST', '/api/transfers/upload-local')
+            xhr.setRequestHeader('Content-Type', manifest.mimeType || 'application/octet-stream')
+            xhr.setRequestHeader('X-Storage-Path', manifest.storagePath)
+          } else {
+            xhr.open('PUT', manifest.signedUrl)
+            xhr.setRequestHeader('Content-Type', manifest.mimeType || 'application/octet-stream')
+          }
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              statusItem.loaded = event.loaded
+              statusItem.percent = Math.min(Math.round((event.loaded / event.total) * 100), 99)
+              broadcastProgress()
+            }
+          }
+
+          xhr.onload = () => {
+            cleanup()
+            if (xhr.status >= 200 && xhr.status < 300) {
+              statusItem.loaded = file.size
+              statusItem.percent = 100
+              statusItem.status = 'complete'
+              broadcastProgress()
+              resolve()
+            } else {
+              statusItem.status = 'failed'
+              let message = `File "${file.name}" failed with status ${xhr.status}`
+              try {
+                const parsed = JSON.parse(xhr.responseText)
+                if (parsed?.error) message = parsed.error
+              } catch {
+                /* ignore */
+              }
+              reject(new TransferUploadError(message, xhr.status))
+            }
+          }
+
+          xhr.onerror = () => {
+            cleanup()
+            statusItem.status = 'failed'
+            reject(new TransferUploadError(`Network error while uploading "${file.name}"`))
+          }
+
+          // Directly stream File object without memory buffer allocations
+          xhr.send(file)
+        })
+      }),
+    )
+  } finally {
+    if (wakeLockSentinel) {
+      wakeLockSentinel.release?.().catch?.(() => {})
     }
+  }
 
-    xhr.onload = () => {
-      cleanup()
-      if (xhr.status >= 200 && xhr.status < 300) {
-        if (onProgress) onProgress(100)
-        resolve()
-      } else {
-        let message = `Upload failed with status ${xhr.status}`
-        try {
-          const parsed = JSON.parse(xhr.responseText)
-          if (parsed?.error) message = parsed.error
-        } catch {
-          /* ignore */
-        }
-        reject(new TransferUploadError(message, xhr.status))
-      }
-    }
+  if (onProgress) {
+    onProgress(100, [...fileStatuses])
+  }
 
-    xhr.onerror = () => {
-      cleanup()
-      reject(new TransferUploadError('Network error during file upload'))
-    }
+  // 4. Register final transfer record via native Payload REST API
+  const hasPassword = Boolean(password && password.trim().length > 0)
+  const primaryManifest = signedManifests[0]
 
-    xhr.send(file)
-  })
-
-  // 4. Register transfer record via native Payload REST API
   const createRes = await fetch('/api/transfers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({
       shareHash,
-      filename: file.name,
-      filesize: file.size,
-      mimeType: effectiveMimeType || 'application/octet-stream',
-      storagePath,
+      filename: primaryManifest.filename,
+      filesize: totalBatchBytes,
+      mimeType: primaryManifest.mimeType || 'application/octet-stream',
+      storagePath: primaryManifest.storagePath,
+      files: signedManifests.map((m: any) => ({
+        filename: m.filename,
+        filesize: m.filesize,
+        mimeType: m.mimeType,
+        storagePath: m.storagePath,
+      })),
       ...(title?.trim() ? { title: title.trim() } : {}),
       ...(message?.trim() ? { message: message.trim() } : {}),
+      ...(hasPassword ? { passwordEnabled: true, _password: password!.trim() } : {}),
       status: 'active',
     }),
     signal,
@@ -194,7 +316,33 @@ export async function uploadTransfer(
     publicUrl,
     expiresAt: doc.expiresAt,
     transferId: doc.id,
-    filename: file.name,
-    filesize: file.size,
+    filename: primaryManifest.filename,
+    filesize: totalBatchBytes,
+    files: signedManifests.map((m: any) => ({
+      filename: m.filename,
+      filesize: m.filesize,
+      mimeType: m.mimeType,
+      storagePath: m.storagePath,
+    })),
   }
+}
+
+/**
+ * Backward-compatible single-file upload wrapper.
+ */
+export async function uploadTransfer(
+  options: TransferUploadOptions,
+): Promise<TransferUploadResult> {
+  const { file, title, message, password, onProgress, signal } = options
+
+  return uploadTransferBatch({
+    files: [file],
+    title,
+    message,
+    password,
+    onProgress: (overallPercent) => {
+      if (onProgress) onProgress(overallPercent)
+    },
+    signal,
+  })
 }

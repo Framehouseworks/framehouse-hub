@@ -33,11 +33,14 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Lock,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { TransferMediaPreview, type TransferPreviewResponse } from '@/components/Transfers/Preview'
+import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return '0 B'
@@ -87,18 +90,90 @@ interface TransferDownloadViewProps {
   expired?: boolean
   /** Active transfer wallpapers for background canvas */
   wallpapers?: TransferWallpaper[]
+  /** Whether the transfer is locked behind a password */
+  passwordProtected?: boolean
+  /** Share hash used for verifying password and loading transfer */
+  shareHash?: string
 }
 
 export function TransferDownloadView({
-  transfer,
+  transfer: initialTransfer,
   status,
   expired = false,
   wallpapers = [],
+  passwordProtected = false,
+  shareHash,
 }: TransferDownloadViewProps) {
+  const [transfer, setTransfer] = useState<Transfer | null>(initialTransfer)
+  const [authToken, setAuthToken] = useState<string | null>(null)
+  const [isUnlocked, setIsUnlocked] = useState(!passwordProtected || Boolean(initialTransfer))
+  const [passwordInput, setPasswordInput] = useState('')
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [isDownloadingBlob, setIsDownloadingBlob] = useState(false)
+
   const [hasClickedDownload, setHasClickedDownload] = useState(false)
   const [activeWallpaper, setActiveWallpaper] = useState<TransferWallpaper>(
     wallpapers[0] || FALLBACK_TRANSFER_WALLPAPER,
   )
+
+  const activeShareHash = shareHash || transfer?.shareHash || ''
+
+  // Password verification submission
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!passwordInput.trim() || isVerifyingPassword) return
+
+    setIsVerifyingPassword(true)
+    setPasswordError(null)
+
+    try {
+      const verifyRes = await fetch(`/api/transfers/${activeShareHash}/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput.trim() }),
+      })
+
+      if (verifyRes.status === 429) {
+        const retryAfter = verifyRes.headers.get('Retry-After') || '300'
+        setPasswordError(`Too many attempts. Please try again in ${Math.ceil(Number(retryAfter) / 60)} minutes.`)
+        return
+      }
+
+      if (!verifyRes.ok) {
+        const data = await verifyRes.json().catch(() => ({}))
+        setPasswordError(data.error || 'Incorrect password')
+        return
+      }
+
+      const { token } = await verifyRes.json()
+      setAuthToken(token)
+
+      // Fetch transfer metadata with the auth token
+      const metaRes = await fetch(`/api/transfers?where[shareHash][equals]=${encodeURIComponent(activeShareHash)}&depth=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (!metaRes.ok) {
+        setPasswordError('Failed to load transfer metadata.')
+        return
+      }
+
+      const metaData = await metaRes.json()
+      const doc = metaData.docs?.[0] as Transfer | undefined
+
+      if (doc) {
+        setTransfer(doc)
+        setIsUnlocked(true)
+      } else {
+        setPasswordError('Transfer not found.')
+      }
+    } catch {
+      setPasswordError('Network error during authentication.')
+    } finally {
+      setIsVerifyingPassword(false)
+    }
+  }
 
   // Preview state management (FRH-82)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -106,11 +181,20 @@ export function TransferDownloadView({
   const [previewData, setPreviewData] = useState<TransferPreviewResponse | null>(null)
 
   const fetchPreview = useCallback(async () => {
-    if (!transfer) return
+    const targetHash = transfer?.shareHash || activeShareHash
+    if (!targetHash) return
     setIsPreviewLoading(true)
     try {
-      const res = await fetch(`/api/transfers/${transfer.shareHash}/preview`)
+      const headers: Record<string, string> = {}
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`
+      }
+      const res = await fetch(`/api/transfers/${targetHash}/preview`, { headers })
       if (!res.ok) {
+        if (res.status === 401) {
+          toast.error('Session expired. Please re-authenticate.')
+          setIsUnlocked(false)
+        }
         setPreviewData(null)
       } else {
         const data: TransferPreviewResponse = await res.json()
@@ -121,7 +205,7 @@ export function TransferDownloadView({
     } finally {
       setIsPreviewLoading(false)
     }
-  }, [transfer])
+  }, [transfer, activeShareHash, authToken])
 
   const togglePreview = useCallback(() => {
     if (!isPreviewOpen && !previewData && !isPreviewLoading) {
@@ -129,6 +213,56 @@ export function TransferDownloadView({
     }
     setIsPreviewOpen((prev) => !prev)
   }, [isPreviewOpen, previewData, isPreviewLoading, fetchPreview])
+
+  // Secure download trigger using fetch + blob for token-guarded transfers
+  const handleSecureDownload = async () => {
+    if (!transfer) return
+    setHasClickedDownload(true)
+
+    if (!authToken) {
+      // Unprotected transfer: standard link navigation
+      const link = document.createElement('a')
+      link.href = `/api/transfers/${transfer.shareHash}/download`
+      link.download = transfer.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+
+    setIsDownloadingBlob(true)
+    try {
+      const res = await fetch(`/api/transfers/${transfer.shareHash}/download`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+
+      if (res.status === 401) {
+        toast.error('Session expired. Please re-authenticate.')
+        setIsUnlocked(false)
+        return
+      }
+
+      if (!res.ok) {
+        toast.error('Download failed. Please try again.')
+        return
+      }
+
+      // If GCS redirected or returned blob stream directly
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = transfer.filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch {
+      toast.error('Network error during download.')
+    } finally {
+      setIsDownloadingBlob(false)
+    }
+  }
 
   // Resolve fine-grained status
   const effectiveStatus: TransferStatus =
@@ -150,6 +284,87 @@ export function TransferDownloadView({
     transfer && typeof transfer.sender === 'object' && transfer.sender
       ? sender?.name || sender?.studioName || sender?.email?.split('@')[0] || 'A creative collaborator'
       : 'A creative collaborator'
+
+  // ── PASSWORD AUTHENTICATION GATE SCREEN (FRH-70) ────────────────────────
+  if (passwordProtected && !isUnlocked) {
+    return (
+      <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
+        {/* Layer 0 & 1: Transfer Background Canvas & Ambient Contrast Scrim */}
+        <TransferWallpaperCanvas
+          wallpapers={wallpapers}
+          onWallpaperChange={setActiveWallpaper}
+        />
+
+        <div className="w-full max-w-md mx-auto text-center space-y-6 relative z-10">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <LogoIcon size={36} />
+            <span className="font-varela text-xl tracking-tight text-white dark:text-primary drop-shadow-sm">
+              Hub Archive
+            </span>
+          </div>
+
+          <div className="rounded-[28px] bg-white/90 dark:bg-zinc-950/85 backdrop-blur-2xl p-8 sm:p-10 shadow-[0px_20px_48px_rgba(0,0,0,0.18)] border border-white/20 dark:border-white/10 space-y-6">
+            <div className="w-14 h-14 mx-auto rounded-full bg-gallery-gold/15 text-gallery-gold flex items-center justify-center">
+              <Lock size={26} />
+            </div>
+
+            <div className="space-y-2">
+              <span className="font-rubik text-[9.5px] tracking-[0.2em] text-gallery-gold uppercase px-2.5 py-1 rounded-full bg-gallery-gold/10">
+                Password Protected
+              </span>
+              <h1 className="font-varela text-2xl tracking-tight text-primary pt-2">
+                Protected Transfer
+              </h1>
+              <p className="text-xs text-on-surface/50 leading-relaxed max-w-xs mx-auto">
+                This deliverable is locked. Enter the transfer password set by the sender to access the files.
+              </p>
+            </div>
+
+            <form onSubmit={handleUnlock} className="space-y-4 pt-2">
+              <div className="space-y-1.5 text-left">
+                <Input
+                  type="password"
+                  placeholder="Enter transfer password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value)
+                    if (passwordError) setPasswordError(null)
+                  }}
+                  disabled={isVerifyingPassword}
+                  className="h-12 rounded-2xl bg-gallery-surface text-center font-geist text-sm border-0 focus-visible:ring-2 focus-visible:ring-gallery-gold"
+                  autoFocus
+                />
+                {passwordError && (
+                  <p className="text-xs text-gallery-red text-center font-medium mt-1">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                variant="gallery"
+                disabled={!passwordInput.trim() || isVerifyingPassword}
+                className="w-full h-12 gap-2 text-sm font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
+              >
+                <Lock size={16} />
+                {isVerifyingPassword ? 'Unlocking...' : 'Unlock Transfer'}
+              </Button>
+            </form>
+          </div>
+
+          <p className="font-rubik text-[9.5px] tracking-[0.18em] text-white/50 dark:text-on-surface/30 uppercase drop-shadow-xs">
+            Protected by Framehouse Hub Transfer
+          </p>
+        </div>
+
+        {/* Layer 3: Credit Badge (Positioned inside transfer parent) */}
+        <div className="absolute bottom-4 left-4 z-20">
+          <TransferWallpaperCreditBadge wallpaper={activeWallpaper} />
+        </div>
+      </main>
+    )
+  }
 
   // ── EXPIRED, REVOKED, OR NOT FOUND CARD ──────────────────────────────────
   if (!isAvailable || !transfer) {
@@ -339,22 +554,20 @@ export function TransferDownloadView({
           {/* Dual Action Cluster: Download + Preview Toggle */}
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <a
-                href={downloadUrl}
-                download={transfer.filename}
-                rel="noopener noreferrer"
-                onClick={() => setHasClickedDownload(true)}
-                className="flex-1"
+              <Button
+                variant="gallery"
+                size="lg"
+                onClick={handleSecureDownload}
+                disabled={isDownloadingBlob}
+                className="flex-1 h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
               >
-                <Button
-                  variant="gallery"
-                  size="lg"
-                  className="w-full h-14 gap-2.5 text-base font-semibold shadow-[0px_8px_20px_rgba(127,87,0,0.25)]"
-                >
-                  <Download size={20} />
-                  {hasClickedDownload ? 'Download again' : 'Download file'}
-                </Button>
-              </a>
+                <Download size={20} />
+                {isDownloadingBlob
+                  ? 'Preparing download...'
+                  : hasClickedDownload
+                    ? 'Download again'
+                    : 'Download file'}
+              </Button>
 
               <Button
                 type="button"

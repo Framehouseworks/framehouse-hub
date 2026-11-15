@@ -23,6 +23,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     })
     const transfer = docs[0] as Transfer | undefined
     if (transfer && transfer.status === 'active') {
+      if (transfer.passwordEnabled) {
+        return {
+          title: 'Secure Transfer | Framehouse Hub',
+          description: 'This file transfer is password-protected. Enter the password to access and download.',
+          robots: {
+            index: false,
+            follow: false,
+            nocache: true,
+          },
+          openGraph: {
+            title: 'Secure Transfer | Framehouse Hub',
+            description: 'Direct, secure file transfer delivery via Framehouse Hub.',
+          },
+        }
+      }
+
       const title = `${transfer.title || transfer.filename} | Framehouse Hub Transfer`
       const description = `Download ${transfer.filename} (${(transfer.filesize / (1024 * 1024)).toFixed(1)}MB) securely via Framehouse Hub.`
       return {
@@ -82,11 +98,16 @@ export default async function TransferRecipientPage({ params }: PageProps) {
     }
   }
 
+  // If password protected and active, suppress sending transfer metadata in SSR HTML
+  const isPasswordProtected = Boolean(transfer?.passwordEnabled && status === 'active')
+
   return (
     <TransferDownloadView
-      transfer={transfer || null}
+      transfer={isPasswordProtected ? null : transfer || null}
       status={status}
       wallpapers={wallpapersResult}
+      passwordProtected={isPasswordProtected}
+      shareHash={shareHash}
     />
   )
 }

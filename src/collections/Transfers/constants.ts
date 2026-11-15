@@ -5,8 +5,17 @@ export const TRANSFER_EXPIRY_MS = TRANSFER_EXPIRY_DAYS * 24 * 60 * 60 * 1000 // 
 // Maximum transfer upload size: 250MB
 export const MAX_TRANSFER_BYTES = 250 * 1024 * 1024
 
+// Maximum number of files permitted in a single transfer session (FRH-79)
+export const MAX_TRANSFER_FILES = 5
+
 // Canonical storage path prefix
 export const TRANSFERS_PREFIX = 'transfers'
 
 // GCS Lifecycle rule age (includes 1-day safety buffer)
 export const GCS_LIFECYCLE_AGE_DAYS = 4
+
+// Minimum password length for protected transfers (FRH-70)
+export const PASSWORD_MIN_LENGTH = 6
+
+// Password auth token time-to-live in ms (15 minutes) (FRH-70)
+export const PASSWORD_TOKEN_TTL_MS = 15 * 60 * 1000
