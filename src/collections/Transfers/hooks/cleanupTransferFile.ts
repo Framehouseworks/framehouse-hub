@@ -16,43 +16,69 @@ function isValidTransferStoragePath(storagePath: string): boolean {
 
 /**
  * cleanupTransferFile — Purges physical file bytes and directory placeholders upon transfer document deletion.
+ * Operates across all constituent files in `doc.files` (FRH-79) with fallback to `doc.storagePath`.
  * Viable in both local dev (filesystem enclave) and deployed environments (Google Cloud Storage).
  */
 export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req }) => {
-  const storagePath = (doc as { storagePath?: string }).storagePath
-  if (!storagePath) return
+  const fileDocs = Array.isArray((doc as any)?.files) ? (doc as any).files : []
+  const pathsToDelete = new Set<string>()
 
-  // 1. Cloud Mode: Delete object and folder placeholders from Google Cloud Storage
+  // Collect all constituent storage paths
+  for (const item of fileDocs) {
+    if (item?.storagePath) {
+      pathsToDelete.add(item.storagePath)
+    }
+  }
+
+  // Fallback to legacy root storagePath if present
+  const rootStoragePath = (doc as { storagePath?: string }).storagePath
+  if (rootStoragePath) {
+    pathsToDelete.add(rootStoragePath)
+  }
+
+  if (pathsToDelete.size === 0) return
+
+  // 1. Cloud Mode: Delete objects and folder placeholders from Google Cloud Storage
   const bucketName = process.env.GCS_BUCKET
   if (bucketName) {
     try {
       const storage = await getStorageClient()
       const bucket = storage.bucket(bucketName)
 
-      // Always delete the primary file object
-      await bucket.file(storagePath).delete({ ignoreNotFound: true })
-      req.payload.logger.info(`[cleanupTransferFile] Purged GCS object: ${storagePath}`)
+      // Delete all file objects in parallel
+      await Promise.allSettled(
+        Array.from(pathsToDelete).map(async (pathStr) => {
+          await bucket.file(pathStr).delete({ ignoreNotFound: true })
+          req.payload.logger.info(`[cleanupTransferFile] Purged GCS object: ${pathStr}`)
+        }),
+      )
 
-      // Guard path shape before attempting placeholder deletions to prevent malformed deletions
-      if (isValidTransferStoragePath(storagePath)) {
-        const parts = storagePath.split('/')
-        const shareHashDir = `${parts[0]}/${parts[1]}/${parts[2]}`
-        const originalDir = `${shareHashDir}/${parts[3]}`
+      // Guard and delete folder placeholders for each valid path
+      const cleanedPrefixes = new Set<string>()
+      for (const pathStr of pathsToDelete) {
+        if (isValidTransferStoragePath(pathStr)) {
+          const parts = pathStr.split('/')
+          const shareHashDir = `${parts[0]}/${parts[1]}/${parts[2]}`
+          const originalDir = `${shareHashDir}/${parts[3]}`
 
-        await Promise.allSettled([
-          bucket.file(`${originalDir}/`).delete({ ignoreNotFound: true }),
-          bucket.file(`${shareHashDir}/`).delete({ ignoreNotFound: true }),
-        ])
-        req.payload.logger.info(`[cleanupTransferFile] Purged GCS folder placeholders for: ${shareHashDir}`)
-      } else {
-        req.payload.logger.warn(
-          `[cleanupTransferFile] Skipping placeholder purge due to irregular storagePath shape: ${storagePath}`,
-        )
+          if (!cleanedPrefixes.has(shareHashDir)) {
+            cleanedPrefixes.add(shareHashDir)
+            await Promise.allSettled([
+              bucket.file(`${originalDir}/`).delete({ ignoreNotFound: true }),
+              bucket.file(`${shareHashDir}/`).delete({ ignoreNotFound: true }),
+            ])
+            req.payload.logger.info(`[cleanupTransferFile] Purged GCS folder placeholders for: ${shareHashDir}`)
+          }
+        } else {
+          req.payload.logger.warn(
+            `[cleanupTransferFile] Skipping placeholder purge due to irregular storagePath shape: ${pathStr}`,
+          )
+        }
       }
       return
     } catch (err) {
       req.payload.logger.error(
-        `[cleanupTransferFile] Failed to purge GCS storage for ${storagePath}: ${
+        `[cleanupTransferFile] Failed to purge GCS storage: ${
           err instanceof Error ? err.message : String(err)
         }`,
       )
@@ -60,16 +86,23 @@ export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req 
     }
   }
 
-  // 2. Local Mode: Delete file from local media directory
+  // 2. Local Mode: Delete files from local media directory
   try {
-    const localFilePath = path.resolve(MEDIA_ROOT, storagePath)
-    if (localFilePath.startsWith(MEDIA_ROOT + path.sep)) {
-      if (fs.existsSync(localFilePath)) {
-        fs.unlinkSync(localFilePath)
+    for (const pathStr of pathsToDelete) {
+      const localFilePath = path.resolve(MEDIA_ROOT, pathStr)
+      if (localFilePath.startsWith(MEDIA_ROOT + path.sep)) {
+        if (fs.existsSync(localFilePath)) {
+          fs.unlinkSync(localFilePath)
+        }
+        req.payload.logger.info(`[cleanupTransferFile] Purged local file: ${pathStr}`)
       }
+    }
 
-      // Recursively clean up empty parent directories: transfers/{userId}/{shareHash}
-      const originalDir = path.dirname(localFilePath)
+    // Clean up empty directories from the first path
+    const samplePath = Array.from(pathsToDelete)[0]
+    const sampleLocalPath = path.resolve(MEDIA_ROOT, samplePath)
+    if (sampleLocalPath.startsWith(MEDIA_ROOT + path.sep)) {
+      const originalDir = path.dirname(sampleLocalPath)
       const shareDir = path.dirname(originalDir)
       if (fs.existsSync(shareDir) && shareDir.startsWith(MEDIA_ROOT + path.sep)) {
         fs.rmSync(shareDir, { recursive: true, force: true })
@@ -92,12 +125,10 @@ export const cleanupTransferFile: CollectionAfterDeleteHook = async ({ doc, req 
           // Non-blocking if directory still has entries or active locks
         }
       }
-
-      req.payload.logger.info(`[cleanupTransferFile] Purged local enclave: ${storagePath}`)
     }
   } catch (err) {
     req.payload.logger.error(
-      `[cleanupTransferFile] Failed to purge local file ${storagePath}: ${
+      `[cleanupTransferFile] Failed to purge local files: ${
         err instanceof Error ? err.message : String(err)
       }`,
     )

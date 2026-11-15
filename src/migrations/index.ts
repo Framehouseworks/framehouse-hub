@@ -47,6 +47,7 @@ import * as migration_20261026_223818_uuid_v4_primary_keys from './20261026_2238
 import * as migration_20261027_163640 from './20261027_163640';
 import * as migration_20261027_163939 from './20261027_163939';
 import * as migration_20261103_182315 from './20261103_182315';
+import * as migration_20261110_225422_add_transfer_files_array from './20261110_225422_add_transfer_files_array';
 
 export const migrations = [
   {
@@ -292,6 +293,11 @@ export const migrations = [
   {
     up: migration_20261103_182315.up,
     down: migration_20261103_182315.down,
-    name: '20261103_182315'
+    name: '20261103_182315',
+  },
+  {
+    up: migration_20261110_225422_add_transfer_files_array.up,
+    down: migration_20261110_225422_add_transfer_files_array.down,
+    name: '20261110_225422_add_transfer_files_array'
   },
 ];
