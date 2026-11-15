@@ -27,6 +27,7 @@ export interface TransferPreviewResponse {
   mimeType?: string
   filename?: string
   filesize?: number
+  fileIndex?: number
 }
 
 const SUPPORTED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp']

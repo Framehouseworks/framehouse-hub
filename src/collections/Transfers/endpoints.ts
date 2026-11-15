@@ -456,6 +456,130 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
     },
   },
 
+  // ── 3b. Per-file recipient download (FRH-80) ──────────────────────────────
+  {
+    path: '/:shareHash/download/:fileIndex',
+    method: 'get',
+    handler: async (req) => {
+      const { shareHash, fileIndex: fileIndexStr } = req.routeParams as {
+        shareHash: string
+        fileIndex: string
+      }
+      if (!shareHash) {
+        return new Response('Share hash required', { status: 400 })
+      }
+
+      const fileIndex = parseInt(fileIndexStr, 10)
+      if (isNaN(fileIndex) || fileIndex < 0 || !Number.isInteger(Number(fileIndexStr))) {
+        return new Response('Invalid file index', { status: 400 })
+      }
+
+      const { docs } = await req.payload.find({
+        collection: 'transfers',
+        where: {
+          and: [
+            { shareHash: { equals: shareHash } },
+            { status: { equals: 'active' } },
+            { expiresAt: { greater_than: new Date().toISOString() } },
+          ],
+        },
+        limit: 1,
+        overrideAccess: true,
+      })
+
+      const transfer = docs[0]
+      if (!transfer) {
+        return new Response('Transfer not found, revoked, or expired', { status: 410 })
+      }
+
+      // Password enforcement: require short-lived HMAC token if password protection is enabled
+      if (transfer.passwordEnabled) {
+        const token = extractBearerToken(req)
+        const isValid = verifyTransferToken(transfer.shareHash, token, transfer.passwordVersion || 0)
+        if (!isValid) {
+          return new Response('Unauthorized: password verification required', { status: 401 })
+        }
+      }
+
+      const files =
+        Array.isArray(transfer.files) && transfer.files.length > 0
+          ? transfer.files
+          : transfer.storagePath && transfer.filename
+            ? [
+                {
+                  filename: transfer.filename,
+                  filesize: transfer.filesize,
+                  mimeType: transfer.mimeType || 'application/octet-stream',
+                  storagePath: transfer.storagePath,
+                },
+              ]
+            : []
+
+      if (fileIndex >= files.length) {
+        return new Response('File index out of bounds', { status: 400 })
+      }
+
+      const targetFile = files[fileIndex]
+      if (!targetFile || !targetFile.storagePath || !targetFile.filename) {
+        return new Response('File metadata missing', { status: 404 })
+      }
+
+      // Fire-and-forget atomic download counter increment
+      try {
+        req.payload.db.drizzle
+          .execute(sql`
+            UPDATE transfers 
+            SET download_count = download_count + 1, last_downloaded_at = NOW() 
+            WHERE id = ${transfer.id}
+          `)
+          .catch(() => {})
+      } catch {
+        // Non-blocking
+      }
+
+      // RFC 5987 / RFC 6266 filename header
+      const asciiFallback = targetFile.filename.replace(/[^\x20-\x7E]/g, '_')
+      const rfc5987Filename = encodeURIComponent(targetFile.filename)
+      const contentDisposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${rfc5987Filename}`
+      const effectiveMimeType = targetFile.mimeType || 'application/octet-stream'
+
+      const bucketName = process.env.GCS_BUCKET
+      if (bucketName) {
+        try {
+          const storage = await getStorageClient()
+          const file = storage.bucket(bucketName).file(targetFile.storagePath)
+          const [signedGetUrl] = await file.getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000,
+            responseDisposition: contentDisposition,
+            responseType: effectiveMimeType,
+          })
+
+          return Response.redirect(signedGetUrl, 302)
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Failed to generate download URL'
+          return new Response(message, { status: 500 })
+        }
+      }
+
+      // Local mode: Stream from filesystem enclave
+      const localFilePath = path.resolve(process.cwd(), 'public/media', targetFile.storagePath)
+      if (!fs.existsSync(localFilePath)) {
+        return new Response('File missing from local storage', { status: 404 })
+      }
+
+      const stream = fs.createReadStream(localFilePath)
+      return new Response(stream as unknown as ReadableStream, {
+        headers: {
+          'Content-Type': effectiveMimeType,
+          'Content-Disposition': contentDisposition,
+          'Content-Length': String(targetFile.filesize),
+        },
+      })
+    },
+  },
+
   // ── 4. Local mode binary upload endpoint ──────────────────────────────────
   {
     path: '/upload-local',
@@ -544,11 +668,65 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         }
       }
 
+      const url = new URL(req.url || '', 'http://localhost')
+      const fileIndexParam = url.searchParams.get('fileIndex')
+
+      let targetFile: {
+        filename: string
+        filesize: number
+        mimeType: string
+        storagePath: string
+      } = {
+        filename: transfer.filename,
+        filesize: transfer.filesize,
+        mimeType: transfer.mimeType,
+        storagePath: transfer.storagePath,
+      }
+      let fileIndex: number | undefined = undefined
+
+      if (fileIndexParam !== null) {
+        const parsed = parseInt(fileIndexParam, 10)
+        if (isNaN(parsed) || parsed < 0 || !Number.isInteger(Number(fileIndexParam))) {
+          return Response.json({ error: 'Invalid file index' }, { status: 400 })
+        }
+
+        const files =
+          Array.isArray(transfer.files) && transfer.files.length > 0
+            ? transfer.files
+            : transfer.storagePath && transfer.filename
+              ? [
+                  {
+                    filename: transfer.filename,
+                    filesize: transfer.filesize,
+                    mimeType: transfer.mimeType || 'application/octet-stream',
+                    storagePath: transfer.storagePath,
+                  },
+                ]
+              : []
+
+        if (parsed >= files.length) {
+          return Response.json({ error: 'File index out of bounds' }, { status: 400 })
+        }
+
+        const selected = files[parsed]
+        if (!selected || !selected.storagePath || !selected.filename) {
+          return Response.json({ error: 'File metadata missing' }, { status: 404 })
+        }
+
+        targetFile = {
+          filename: selected.filename,
+          filesize: selected.filesize,
+          mimeType: selected.mimeType || 'application/octet-stream',
+          storagePath: selected.storagePath,
+        }
+        fileIndex = parsed
+      }
+
       // Check format and size eligibility against free-tier thresholds
       const eligibility = evaluatePreviewEligibility(
-        transfer.filename,
-        transfer.mimeType,
-        transfer.filesize,
+        targetFile.filename,
+        targetFile.mimeType,
+        targetFile.filesize,
       )
 
       if (!eligibility.eligible) {
@@ -557,9 +735,10 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
           mediaType: eligibility.mediaType,
           reason: eligibility.reason,
           message: eligibility.message,
-          filename: transfer.filename,
-          filesize: transfer.filesize,
-          mimeType: transfer.mimeType,
+          filename: targetFile.filename,
+          filesize: targetFile.filesize,
+          mimeType: targetFile.mimeType,
+          ...(fileIndex !== undefined ? { fileIndex } : {}),
         }
         return Response.json(payload, { status: 200 })
       }
@@ -568,22 +747,23 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       if (bucketName) {
         try {
           const storage = await getStorageClient()
-          const file = storage.bucket(bucketName).file(transfer.storagePath)
+          const file = storage.bucket(bucketName).file(targetFile.storagePath)
           const [signedPreviewUrl] = await file.getSignedUrl({
             version: 'v4',
             action: 'read',
             expires: Date.now() + 60 * 60 * 1000, // 1 hour validity (FRH-82)
             responseDisposition: 'inline',
-            responseType: transfer.mimeType,
+            responseType: targetFile.mimeType,
           })
 
           const payload: TransferPreviewResponse = {
             eligible: true,
             mediaType: eligibility.mediaType,
             previewUrl: signedPreviewUrl,
-            mimeType: transfer.mimeType,
-            filename: transfer.filename,
-            filesize: transfer.filesize,
+            mimeType: targetFile.mimeType,
+            filename: targetFile.filename,
+            filesize: targetFile.filesize,
+            ...(fileIndex !== undefined ? { fileIndex } : {}),
           }
           return Response.json(payload, { status: 200 })
         } catch (err: unknown) {
@@ -593,13 +773,19 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       }
 
       // Local mode: Provide local preview streaming endpoint
+      const previewStreamUrl =
+        fileIndex !== undefined
+          ? `/api/transfers/${transfer.shareHash}/preview-stream?fileIndex=${fileIndex}`
+          : `/api/transfers/${transfer.shareHash}/preview-stream`
+
       const payload: TransferPreviewResponse = {
         eligible: true,
         mediaType: eligibility.mediaType,
-        previewUrl: `/api/transfers/${transfer.shareHash}/preview-stream`,
-        mimeType: transfer.mimeType,
-        filename: transfer.filename,
-        filesize: transfer.filesize,
+        previewUrl: previewStreamUrl,
+        mimeType: targetFile.mimeType,
+        filename: targetFile.filename,
+        filesize: targetFile.filesize,
+        ...(fileIndex !== undefined ? { fileIndex } : {}),
       }
       return Response.json(payload, { status: 200 })
     },
@@ -642,17 +828,69 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         }
       }
 
+      const url = new URL(req.url || '', 'http://localhost')
+      const fileIndexParam = url.searchParams.get('fileIndex')
+
+      let targetFile: {
+        filename: string
+        filesize: number
+        mimeType: string
+        storagePath: string
+      } = {
+        filename: transfer.filename,
+        filesize: transfer.filesize,
+        mimeType: transfer.mimeType,
+        storagePath: transfer.storagePath,
+      }
+
+      if (fileIndexParam !== null) {
+        const parsed = parseInt(fileIndexParam, 10)
+        if (isNaN(parsed) || parsed < 0 || !Number.isInteger(Number(fileIndexParam))) {
+          return new Response('Invalid file index', { status: 400 })
+        }
+
+        const files =
+          Array.isArray(transfer.files) && transfer.files.length > 0
+            ? transfer.files
+            : transfer.storagePath && transfer.filename
+              ? [
+                  {
+                    filename: transfer.filename,
+                    filesize: transfer.filesize,
+                    mimeType: transfer.mimeType || 'application/octet-stream',
+                    storagePath: transfer.storagePath,
+                  },
+                ]
+              : []
+
+        if (parsed >= files.length) {
+          return new Response('File index out of bounds', { status: 400 })
+        }
+
+        const selected = files[parsed]
+        if (!selected || !selected.storagePath || !selected.filename) {
+          return new Response('File metadata missing', { status: 404 })
+        }
+
+        targetFile = {
+          filename: selected.filename,
+          filesize: selected.filesize,
+          mimeType: selected.mimeType || 'application/octet-stream',
+          storagePath: selected.storagePath,
+        }
+      }
+
       const eligibility = evaluatePreviewEligibility(
-        transfer.filename,
-        transfer.mimeType,
-        transfer.filesize,
+        targetFile.filename,
+        targetFile.mimeType,
+        targetFile.filesize,
       )
 
       if (!eligibility.eligible) {
         return new Response('File is not eligible for inline preview', { status: 400 })
       }
 
-      const localFilePath = path.resolve(process.cwd(), 'public/media', transfer.storagePath)
+      const localFilePath = path.resolve(process.cwd(), 'public/media', targetFile.storagePath)
       if (!fs.existsSync(localFilePath)) {
         return new Response('File missing from local storage', { status: 404 })
       }
@@ -672,7 +910,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
         return new Response(stream as unknown as ReadableStream, {
           status: 206,
           headers: {
-            'Content-Type': transfer.mimeType,
+            'Content-Type': targetFile.mimeType,
             'Content-Disposition': 'inline',
             'Content-Range': `bytes ${start}-${end}/${totalSize}`,
             'Accept-Ranges': 'bytes',
@@ -684,7 +922,7 @@ export const transferEndpoints: CollectionConfig['endpoints'] = [
       const stream = fs.createReadStream(localFilePath)
       return new Response(stream as unknown as ReadableStream, {
         headers: {
-          'Content-Type': transfer.mimeType,
+          'Content-Type': targetFile.mimeType,
           'Content-Disposition': 'inline',
           'Accept-Ranges': 'bytes',
           'Content-Length': String(totalSize),
