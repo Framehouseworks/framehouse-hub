@@ -34,13 +34,15 @@ import {
   Eye,
   EyeOff,
   Lock,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   TransferMediaPreview,
-  TransferFallbackCard,
   type TransferPreviewResponse,
 } from '@/components/Transfers/Preview'
 import { Input } from '@/components/ui/input'
@@ -108,8 +110,7 @@ interface TransferGridCellProps {
     storagePath: string
   }
   index: number
-  shareHash: string
-  authToken: string | null
+  onPreview: (index: number) => void
   onDownload: (index: number) => void
   isDownloading: boolean
 }
@@ -117,128 +118,74 @@ interface TransferGridCellProps {
 function TransferGridCell({
   file,
   index,
-  shareHash,
-  authToken,
+  onPreview,
   onDownload,
   isDownloading,
 }: TransferGridCellProps) {
-  const ext = file.filename.split('.').pop()?.toLowerCase() || ''
-  const isVisual =
-    file.mimeType.startsWith('image/') ||
-    ['jpg', 'jpeg', 'png', 'webp'].includes(ext)
-
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
-  const cellRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!isVisual) return
-
-    let isMounted = true
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          observer.disconnect()
-          setIsLoadingPreview(true)
-          const headers: Record<string, string> = {}
-          if (authToken) {
-            headers.Authorization = `Bearer ${authToken}`
-          }
-          fetch(`/api/transfers/${shareHash}/preview?fileIndex=${index}`, { headers })
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data: TransferPreviewResponse | null) => {
-              if (isMounted && data?.previewUrl) {
-                setPreviewUrl(data.previewUrl)
-              }
-            })
-            .catch(() => {})
-            .finally(() => {
-              if (isMounted) setIsLoadingPreview(false)
-            })
-        }
-      },
-      { rootMargin: '100px' },
-    )
-
-    if (cellRef.current) {
-      observer.observe(cellRef.current)
-    }
-
-    return () => {
-      isMounted = false
-      observer.disconnect()
-    }
-  }, [isVisual, shareHash, index, authToken])
-
+  const ext = file.filename.split('.').pop()?.toUpperCase() || 'FILE'
   const FileIcon = getFileIcon(file.filename, file.mimeType)
 
   return (
-    <div
-      ref={cellRef}
-      className="flex flex-col justify-between rounded-3xl bg-gallery-surface p-4 sm:p-5 border border-black/[0.04] dark:border-white/[0.05] hover:border-gallery-gold/30 transition-all space-y-4 shadow-sm"
-    >
-      {/* Visual thumbnail or Fallback representation */}
-      {isVisual ? (
-        <div className="space-y-3">
-          <div className="relative w-full h-36 sm:h-40 rounded-2xl bg-black/5 dark:bg-white/5 overflow-hidden flex items-center justify-center">
-            {isLoadingPreview && (
-              <div className="absolute inset-0 flex items-center justify-center animate-pulse bg-gallery-gold/5">
-                <Sparkles size={18} className="text-gallery-gold animate-spin" />
-              </div>
-            )}
-            {previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewUrl}
-                alt={file.filename}
-                className="w-full h-full object-cover transition-opacity duration-300"
-                loading="lazy"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-on-surface/40 space-y-1">
-                <FileIcon size={32} className="text-gallery-gold/70" />
-              </div>
-            )}
-          </div>
-
-          <div className="min-w-0 space-y-1 px-1">
-            <p className="text-sm font-semibold text-primary truncate" title={file.filename}>
-              {file.filename}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-rubik text-[10px] text-gallery-gold font-medium">
-                {formatBytes(file.filesize)}
-              </span>
-              <span className="text-on-surface/20 text-xs">•</span>
-              <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
-                {ext.toUpperCase() || 'FILE'}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <TransferFallbackCard
-            filename={file.filename}
-            filesize={file.filesize}
-            mimeType={file.mimeType}
-            message="Direct download to view."
-          />
-        </div>
-      )}
-
-      {/* Individual Download Action (min 44px tap target) */}
-      <Button
+    <div className="flex flex-col justify-between rounded-3xl bg-gallery-surface p-4 sm:p-5 border border-black/[0.04] dark:border-white/[0.05] hover:border-gallery-gold/30 transition-all space-y-4 shadow-sm group">
+      {/* On-Demand Preview Trigger Area (Zero auto-streaming for bandwidth conservation) */}
+      <button
         type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => onDownload(index)}
-        disabled={isDownloading}
-        className="w-full min-h-[44px] gap-2 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0"
+        onClick={() => onPreview(index)}
+        className="w-full h-36 sm:h-40 rounded-2xl bg-black/5 dark:bg-white/5 flex flex-col items-center justify-center text-center p-3 space-y-2.5 transition-all group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.08] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold"
+        aria-label={`Preview ${file.filename}`}
       >
-        <Download size={14} />
-        <span>{isDownloading ? 'Downloading...' : 'Download File'}</span>
-      </Button>
+        <div className="w-12 h-12 rounded-2xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center transition-transform group-hover:scale-105">
+          <FileIcon size={26} />
+        </div>
+        <div className="flex items-center gap-1.5 text-on-surface/50 group-hover:text-gallery-gold transition-colors">
+          <Eye size={13} />
+          <span className="font-rubik text-[9.5px] tracking-wider uppercase font-medium">
+            Click to Preview
+          </span>
+        </div>
+      </button>
+
+      {/* File Metadata */}
+      <div className="min-w-0 space-y-1 px-1">
+        <p className="text-sm font-semibold text-primary truncate" title={file.filename}>
+          {file.filename}
+        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-rubik text-[10px] text-gallery-gold font-medium">
+            {formatBytes(file.filesize)}
+          </span>
+          <span className="text-on-surface/20 text-xs">•</span>
+          <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-on-surface/60">
+            {ext}
+          </span>
+        </div>
+      </div>
+
+      {/* Dual Actions: Preview & Download (min 44px tap target) */}
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onPreview(index)}
+          className="h-11 gap-1.5 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <Eye size={14} />
+          <span>Preview</span>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onDownload(index)}
+          disabled={isDownloading}
+          className="h-11 gap-1.5 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        >
+          <Download size={14} />
+          <span>{isDownloading ? '...' : 'Download'}</span>
+        </Button>
+      </div>
     </div>
   )
 }
@@ -360,6 +307,89 @@ export function TransferDownloadView({
     }
     setIsPreviewOpen((prev) => !prev)
   }, [isPreviewOpen, previewData, isPreviewLoading, fetchPreview])
+
+  // Lightbox Modal state for multi-file transfers (FRH-80 Phase 3)
+  const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null)
+  const [lightboxLoading, setLightboxLoading] = useState(false)
+  const [lightboxCache, setLightboxCache] = useState<Record<number, TransferPreviewResponse>>({})
+
+  const fetchLightboxPreview = useCallback(
+    async (index: number) => {
+      if (lightboxCache[index]) return
+
+      setLightboxLoading(true)
+      try {
+        const headers: Record<string, string> = {}
+        if (authToken) {
+          headers.Authorization = `Bearer ${authToken}`
+        }
+        const res = await fetch(`/api/transfers/${activeShareHash}/preview?fileIndex=${index}`, {
+          headers,
+        })
+        if (!res.ok) {
+          if (res.status === 401) {
+            toast.error('Session expired. Please re-authenticate.')
+            setIsUnlocked(false)
+            setActiveLightboxIndex(null)
+          }
+        } else {
+          const data: TransferPreviewResponse = await res.json()
+          setLightboxCache((prev) => ({ ...prev, [index]: data }))
+        }
+      } catch {
+        // Handled by TransferMediaPreview error state
+      } finally {
+        setLightboxLoading(false)
+      }
+    },
+    [lightboxCache, authToken, activeShareHash],
+  )
+
+  const openLightbox = useCallback(
+    (index: number) => {
+      setActiveLightboxIndex(index)
+      fetchLightboxPreview(index)
+    },
+    [fetchLightboxPreview],
+  )
+
+  const closeLightbox = useCallback(() => {
+    setActiveLightboxIndex(null)
+  }, [])
+
+  const goToPrev = useCallback(() => {
+    if (activeLightboxIndex === null || !transfer?.files?.length) return
+    const total = transfer.files.length
+    const nextIdx = (activeLightboxIndex - 1 + total) % total
+    setActiveLightboxIndex(nextIdx)
+    fetchLightboxPreview(nextIdx)
+  }, [activeLightboxIndex, transfer?.files?.length, fetchLightboxPreview])
+
+  const goToNext = useCallback(() => {
+    if (activeLightboxIndex === null || !transfer?.files?.length) return
+    const total = transfer.files.length
+    const nextIdx = (activeLightboxIndex + 1) % total
+    setActiveLightboxIndex(nextIdx)
+    fetchLightboxPreview(nextIdx)
+  }, [activeLightboxIndex, transfer?.files?.length, fetchLightboxPreview])
+
+  // Keyboard navigation for Lightbox (FRH-80 Phase 3)
+  useEffect(() => {
+    if (activeLightboxIndex === null) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeLightbox()
+      } else if (e.key === 'ArrowLeft') {
+        goToPrev()
+      } else if (e.key === 'ArrowRight') {
+        goToNext()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeLightboxIndex, closeLightbox, goToPrev, goToNext])
 
   // Secure download trigger using fetch + blob for token-guarded transfers
   const handleSecureDownload = async () => {
@@ -684,6 +714,7 @@ export function TransferDownloadView({
   const totalBatchSize = isMultiFile
     ? transferFiles.reduce((acc, f) => acc + (Number(f.filesize) || 0), 0)
     : transfer.filesize
+  const activeFile = activeLightboxIndex !== null ? transferFiles[activeLightboxIndex] : null
 
   return (
     <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
@@ -776,8 +807,7 @@ export function TransferDownloadView({
                     key={`${file.filename}-${idx}`}
                     file={file}
                     index={idx}
-                    shareHash={activeShareHash}
-                    authToken={authToken}
+                    onPreview={openLightbox}
                     onDownload={handlePerFileDownload}
                     isDownloading={downloadingFileIndex === idx}
                   />
@@ -954,6 +984,119 @@ export function TransferDownloadView({
       <div className="absolute bottom-4 left-4 z-20">
         <TransferWallpaperCreditBadge wallpaper={activeWallpaper} />
       </div>
+
+      {/* Full-Screen Lightbox Modal for Multi-File (FRH-80 Phase 3) */}
+      <AnimatePresence>
+        {activeLightboxIndex !== null && activeFile && (
+          <motion.div
+            key="transfer-lightbox"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Preview ${activeFile.filename}`}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeLightbox()
+            }}
+          >
+            {/* Lightbox Top Header */}
+            <div className="flex items-center justify-between gap-4 z-10 w-full max-w-5xl mx-auto">
+              <div className="flex items-center gap-2">
+                <span className="font-rubik text-xs uppercase px-2.5 py-1 rounded-full bg-white/10 text-gallery-gold">
+                  {activeLightboxIndex + 1} of {transferFiles.length}
+                </span>
+                <span className="text-white/60 text-xs truncate max-w-xs sm:max-w-md hidden sm:inline">
+                  {activeFile.filename}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeLightbox}
+                className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold cursor-pointer"
+                aria-label="Close preview"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Lightbox Main Stage with Carousel Navigation */}
+            <div className="relative flex-1 flex items-center justify-center my-4 w-full max-w-5xl mx-auto min-h-0">
+              {/* Previous Navigation Arrow (only if > 1 file) */}
+              {transferFiles.length > 1 && (
+                <button
+                  type="button"
+                  onClick={goToPrev}
+                  className="absolute left-0 sm:-left-12 z-20 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold cursor-pointer"
+                  aria-label="Previous file"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+
+              {/* Centered Media Preview Area */}
+              <div className="w-full max-w-4xl max-h-[70vh] sm:max-h-[75vh] flex items-center justify-center overflow-auto rounded-3xl">
+                <TransferMediaPreview
+                  previewData={lightboxCache[activeLightboxIndex] || null}
+                  isLoading={lightboxLoading}
+                  filename={activeFile.filename}
+                  filesize={activeFile.filesize}
+                  mimeType={activeFile.mimeType}
+                  onRetry={() => fetchLightboxPreview(activeLightboxIndex)}
+                />
+              </div>
+
+              {/* Next Navigation Arrow (only if > 1 file) */}
+              {transferFiles.length > 1 && (
+                <button
+                  type="button"
+                  onClick={goToNext}
+                  className="absolute right-0 sm:-right-12 z-20 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold cursor-pointer"
+                  aria-label="Next file"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              )}
+            </div>
+
+            {/* Lightbox Footer Bar: Metadata + Direct Download */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 w-full max-w-5xl mx-auto z-10">
+              <div className="min-w-0 text-center sm:text-left space-y-1">
+                <p className="text-sm font-semibold text-white truncate max-w-sm sm:max-w-md">
+                  {activeFile.filename}
+                </p>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <span className="font-rubik text-[10px] text-gallery-gold">
+                    {formatBytes(activeFile.filesize)}
+                  </span>
+                  <span className="text-white/30 text-xs">•</span>
+                  <span className="font-rubik text-[9px] uppercase px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                    {activeFile.filename.split('.').pop()?.toUpperCase() || 'FILE'}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                variant="gallery"
+                size="sm"
+                onClick={() => handlePerFileDownload(activeLightboxIndex)}
+                disabled={downloadingFileIndex === activeLightboxIndex}
+                className="h-11 px-5 gap-2 text-xs font-rubik tracking-wider uppercase shadow-[0px_4px_16px_rgba(127,87,0,0.25)] shrink-0 w-full sm:w-auto"
+              >
+                <Download size={15} />
+                <span>
+                  {downloadingFileIndex === activeLightboxIndex
+                    ? 'Downloading...'
+                    : 'Download File'}
+                </span>
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }
