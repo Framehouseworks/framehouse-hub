@@ -131,32 +131,37 @@
   7. Verify mobile viewport (< 640px): grid stacks to single column, touch targets ≥ 44px.
   8. `IS_BUILD_PHASE=true pnpm build` passes.
 
-### Phase 3: UI — Lightbox / Modal Preview
+### Phase 3: UI — On-Demand Mobile-Friendly Inline Accordion Preview & Bandwidth Protection
 - **Target Files:**
   - `src/components/Transfers/TransferDownloadView.tsx`
-  - `src/components/Transfers/Preview/TransferMediaPreview.tsx`
+  - `src/components/Transfers/Preview/types.ts`
+  - `src/components/Transfers/Preview/TransferImagePreview.tsx`
 - **Agent Tasks:**
-  1. **Lightbox modal component** (inline in `TransferDownloadView.tsx` to avoid a new file):
-     - Full-screen dark overlay (`fixed inset-0 z-50 bg-black/90 backdrop-blur-sm`).
-     - Centered preview area rendering `TransferMediaPreview` for the selected file.
-     - Navigation: left/right arrows (lucide `ChevronLeft`/`ChevronRight`) to cycle through files.
-     - Close button (lucide `X`) and Escape key listener.
-     - File metadata footer: filename, size, format badge, individual download button.
-     - Keyboard navigation: ArrowLeft, ArrowRight, Escape.
-     - Framer Motion `AnimatePresence` for enter/exit transitions (reuse existing motion patterns).
-  2. **Grid cell click handler**: Clicking a grid thumbnail or "Preview" button opens lightbox at that `fileIndex`.
-  3. **Lightbox preview data management**: Maintain `Map<number, TransferPreviewResponse>` state to cache preview responses per file index. Fetch lazily on lightbox navigation.
-  4. **Single-file preview integration**: The existing inline preview toggle (`Eye`/`EyeOff` button) remains for single-file transfers. Multi-file transfers use the lightbox instead.
+  1. **Bandwidth & GPU Memory Protection**:
+     - Lower `IMAGE_MAX_BYTES` threshold from 10MB to 4MB (`4 * 1024 * 1024`) in `src/components/Transfers/Preview/types.ts`.
+     - In `TransferImagePreview.tsx`, add `decoding="async"` and `fetchPriority="low"` to the `<img>` element.
+     - Files exceeding 4MB cleanly display `TransferFallbackCard` advising the user to download the original asset directly.
+  2. **Mobile-Friendly Inline Accordion Drawer** (in `TransferDownloadView.tsx`):
+     - Replace disruptive full-screen lightbox modal with an on-demand inline expandable preview drawer inside `TransferGridCell`.
+     - Maintains natural mobile document flow without viewport locking, pinch-to-zoom traps, or scroll position loss.
+     - Preview options/renders only activate when the user explicitly clicks the "Preview" button on a file card (`Eye`/`EyeOff` toggle), preventing eager signed URL fetches and multi-file network buffering on page load.
+     - Enforce single active preview (`expandedIndex: number | null`) to prevent simultaneous multi-asset media buffer streaming.
+  3. **Lazy Preview Fetching & Cache**:
+     - Maintain `previewCache` dictionary (`Record<number, TransferPreviewResponse>`) per file index.
+     - Fetch preview metadata/stream lazily upon user expansion.
+     - Provide quick direct download action within both the grid cell and the fallback card.
+  4. **Single-file consistency**:
+     - The single-file transfer card retains its standard inline toggle preview (`Eye`/`EyeOff`).
 - **Manual Infrastructure / Setup Steps:** None
 - **Verification Steps:**
-  1. Click a visual file thumbnail in the grid. Confirm lightbox opens with high-res preview.
-  2. Use arrow keys and arrow buttons to navigate between files in lightbox.
-  3. Press Escape or click X to close lightbox.
-  4. Confirm non-visual files show fallback card in lightbox with download option.
-  5. Confirm password-protected transfers pass `authToken` for lightbox preview fetches.
-  6. Confirm single-file transfers still use the inline `Eye`/`EyeOff` toggle, not lightbox.
-  7. Run `pnpm lint` — zero regressions.
-  8. Run `scripts/verify-local.sh`.
+  1. Click "Preview" on a visual file card ≤ 4MB in the grid. Confirm inline accordion expands and renders media preview.
+  2. Click "Preview" on an image > 4MB. Confirm it renders `TransferFallbackCard` indicating size exceeds 4MB preview ceiling and prompts direct download.
+  3. Expand a different file card. Confirm the previous card collapses so only one media preview buffers at a time.
+  4. Click "Hide" (or click the toggle again). Confirm the accordion collapses.
+  5. Test on mobile viewports (< 640px). Confirm seamless inline expansion with no modal popups or viewport locking.
+  6. Confirm single-file transfers continue using their standard inline preview without regression.
+  7. Run `pnpm eslint` and `pnpm tsc --noEmit` — zero regressions.
+  8. `IS_BUILD_PHASE=true pnpm build` passes.
 
 ---
 

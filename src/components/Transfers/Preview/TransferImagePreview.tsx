@@ -63,6 +63,8 @@ export function TransferImagePreview({ url, filename, onError }: TransferImagePr
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}
         loading="lazy"
+        decoding="async"
+        fetchPriority="low"
       />
     </div>
   )
