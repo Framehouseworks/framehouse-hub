@@ -17,6 +17,7 @@ interface TransferMediaPreviewProps {
   filesize: number
   mimeType: string
   onRetry?: () => void
+  compact?: boolean
 }
 
 export function TransferMediaPreview({
@@ -26,13 +27,18 @@ export function TransferMediaPreview({
   filesize,
   mimeType,
   onRetry,
+  compact = false,
 }: TransferMediaPreviewProps) {
   const [loadError, setLoadError] = useState(false)
 
   // 1. Loading Skeleton
   if (isLoading) {
     return (
-      <div className="w-full rounded-2xl bg-gallery-surface p-8 sm:p-10 flex flex-col items-center justify-center text-center space-y-3 min-h-[200px] animate-pulse">
+      <div
+        className={`w-full rounded-2xl ${
+          compact ? 'bg-black/5 dark:bg-white/5 p-5 min-h-[140px]' : 'bg-gallery-surface p-8 sm:p-10 min-h-[200px]'
+        } flex flex-col items-center justify-center text-center space-y-3 animate-pulse`}
+      >
         <div className="w-10 h-10 rounded-full bg-gallery-gold/20 flex items-center justify-center text-gallery-gold">
           <Sparkles size={20} className="animate-spin" />
         </div>
@@ -49,7 +55,11 @@ export function TransferMediaPreview({
   // 2. Fetch / Endpoint Error State
   if (!previewData || loadError) {
     return (
-      <div className="w-full rounded-2xl bg-gallery-surface p-6 sm:p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[180px]">
+      <div
+        className={`w-full rounded-2xl ${
+          compact ? 'bg-black/5 dark:bg-white/5 p-5 min-h-[140px]' : 'bg-gallery-surface p-6 sm:p-8 min-h-[180px]'
+        } flex flex-col items-center justify-center text-center space-y-3`}
+      >
         <AlertTriangle className="w-8 h-8 text-amber-500" />
         <p className="text-xs font-semibold text-primary">Preview unavailable at this moment</p>
         <p className="text-[11px] text-on-surface/50 max-w-xs">
@@ -81,6 +91,7 @@ export function TransferMediaPreview({
         filesize={previewData.filesize || filesize}
         mimeType={previewData.mimeType || mimeType}
         message={previewData.message}
+        compact={compact}
       />
     )
   }

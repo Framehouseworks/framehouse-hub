@@ -34,13 +34,15 @@ import {
   Eye,
   EyeOff,
   Lock,
+  X,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   TransferMediaPreview,
   type TransferPreviewResponse,
+  evaluatePreviewEligibility,
 } from '@/components/Transfers/Preview'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -107,9 +109,7 @@ interface TransferGridCellProps {
     storagePath: string
   }
   index: number
-  isExpanded: boolean
-  isLoadingPreview: boolean
-  previewData: TransferPreviewResponse | null
+  isActive: boolean
   onTogglePreview: (index: number) => void
   onDownload: (index: number) => void
   isDownloading: boolean
@@ -118,34 +118,75 @@ interface TransferGridCellProps {
 function TransferGridCell({
   file,
   index,
-  isExpanded,
-  isLoadingPreview,
-  previewData,
+  isActive,
   onTogglePreview,
   onDownload,
   isDownloading,
 }: TransferGridCellProps) {
   const ext = file.filename.split('.').pop()?.toUpperCase() || 'FILE'
   const FileIcon = getFileIcon(file.filename, file.mimeType)
+  const previewEligibility = evaluatePreviewEligibility(file.filename, file.mimeType, file.filesize)
+  const isPreviewEligible = previewEligibility.eligible
 
   return (
-    <div className="flex flex-col justify-between rounded-3xl bg-gallery-surface p-4 sm:p-5 border border-black/[0.04] dark:border-white/[0.05] hover:border-gallery-gold/30 transition-all space-y-4 shadow-sm group">
+    <div
+      className={`flex flex-col justify-between rounded-3xl bg-gallery-surface p-4 sm:p-5 border transition-all space-y-4 shadow-sm group ${
+        isActive
+          ? 'border-gallery-gold/60 ring-2 ring-gallery-gold/20'
+          : 'border-black/[0.04] dark:border-white/[0.05] hover:border-gallery-gold/30'
+      }`}
+    >
       {/* File Header Cue / Quick Toggle */}
       <button
         type="button"
-        onClick={() => onTogglePreview(index)}
-        className="w-full h-32 sm:h-36 rounded-2xl bg-black/5 dark:bg-white/5 flex flex-col items-center justify-center text-center p-3 space-y-2.5 transition-all group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.08] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold"
-        aria-expanded={isExpanded}
-        aria-label={`${isExpanded ? 'Hide' : 'Preview'} ${file.filename}`}
+        onClick={() => isPreviewEligible && onTogglePreview(index)}
+        disabled={!isPreviewEligible}
+        className={`w-full h-32 sm:h-36 rounded-2xl flex flex-col items-center justify-center text-center p-3 space-y-2.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold ${
+          !isPreviewEligible
+            ? 'bg-black/[0.02] dark:bg-white/[0.02] cursor-not-allowed opacity-75'
+            : isActive
+              ? 'bg-gallery-gold/10 cursor-pointer'
+              : 'bg-black/5 dark:bg-white/5 group-hover:bg-black/[0.08] dark:group-hover:bg-white/[0.08] cursor-pointer'
+        }`}
+        aria-pressed={isActive}
+        aria-label={
+          !isPreviewEligible
+            ? `Preview unavailable for ${file.filename}`
+            : `${isActive ? 'Hide' : 'Preview'} ${file.filename}`
+        }
       >
-        <div className="w-12 h-12 rounded-2xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center transition-transform group-hover:scale-105">
+        <div
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform ${
+            !isPreviewEligible
+              ? 'bg-black/5 dark:bg-white/5 text-on-surface/40'
+              : isActive
+                ? 'bg-gallery-gold/25 text-gallery-gold group-hover:scale-105'
+                : 'bg-gallery-gold/15 text-gallery-gold group-hover:scale-105'
+          }`}
+        >
           <FileIcon size={26} />
         </div>
-        <div className="flex items-center gap-1.5 text-on-surface/50 group-hover:text-gallery-gold transition-colors">
-          {isExpanded ? <EyeOff size={13} /> : <Eye size={13} />}
-          <span className="font-rubik text-[9.5px] tracking-wider uppercase font-medium">
-            {isExpanded ? 'Hide Preview' : 'Click to Preview'}
-          </span>
+        <div
+          className={`flex items-center gap-1.5 transition-colors ${
+            !isPreviewEligible
+              ? 'text-on-surface/30'
+              : isActive
+                ? 'text-gallery-gold'
+                : 'text-on-surface/50 group-hover:text-gallery-gold'
+          }`}
+        >
+          {isPreviewEligible ? (
+            <>
+              {isActive ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span className="font-rubik text-[9.5px] tracking-wider uppercase font-medium">
+                {isActive ? 'Active Preview' : 'Click to Preview'}
+              </span>
+            </>
+          ) : (
+            <span className="font-rubik text-[9px] tracking-wider uppercase font-medium">
+              No Preview
+            </span>
+          )}
         </div>
       </button>
 
@@ -165,76 +206,18 @@ function TransferGridCell({
         </div>
       </div>
 
-      {/* Expandable Inline Media Preview (Mobile-Friendly Accordion) */}
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{
-              opacity: 1,
-              height: 'auto',
-              transition: {
-                height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-                opacity: { duration: 0.2, delay: 0.05 },
-              },
-            }}
-            exit={{
-              opacity: 0,
-              height: 0,
-              transition: {
-                height: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
-                opacity: { duration: 0.15 },
-              },
-            }}
-            className="overflow-hidden"
-          >
-            <div className="pt-1 pb-1">
-              <TransferMediaPreview
-                previewData={previewData}
-                isLoading={isLoadingPreview}
-                filename={file.filename}
-                filesize={file.filesize}
-                mimeType={file.mimeType}
-                onRetry={() => onTogglePreview(index)}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Dual Actions: Toggle Preview & Download (min 44px tap target) */}
-      <div className="grid grid-cols-2 gap-2 pt-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onTogglePreview(index)}
-          aria-expanded={isExpanded}
-          className="h-11 gap-1.5 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-        >
-          {isExpanded ? (
-            <>
-              <EyeOff size={14} />
-              <span>Hide</span>
-            </>
-          ) : (
-            <>
-              <Eye size={14} />
-              <span>Preview</span>
-            </>
-          )}
-        </Button>
-
+      {/* Primary Card Action: Single Focused Download CTA */}
+      <div className="pt-1">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => onDownload(index)}
           disabled={isDownloading}
-          className="h-11 gap-1.5 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+          className="w-full h-11 gap-2 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
         >
           <Download size={14} />
-          <span>{isDownloading ? '...' : 'Download'}</span>
+          <span>{isDownloading ? 'Downloading...' : 'Download File'}</span>
         </Button>
       </div>
     </div>
@@ -359,10 +342,11 @@ export function TransferDownloadView({
     setIsPreviewOpen((prev) => !prev)
   }, [isPreviewOpen, previewData, isPreviewLoading, fetchPreview])
 
-  // Inline expandable preview state for multi-file transfers (FRH-80 Mobile-Friendly Accordion)
+  // Dedicated preview stage state for multi-file transfers (FRH-80 Cohesive Architecture)
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [previewLoadingIndex, setPreviewLoadingIndex] = useState<number | null>(null)
   const [previewCache, setPreviewCache] = useState<Record<number, TransferPreviewResponse>>({})
+  const previewStageRef = useRef<HTMLDivElement | null>(null)
 
   const toggleFilePreview = useCallback(
     async (index: number) => {
@@ -372,6 +356,13 @@ export function TransferDownloadView({
       }
 
       setExpandedIndex(index)
+
+      // Smoothly scroll stage into view if below top of viewport on mobile or desktop
+      setTimeout(() => {
+        if (previewStageRef.current) {
+          previewStageRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+      }, 50)
 
       if (!previewCache[index]) {
         setPreviewLoadingIndex(index)
@@ -726,6 +717,11 @@ export function TransferDownloadView({
   const totalBatchSize = isMultiFile
     ? transferFiles.reduce((acc, f) => acc + (Number(f.filesize) || 0), 0)
     : transfer.filesize
+  const isSingleFilePreviewEligible = evaluatePreviewEligibility(
+    transfer.filename,
+    transfer.mimeType,
+    transfer.filesize,
+  ).eligible
 
   return (
     <main className="bleed-header min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-hidden">
@@ -805,6 +801,87 @@ export function TransferDownloadView({
                 </div>
               </div>
 
+              {/* Expandable Preview Stage (FRH-80 Cohesive Preview Architecture) */}
+              <AnimatePresence initial={false}>
+                {expandedIndex !== null && transferFiles[expandedIndex] && (
+                  <motion.div
+                    key={`transfer-preview-stage-${expandedIndex}`}
+                    ref={previewStageRef}
+                    initial={{ opacity: 0, height: 0, scale: 0.98 }}
+                    animate={{
+                      opacity: 1,
+                      height: 'auto',
+                      scale: 1,
+                      transition: {
+                        height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.25, delay: 0.05 },
+                        scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                      },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      height: 0,
+                      scale: 0.98,
+                      transition: {
+                        height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.2 },
+                        scale: { duration: 0.2 },
+                      },
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-3xl bg-gallery-surface p-4 sm:p-5 border border-gallery-gold/30 shadow-sm space-y-4">
+                      {/* Preview Stage Header */}
+                      <div className="flex items-center justify-between gap-3 pb-2 border-b border-black/[0.04] dark:border-white/[0.05]">
+                        <div className="min-w-0 flex items-center gap-2">
+                          <span className="font-rubik text-[9.5px] uppercase px-2.5 py-1 rounded-full bg-gallery-gold/15 text-gallery-gold font-medium shrink-0">
+                            {expandedIndex + 1} of {transferFiles.length}
+                          </span>
+                          <span className="text-xs font-semibold text-primary truncate max-w-xs sm:max-w-md">
+                            {transferFiles[expandedIndex].filename}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePerFileDownload(expandedIndex)}
+                            disabled={downloadingFileIndex === expandedIndex}
+                            className="h-9 px-3 gap-1.5 rounded-xl text-xs font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10"
+                          >
+                            <Download size={13} />
+                            <span>
+                              {downloadingFileIndex === expandedIndex ? '...' : 'Download'}
+                            </span>
+                          </Button>
+
+                          <button
+                            type="button"
+                            onClick={() => setExpandedIndex(null)}
+                            className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center text-on-surface/60 hover:text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gallery-gold"
+                            aria-label="Close preview"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Preview Stage Media Player / Viewer */}
+                      <TransferMediaPreview
+                        previewData={previewCache[expandedIndex] || null}
+                        isLoading={previewLoadingIndex === expandedIndex}
+                        filename={transferFiles[expandedIndex].filename}
+                        filesize={transferFiles[expandedIndex].filesize}
+                        mimeType={transferFiles[expandedIndex].mimeType}
+                        onRetry={() => toggleFilePreview(expandedIndex)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Multi-File Grid (FRH-80) */}
               <div
                 className={`grid ${
@@ -818,9 +895,7 @@ export function TransferDownloadView({
                     key={`${file.filename}-${idx}`}
                     file={file}
                     index={idx}
-                    isExpanded={expandedIndex === idx}
-                    isLoadingPreview={previewLoadingIndex === idx}
-                    previewData={previewCache[idx] || null}
+                    isActive={expandedIndex === idx}
                     onTogglePreview={toggleFilePreview}
                     onDownload={handlePerFileDownload}
                     isDownloading={downloadingFileIndex === idx}
@@ -942,9 +1017,14 @@ export function TransferDownloadView({
                     type="button"
                     variant="outline"
                     size="lg"
-                    onClick={togglePreview}
+                    onClick={() => isSingleFilePreviewEligible && togglePreview()}
+                    disabled={!isSingleFilePreviewEligible}
                     aria-expanded={isPreviewOpen}
-                    className="h-14 px-5 gap-2 text-sm font-rubik tracking-wider uppercase bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+                    className={`h-14 px-5 gap-2 text-sm font-rubik tracking-wider uppercase border-black/10 dark:border-white/10 shrink-0 ${
+                      !isSingleFilePreviewEligible
+                        ? 'opacity-40 cursor-not-allowed bg-black/[0.02] dark:bg-white/[0.02]'
+                        : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'
+                    }`}
                   >
                     {isPreviewOpen ? (
                       <>

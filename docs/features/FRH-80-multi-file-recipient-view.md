@@ -131,35 +131,38 @@
   7. Verify mobile viewport (< 640px): grid stacks to single column, touch targets ≥ 44px.
   8. `IS_BUILD_PHASE=true pnpm build` passes.
 
-### Phase 3: UI — On-Demand Mobile-Friendly Inline Accordion Preview & Bandwidth Protection
+### Phase 3: UI — Cohesive Preview Stage & Bandwidth Protection
 - **Target Files:**
   - `src/components/Transfers/TransferDownloadView.tsx`
   - `src/components/Transfers/Preview/types.ts`
   - `src/components/Transfers/Preview/TransferImagePreview.tsx`
+  - `src/components/Transfers/Preview/TransferMediaPreview.tsx`
+  - `src/components/Transfers/Preview/TransferFallbackCard.tsx`
 - **Agent Tasks:**
   1. **Bandwidth & GPU Memory Protection**:
      - Lower `IMAGE_MAX_BYTES` threshold from 10MB to 4MB (`4 * 1024 * 1024`) in `src/components/Transfers/Preview/types.ts`.
      - In `TransferImagePreview.tsx`, add `decoding="async"` and `fetchPriority="low"` to the `<img>` element.
      - Files exceeding 4MB cleanly display `TransferFallbackCard` advising the user to download the original asset directly.
-  2. **Mobile-Friendly Inline Accordion Drawer** (in `TransferDownloadView.tsx`):
-     - Replace disruptive full-screen lightbox modal with an on-demand inline expandable preview drawer inside `TransferGridCell`.
-     - Maintains natural mobile document flow without viewport locking, pinch-to-zoom traps, or scroll position loss.
-     - Preview options/renders only activate when the user explicitly clicks the "Preview" button on a file card (`Eye`/`EyeOff` toggle), preventing eager signed URL fetches and multi-file network buffering on page load.
-     - Enforce single active preview (`expandedIndex: number | null`) to prevent simultaneous multi-asset media buffer streaming.
+     - Automatically disable the "Preview" button and thumbnail trigger on both multi-file grid cards and single-file transfer cards for ineligible files (unsupported file formats or files exceeding size thresholds), preventing unnecessary network requests and dead clicks.
+  2. **Cohesive Dedicated Preview Stage (Zero Jitter, Fixed Container Width)**:
+     - Outer container maintains a rock-solid, fixed width (`max-w-3xl`) with zero container widening or horizontal element jumping on any viewport.
+     - Eliminate dual redundant preview buttons on grid cards: the top thumbnail box serves as the single preview trigger with active/inactive indicators, while the bottom action is dedicated solely to a clean "Download File" CTA.
+     - Clicking the preview thumbnail on any card smoothly reveals the dedicated preview stage above the grid with symmetrical Framer Motion transitions (`height: 'auto'`, `scale: 1`), perfectly matching the single-file transfer pattern.
+     - Automatically applies an ergonomic, smooth `scrollIntoView({ behavior: 'smooth', block: 'nearest' })` so that if a recipient has scrolled down through long file lists, the viewport smoothly focuses on the preview stage without disorientation.
+     - Includes file indicator ("N of Total"), filename, quick download button, and close (`X`) button.
   3. **Lazy Preview Fetching & Cache**:
      - Maintain `previewCache` dictionary (`Record<number, TransferPreviewResponse>`) per file index.
-     - Fetch preview metadata/stream lazily upon user expansion.
-     - Provide quick direct download action within both the grid cell and the fallback card.
+     - Fetch preview metadata/stream lazily upon selection; only 1 stream buffers at a time (`expandedIndex: number | null`).
   4. **Single-file consistency**:
-     - The single-file transfer card retains its standard inline toggle preview (`Eye`/`EyeOff`).
+     - The single-file transfer card retains its inline preview stage with identical animation and controls.
 - **Manual Infrastructure / Setup Steps:** None
 - **Verification Steps:**
-  1. Click "Preview" on a visual file card ≤ 4MB in the grid. Confirm inline accordion expands and renders media preview.
-  2. Click "Preview" on an image > 4MB. Confirm it renders `TransferFallbackCard` indicating size exceeds 4MB preview ceiling and prompts direct download.
-  3. Expand a different file card. Confirm the previous card collapses so only one media preview buffers at a time.
-  4. Click "Hide" (or click the toggle again). Confirm the accordion collapses.
-  5. Test on mobile viewports (< 640px). Confirm seamless inline expansion with no modal popups or viewport locking.
-  6. Confirm single-file transfers continue using their standard inline preview without regression.
+  1. Open a multi-file transfer on desktop or mobile. Click "Preview" on any file card.
+  2. Verify that the outer container does not jump or change width (`max-w-3xl` remains completely stable).
+  3. Scroll down the file list on mobile or desktop and click "Preview" on a lower card. Confirm smooth `scrollIntoView` guidance to the preview player with zero disorientation or layout jumping.
+  4. Confirm that clicking "Preview" on another card updates the preview stage smoothly.
+  5. Confirm images > 4MB display `TransferFallbackCard` prompting direct download.
+  6. Confirm single-file transfers continue working identically.
   7. Run `pnpm eslint` and `pnpm tsc --noEmit` — zero regressions.
   8. `IS_BUILD_PHASE=true pnpm build` passes.
 
