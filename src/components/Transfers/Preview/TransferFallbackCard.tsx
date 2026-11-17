@@ -17,6 +17,7 @@ interface TransferFallbackCardProps {
   filesize: number
   mimeType: string
   message?: string
+  compact?: boolean
 }
 
 function formatBytes(bytes: number): string {
@@ -45,9 +46,27 @@ export function TransferFallbackCard({
   filesize,
   mimeType,
   message,
+  compact = false,
 }: TransferFallbackCardProps) {
   const ext = filename.split('.').pop()?.toUpperCase() || 'FILE'
   const Icon = getFallbackIcon(filename, mimeType)
+
+  if (compact) {
+    return (
+      <div className="w-full rounded-2xl bg-black/5 dark:bg-white/5 p-4 flex flex-col items-center justify-center text-center space-y-2.5">
+        <div className="w-10 h-10 rounded-xl bg-gallery-gold/15 text-gallery-gold flex items-center justify-center shrink-0">
+          <Icon size={20} />
+        </div>
+        <div className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 text-xs text-on-surface/70 flex items-start gap-2 max-w-sm text-left">
+          <Info size={14} className="text-gallery-gold shrink-0 mt-0.5" />
+          <span className="text-[11px] leading-relaxed">
+            {message ||
+              'This deliverable format is not previewable in-browser. Please download directly.'}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full rounded-2xl bg-gallery-surface p-6 sm:p-7 flex flex-col items-center justify-center text-center space-y-4">

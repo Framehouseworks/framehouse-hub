@@ -3,7 +3,7 @@
  */
 
 export const PREVIEW_THRESHOLDS = {
-  IMAGE_MAX_BYTES: 10 * 1024 * 1024, // 10MB
+  IMAGE_MAX_BYTES: 4 * 1024 * 1024, // 4MB (bandwidth & mobile memory ceiling)
   DOCUMENT_MAX_BYTES: 15 * 1024 * 1024, // 15MB
   VIDEO_MAX_BYTES: 25 * 1024 * 1024, // 25MB
   AUDIO_MAX_BYTES: 25 * 1024 * 1024, // 25MB
@@ -27,6 +27,7 @@ export interface TransferPreviewResponse {
   mimeType?: string
   filename?: string
   filesize?: number
+  fileIndex?: number
 }
 
 const SUPPORTED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp']
@@ -59,7 +60,7 @@ export function evaluatePreviewEligibility(
         eligible: false,
         mediaType: 'image',
         reason: 'size_exceeded',
-        message: 'Image exceeds 10MB preview limit. Download directly to view.',
+        message: 'Image exceeds 4MB preview limit. Download directly to view full resolution.',
       }
     }
     return { eligible: true, mediaType: 'image' }
